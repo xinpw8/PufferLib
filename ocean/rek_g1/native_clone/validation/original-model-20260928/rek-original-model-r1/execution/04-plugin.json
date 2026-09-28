@@ -1,0 +1,5 @@
+{
+  "command": "python3 /home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1/isolation/prepare_runtime.py --install-plugin /home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1/bin/RekOriginalModelInventory.dll --plugin-sha256 79aa0a0ee713401a19d7e3ca192b577f5fc3981910bff86c652a149a87a0334c",
+  "exit_code": 0,
+  "utc": "2026-09-28T20:06:53.292859+00:00"
+}

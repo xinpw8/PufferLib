@@ -1,0 +1,5 @@
+{
+  "command": "python3 /home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1/prepare_inputs.py --fixture /home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1/fixture.json --input /home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/input --private-game /home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game --run-id original_model_inventory_20260928_r1",
+  "exit_code": 0,
+  "utc": "2026-09-28T20:06:53.451894+00:00"
+}

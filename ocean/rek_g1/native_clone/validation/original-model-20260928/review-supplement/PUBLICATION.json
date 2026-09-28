@@ -1,0 +1,20 @@
+{
+  "schema": "rek.original_model_inventory.review_supplement.v1",
+  "utc": "2026-09-28T20:25:30.971505+00:00",
+  "files": [
+    {
+      "path": "r1-closed-independent-review.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\review\\closed-inventory-independent-review-r1.json",
+      "bytes": 7863,
+      "sha256": "d4749a58bd073c46af70c6c57becc1d4249d737dc77fe4b7e7f26bd8bc45a8f7"
+    },
+    {
+      "path": "r2-closed-independent-review.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\revision\\CLOSED-RESULT-REVIEW.json",
+      "bytes": 17208,
+      "sha256": "367f6f701bb50fd54832141919009e1304956f5169bb2459920b6f5deafab38e"
+    }
+  ],
+  "source_local_nas_hashes_match": true,
+  "frozen_prior_publications_modified": false
+}

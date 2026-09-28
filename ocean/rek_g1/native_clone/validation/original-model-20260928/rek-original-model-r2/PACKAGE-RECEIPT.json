@@ -1,0 +1,8 @@
+{
+  "archive": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\original-model-inventory-package-r2.tar",
+  "archive_sha256": "0631a136d4cc5cd35d4cf4cbbdf7f95bc62415a66a3f468b401aa926e779a951",
+  "archive_bytes": 399360,
+  "source_manifest_sha256": "9e9a8bcd20d211e6db2597f88d7bab22a3ed08919fb763f28e1dd832ee6a46a8",
+  "files": 20,
+  "runtime_executed": false
+}

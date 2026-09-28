@@ -1,0 +1,196 @@
+{
+  "schema": "rek.original_model_inventory.independent_closed_review.v1",
+  "reviewed_utc": "2026-09-28T20:14:46.790232+00:00",
+  "verdict": "INCOMPLETE; preserve failed run, no retry or initialized-model claim",
+  "reviewer": "training_audit",
+  "runtime_executed_by_reviewer": false,
+  "source_manifest": {
+    "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\closed-inventory-r1\\SOURCE-MANIFEST.json",
+    "sha256": "ec38c1ca93f8e7d1d29fd76f7ad69438b83aafa213d7fa5b39901b389753c108",
+    "verified_files": 23,
+    "verified_bytes": 292416
+  },
+  "trace": {
+    "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\closed-inventory-r1\\session\\out\\oracle\\inventory.jsonl.partial",
+    "sha256": "53f8998ab21c131ace726f3f8f9f693a95aca9bf16b5c8f6500a475df4f7a33c",
+    "bytes": 3007,
+    "complete_json_rows": 6,
+    "footer_present": false,
+    "transform_rows": 0,
+    "component_rows": 0,
+    "config_rows": 0,
+    "settings_rows": 0
+  },
+  "container": {
+    "image": "sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879",
+    "state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 5,
+      "Error": "",
+      "StartedAt": "2026-09-28T20:09:52.575100464Z",
+      "FinishedAt": "2026-09-28T20:10:46.376478113Z"
+    },
+    "containment_checks_pass": true
+  },
+  "identity_checks": {
+    "plugin_fixture_config_and_original_binary_header_exact": true,
+    "attested_original_method_prefix_matches_installed_PE": true,
+    "entrypoint": {
+      "type": "REKApp.RobotCatalog",
+      "method": "TryGetById",
+      "wrapper": "Boolean TryGetById(System.String, REKApp.RobotCatalogEntry ByRef)",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "rva": "0x22fdbb0",
+      "first32_sha256": "49ace4d067e859435658bb6aa13dc6b1a1964a7816a3c58330fa5d6d5362966d"
+    },
+    "embedded_catalog_JSON_hash_matches": true
+  },
+  "completed_measurement": {
+    "catalog_entries": [
+      {
+        "event": "catalog_entry",
+        "index": 0,
+        "id": "g1",
+        "display_name": "L100",
+        "type_label": "Lightweight",
+        "prefab": {
+          "name": "g1_29dof_Prefab_SONIC",
+          "instance_id": 17010,
+          "scene_valid": false,
+          "active_self": true,
+          "active_in_hierarchy": false
+        }
+      },
+      {
+        "event": "catalog_entry",
+        "index": 1,
+        "id": "t800",
+        "display_name": "H100",
+        "type_label": "Heavyweight",
+        "prefab": {
+          "name": "engineai_t800_FactoryPolicy",
+          "instance_id": 15424,
+          "scene_valid": false,
+          "active_self": true,
+          "active_in_hierarchy": false
+        }
+      }
+    ],
+    "catalog_values": {
+      "robots": [
+        {
+          "id": "g1",
+          "displayName": "L100",
+          "typeLabel": "Lightweight",
+          "previewPrefab": {
+            "instanceID": 568105584918807154
+          },
+          "tileImage": {
+            "instanceID": 568105584918808756
+          },
+          "tileImageBW": {
+            "instanceID": 568105584918808758
+          },
+          "requiresOwnership": false,
+          "requiresMatchingLoadout": false,
+          "previewHeightOffset": 0.800000011920929
+        },
+        {
+          "id": "t800",
+          "displayName": "H100",
+          "typeLabel": "Heavyweight",
+          "previewPrefab": {
+            "instanceID": 568105584918805568
+          },
+          "tileImage": {
+            "instanceID": 568105584918808760
+          },
+          "tileImageBW": {
+            "instanceID": 568105584918808762
+          },
+          "requiresOwnership": false,
+          "requiresMatchingLoadout": true,
+          "previewHeightOffset": 1.0
+        }
+      ]
+    },
+    "before_load_counts": {
+      "robots": {
+        "loaded": 0,
+        "scene_instances": 0,
+        "active_scene_instances": 0,
+        "asset_or_non_scene": 0
+      },
+      "runners": {
+        "loaded": 0,
+        "scene_instances": 0,
+        "active_scene_instances": 0,
+        "asset_or_non_scene": 0
+      },
+      "composers": {
+        "loaded": 0,
+        "scene_instances": 0,
+        "active_scene_instances": 0,
+        "asset_or_non_scene": 0
+      },
+      "mjscenes": {
+        "loaded": 1,
+        "scene_instances": 1,
+        "active_scene_instances": 1,
+        "asset_or_non_scene": 0
+      },
+      "scope": "asset counts may rise on Resources.Load; no singleton getters"
+    },
+    "catalog_resource_and_field_reads_succeeded": true,
+    "TryGetById_success": false
+  },
+  "failure_boundary": {
+    "last_successful_row": "catalog_entry index1 t800",
+    "next_source_call": "catalog.TryGetById(\"g1\", out entry)",
+    "error_log": {
+      "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\closed-inventory-r1\\session\\game\\BepInEx\\ErrorLog.log",
+      "sha256": "77cfebb4d7134e27b5b9c2596b353dc70ea794b2b4f36f7fa2a5bc5dc08a6cb2"
+    },
+    "error": "AccessViolationException while formatting the IL2CPP exception raised by generated TryGetById wrapper; GameAssembly fault+0x206f371 access0x210 precedes CoreCLR failfast c0000005",
+    "original_call_returned_successfully": false,
+    "root_exception_message": "unavailable because exception formatting failed"
+  },
+  "concrete_wrapper_ABI_defect": {
+    "value_type": {
+      "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\api\\REKApp.RobotCatalogEntry.decompiled.cs",
+      "sha256": "e5181f4f5dd5583f6b46f0e252a58c330086e357dc5b1c051997602733752722",
+      "line": 12,
+      "evidence": "RobotCatalogEntry derives Il2CppSystem.ValueType"
+    },
+    "generated_wrapper": {
+      "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\api\\REKApp.RobotCatalog.decompiled.cs",
+      "sha256": "08deaada6cd79f17736582c4712806a9be9aec3c45e91b68935bb73f24670658",
+      "start_line": 64,
+      "end_line": 77,
+      "evidence": "Provides address of an8-byte nint as the out storage, then treats result as boxed-object pointer"
+    },
+    "original_method": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\RobotCatalog.txt",
+      "sha256": "3f9425d1412ecdf5d523d2402d86f6b8d9ef3c5b112cec4bd646a3906dbf0645",
+      "start_line": 72,
+      "end_line": 84,
+      "evidence": "Attested TryGetById original native body writes56bytes to out entry on success AND false:16+16+16+8"
+    },
+    "interpretation": "Confirmed storage-size/type mismatch in this generated value-type out wrapper. Strong explanation for corruption; exact fatal memory-write path not independently traced. Do not repeat this wrapper unchanged.",
+    "possible_next_scope": "Separately review an original invoke adapter using runtime-verified full value-type storage and proper boxing, or continue passive enumeration with explicit local selection while withdrawing original TryGetById success claim. Neither implemented or authorized here."
+  },
+  "limits": [
+    "No completed prefab hierarchy, model, global settings or controller inventory exists from this run.",
+    "One active scene MjScene was already present before resource loading. No assertion of zero whole-process physics or scene activity is justified.",
+    "Resources.Load succeeded and yielded the expected catalog names/prefabs. Original TryGetById was attested and entered via wrapper but did not return successfully.",
+    "Serialized reference instanceID values here are64-bit; GetInstanceID values are32-bit. Observed low32bits coincide for two prefabs, but no generalized reference normalization is validated.",
+    "Absent settings/config rows are not defaults or empty inventories.",
+    "Catalog fallback remains distinct from actual scene override, initialized MJ model and authoritative-server selection."
+  ]
+}

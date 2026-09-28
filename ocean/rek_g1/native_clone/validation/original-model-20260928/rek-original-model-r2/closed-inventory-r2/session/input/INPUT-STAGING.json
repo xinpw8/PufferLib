@@ -1,0 +1,20 @@
+{
+  "schema": "rek.original_model_inventory.input_staging.v1",
+  "run_id": "original_model_inventory_20260928_r2",
+  "fixture_sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07",
+  "config_sha256": "1abc263fa8aab3000a0e7329cdd8550dba7accb50331e8c4460787c1d9001b8c",
+  "marker": {
+    "run_id": "original_model_inventory_20260928_r2",
+    "config_sha256": "1abc263fa8aab3000a0e7329cdd8550dba7accb50331e8c4460787c1d9001b8c"
+  },
+  "required_environment": {
+    "REK_COMPOSER_ORACLE_ENABLE": "detached-v1",
+    "REK_COMPOSER_ORACLE_CONFIG": "Z:/session/input/run-config.json"
+  },
+  "required_cli": [
+    "--rek-composer-oracle"
+  ],
+  "output_must_be_absent": "Z:/session/out/oracle",
+  "asset_pins_checked": 8,
+  "launch_performed": false
+}

@@ -1,0 +1,182 @@
+{
+  "schema": "rek.original_model_inventory.closed_evidence.v1",
+  "utc": "2026-09-28T20:11:02.856231+00:00",
+  "source_root": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1",
+  "container": "rek-original-model-inventory-20260928-r1",
+  "state": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 5,
+    "Error": "",
+    "StartedAt": "2026-09-28T20:09:52.575100464Z",
+    "FinishedAt": "2026-09-28T20:10:46.376478113Z"
+  },
+  "files": [
+    {
+      "path": "isolation/container-created-receipt.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1/isolation/container-created-receipt.json",
+      "bytes": 2145,
+      "sha256": "c8a75cd00eb34c81a61c53c5c35e579b4e8898a495e22ec735e8f3fae3a790f3",
+      "source_mtime_ns": 1790626013972374983
+    },
+    {
+      "path": "isolation/container-finished-receipt.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1/isolation/container-finished-receipt.json",
+      "bytes": 411,
+      "sha256": "c203767075626f3da869303402cf00a0137e3395807fc7fb76e72dcd5d00bd3e",
+      "source_mtime_ns": 1790626246434081685
+    },
+    {
+      "path": "isolation/container-prestart-receipt.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1/isolation/container-prestart-receipt.json",
+      "bytes": 2145,
+      "sha256": "121a05b8a699ec7214897424491b26f310767ba0650a42b28e440eb53216e5ef",
+      "source_mtime_ns": 1790626192549975825
+    },
+    {
+      "path": "session/INPUT.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/INPUT.json",
+      "bytes": 487,
+      "sha256": "48fc7dfcd6c72ccaff790d9fa473602fea76d07ea107207beb9db59635e379b4",
+      "source_mtime_ns": 1790626013700370356
+    },
+    {
+      "path": "session/PLUGIN.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/PLUGIN.json",
+      "bytes": 165,
+      "sha256": "88723965709725e1c5c01c772b22b77c5fc1e49872da2af65931171af90a901b",
+      "source_mtime_ns": 1790626013459475833
+    },
+    {
+      "path": "session/STAGED.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/STAGED.json",
+      "bytes": 106620,
+      "sha256": "0ba8b08ddfdb4929673c6c6424be7883f39fccf95106c05f9c8177b756bcb456",
+      "source_mtime_ns": 1790626013358764062
+    },
+    {
+      "path": "session/docker-create-command.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/docker-create-command.json",
+      "bytes": 2246,
+      "sha256": "9b5615cd9f75dad948ee40ae2f2a7ee09f34eb67e4a579ba76734d1b7d023f5b",
+      "source_mtime_ns": 1790626013358853663
+    },
+    {
+      "path": "session/game/BepInEx/ErrorLog.log",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx/ErrorLog.log",
+      "bytes": 982,
+      "sha256": "77cfebb4d7134e27b5b9c2596b353dc70ea794b2b4f36f7fa2a5bc5dc08a6cb2",
+      "source_mtime_ns": 1790626242590051956
+    },
+    {
+      "path": "session/game/BepInEx/LogOutput.log",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx/LogOutput.log",
+      "bytes": 1195,
+      "sha256": "c396a730c560838229dfb64dd33b48580c4eff3e4e4011c4a23b1e560fb9bb2a",
+      "source_mtime_ns": 1790626227051903998
+    },
+    {
+      "path": "session/input/INPUT-STAGING.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/input/INPUT-STAGING.json",
+      "bytes": 764,
+      "sha256": "dbbb8ec13b380e772f4a7e75690615978eae43e82f2b49d9b993b12632afa592",
+      "source_mtime_ns": 1790626013615242813
+    },
+    {
+      "path": "session/input/fixtures.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/input/fixtures.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07",
+      "source_mtime_ns": 1790626013615107884
+    },
+    {
+      "path": "session/input/run-config.json",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/input/run-config.json",
+      "bytes": 340,
+      "sha256": "92d76834c353cd193c7f29a187cf2aae448be32243bce79e53f6c67e9a39619a",
+      "source_mtime_ns": 1790626013615160029
+    },
+    {
+      "path": "session/out/game.exit-code.txt",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/game.exit-code.txt",
+      "bytes": 2,
+      "sha256": "f0b5c2c2211c8d67ed15e75e656c7862d086e9245420892a7de62cd9ec582a06",
+      "source_mtime_ns": 1790626246350651163
+    },
+    {
+      "path": "session/out/game.finished.utc",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/game.finished.utc",
+      "bytes": 21,
+      "sha256": "558abf2784a38551c17465f82960a1fd31ae3e734a7d09cfa4a1e0caf589ced7",
+      "source_mtime_ns": 1790626246351087775
+    },
+    {
+      "path": "session/out/game.stderr.log",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/game.stderr.log",
+      "bytes": 131092,
+      "sha256": "92976941f324151c209d0d399cfd0c96cb4a9fbda5b7b8e299508e16c094c1eb",
+      "source_mtime_ns": 1790626246352087784
+    },
+    {
+      "path": "session/out/game.stdout.log",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/game.stdout.log",
+      "bytes": 1824,
+      "sha256": "bbdea4c79173e74741161e06331aab234362d29b36abbbc95841d8f5fd58ef93",
+      "source_mtime_ns": 1790626210705748387
+    },
+    {
+      "path": "session/out/image-packages.txt",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/image-packages.txt",
+      "bytes": 152,
+      "sha256": "44fcfa5c1bebd7b7480b06ab77d38e5ece4b69353003b451339828d29eb1bea1",
+      "source_mtime_ns": 1790626193253297893
+    },
+    {
+      "path": "session/out/oracle/inventory.jsonl.partial",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/oracle/inventory.jsonl.partial",
+      "bytes": 3007,
+      "sha256": "53f8998ab21c131ace726f3f8f9f693a95aca9bf16b5c8f6500a475df4f7a33c",
+      "source_mtime_ns": 1790626242580051860
+    },
+    {
+      "path": "session/out/unity.log",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/unity.log",
+      "bytes": 8869,
+      "sha256": "81ae53f1f36b9288ced0bb92bd4af6e23912d6b57cfe7b4fb55020ca6453ff2c",
+      "source_mtime_ns": 1790626241230039004
+    },
+    {
+      "path": "session/out/x-display.txt",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/x-display.txt",
+      "bytes": 26026,
+      "sha256": "783e1df6abc1a61169c12f174221e4c6ac2b2e251474a29bd6a9afa41ded1c54",
+      "source_mtime_ns": 1790626193370583410
+    },
+    {
+      "path": "session/out/xvfb.stderr.log",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/xvfb.stderr.log",
+      "bytes": 1255,
+      "sha256": "0bac115c5580e35921d81254a7da3faf4a2bcbffe9063af638a27e97a1471a01",
+      "source_mtime_ns": 1790626193284739825
+    },
+    {
+      "path": "session/out/xvfb.stdout.log",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/out/xvfb.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_mtime_ns": 1790626193253297893
+    },
+    {
+      "path": "session/run.started",
+      "source_path": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/run.started",
+      "bytes": 21,
+      "sha256": "0ce34e887fb343b58df59412c8b09751327f9ba1c96e4803fa36b4f4563ed878",
+      "source_mtime_ns": 1790626193251582277
+    }
+  ]
+}

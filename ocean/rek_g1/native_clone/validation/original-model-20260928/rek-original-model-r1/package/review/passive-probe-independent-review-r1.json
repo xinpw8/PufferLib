@@ -1,0 +1,112 @@
+{
+  "schema": "rek.original_model_inventory.independent_source_review.v1",
+  "reviewed_utc": "2026-09-28T20:05:36.148802+00:00",
+  "verdict": "GO for one bounded passive inventory in reviewed isolated process; runtime approval belongs to parent",
+  "reviewer": "training_audit",
+  "runtime_executed_by_reviewer": false,
+  "gpu_used": false,
+  "live_ui_or_profile_access": false,
+  "reviewed_files": {
+    "probe\\Plugin.cs": {
+      "bytes": 14552,
+      "sha256": "68301c6db7a457fe7ab0f362070dfeef029c8bb4bdaf0c5c0e86851a5c114f80"
+    },
+    "probe\\RekOriginalModelInventory.csproj": {
+      "bytes": 1819,
+      "sha256": "cb5536cd56b3cbcd7c817ea3b3395bde940c145b9097ae16c7b89ff1a34f84d2"
+    },
+    "probe\\bin\\Release\\net6.0\\RekOriginalModelInventory.dll": {
+      "bytes": 52224,
+      "sha256": "79aa0a0ee713401a19d7e3ca192b577f5fc3981910bff86c652a149a87a0334c"
+    },
+    "fixture.json": {
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    "prepare_inputs.py": {
+      "bytes": 3350,
+      "sha256": "088a22fe2dc5334bf19a966906b4a37146fe80ae8932ebe7837bf2a3ed9a1efc"
+    },
+    "test_prepare_inputs.py": {
+      "bytes": 2431,
+      "sha256": "e831e6c7dc96f9a7b1e37fa26a1917119577e759fa70c1c4e60a355fba1b8a6c"
+    },
+    "isolation\\prepare_runtime.py": {
+      "bytes": 8394,
+      "sha256": "1fae5e1ee29f5eda3277a550a117e3b1026322d0446e220d059fa997eec85c3c"
+    },
+    "isolation\\orchestrate.py": {
+      "bytes": 5793,
+      "sha256": "5c2e92f1ca84af1f87808e67cf923ecad1be704dc11be4ad6288a092637c8c64"
+    }
+  },
+  "build_receipt": {
+    "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\BUILD-RECEIPT.json",
+    "sha256": "ae0d897c63d14e1dd1a5ee750cf1a2ccbad8e244fdfea0a05c396f8b4d545832"
+  },
+  "independent_checks": [
+    "Read complete final Plugin.cs, project, fixture, input preparation and both isolation launch helpers.",
+    "Exact original wrapper signature is bool RobotCatalog.TryGetById(string, out RobotCatalogEntry). Method pointer must belong to exact private GameAssembly path; first32 bytes and RVA recorded before the call.",
+    "Verified all8 fixture files against current installed local bytes, plus compiled MuJoCo/Core/JSON interop pins and source binding receipt.",
+    "Compared isolation helpers against reviewed original-history: only session path and container name differ.",
+    "Re-ran four staging tests successfully: exclusive staging, pin failure before writes, path/duplicate rejection, schema/existing-output rejection.",
+    "Verified all build-receipt file hashes and byte counts against final source/DLL."
+  ],
+  "selected_static_binding": {
+    "resource": "Workshop/RobotCatalog",
+    "resource_manager": [
+      "globalgamemanagers",
+      13
+    ],
+    "catalog": [
+      "sharedassets0.assets",
+      2695
+    ],
+    "robot_id": "g1",
+    "prefab_gameobject": 893,
+    "prefab_transform": 1650,
+    "prefab_name": "g1_29dof_Prefab_SONIC",
+    "robot_component": 3430,
+    "runner_component": 3188,
+    "composer_component": 3484,
+    "unloaded_global_settings": [
+      "level1",
+      2882
+    ]
+  },
+  "passive_scope": [
+    "Resources.Load<RobotCatalog>, original TryGetById, prefab transform/component queries and bounded JsonUtility field serialization.",
+    "No explicit Instantiate, Robot initialization, singleton factory, CreateScene, scene load, model compilation, policy, network or dynamics call by harness.",
+    "No scene-valid prefab accepted. RobotConfig/MocapClipConfig loaded assets are bounded and linked using process-local instanceIDs.",
+    "No original profile/plugin, host X, GPU or network mount. Fresh private session and output, outer180s bound, plugin60s bound, read-only original inputs.",
+    "Resources.Load and JsonUtility may invoke Unity callbacks; whole-process physics was not instrumented and cannot be claimed absent."
+  ],
+  "remaining_dependencies_and_limits": [
+    "Catalog fallback selection is supported. A RobotSpawner caller can supply an override prefab; actual server or scene override selection is not established.",
+    "Runtime instanceID is not file/pathID. Exact assets and static binding constrain provenance, but serialized runtime references require actual output correlation.",
+    "Only Unity-serialized fields are exposed; transient/private-unserialized fields and initialized state remain unknown.",
+    "level1 is verified but not loaded by this probe. Missing MjGlobalSettings is absence of measurement, not default settings.",
+    "This does not generate compiled MJ model, initialize joints/root/control, execute reset lifecycle or establish physical/server parity.",
+    "Root must verify the reused image exact ID5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879 before launch; wrapper also verifies containment/base label and upstream translator.",
+    "Success requires final success=true, complete expected records and runtime attestation, not container exit alone. Early preflight failure before output relies on outer timeout for closure."
+  ],
+  "tests": {
+    "command": [
+      "C:\\Python312\\python.exe",
+      "-m",
+      "unittest",
+      "-v",
+      "test_prepare_inputs.py"
+    ],
+    "exit_code": 0,
+    "passed": 4,
+    "output": {
+      "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\review\\passive-probe-independent-tests-r1.txt",
+      "sha256": "3bd67b4a662c231c9f3b8bedac924aea67b5bb8d340796f6a9a4378f545fbdc8"
+    }
+  },
+  "source_binding_receipt": {
+    "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\review\\serialized-assets-review-r1.json",
+    "sha256": "774606273e2f9772beb50f7da32214a3e6b81bc3901d29ff041cb37b3453010f"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "command": "docker image inspect --format '{{.Id}}' rek-original-functions:20260927-r1",
+  "exit_code": 0,
+  "utc": "2026-09-28T20:06:50.921181+00:00"
+}

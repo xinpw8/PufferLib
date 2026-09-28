@@ -1,0 +1,8 @@
+{
+  "schema": "rek.original_model_inventory.run.v1",
+  "run_id": "original_model_inventory_20260928_r2",
+  "expected_game_root": "Z:/session/game",
+  "output_directory": "Z:/session/out/oracle",
+  "fixture_manifest": "Z:/session/input/fixtures.json",
+  "fixture_sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+}

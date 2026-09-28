@@ -1,0 +1,9 @@
+{
+  "remote_package": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1",
+  "remote_session": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1",
+  "package_sha256": "d91bb3f85ee40de2edecfd44d07d67d65622f6700d90162fef4de165dbb948d3",
+  "source_manifest_sha256": "7c9fd854734b881bdce478a67719d3eca5983a762a835af9c1ccda69ec2a46f0",
+  "container_image": "sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879",
+  "created_not_started": true,
+  "archive_bytes": 378880
+}

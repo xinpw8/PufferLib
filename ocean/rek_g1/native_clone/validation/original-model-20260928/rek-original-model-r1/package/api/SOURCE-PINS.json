@@ -1,0 +1,45 @@
+{
+  "schema": "rek.original_model_inventory.interop_api_metadata.v1",
+  "files": [
+    {
+      "file": "Mujoco.MjGlobalSettings.decompiled.cs",
+      "sha256": "0fdcd7585f39ba3d7b4d705879c720e729a28a4505a74b2fd3f1e5e785ddc45b",
+      "input_assembly": "C:\\rekagent\\work\\rek-current-interop-b20ca0d\\interop-v1.5.3\\Mujoco.Runtime.dll",
+      "input_sha256": "3a205663026e77885d5ca3b15a7c0c7ef6b6b108f27043342b8eae41980c94a7",
+      "tool": "C:/rekagent/tools/ilspycmd.exe 9.1.0.7988",
+      "operation": "Static .NET wrapper metadata decompilation; no IL2CPP methods executed."
+    },
+    {
+      "file": "Mujoco.MjScene.decompiled.cs",
+      "sha256": "16ec5edbe25d63b5b2f0252b953a0a41014e09f956329b1f03dcb39371e5d6f0",
+      "input_assembly": "C:\\rekagent\\work\\rek-current-interop-b20ca0d\\interop-v1.5.3\\Mujoco.Runtime.dll",
+      "input_sha256": "3a205663026e77885d5ca3b15a7c0c7ef6b6b108f27043342b8eae41980c94a7",
+      "tool": "C:/rekagent/tools/ilspycmd.exe 9.1.0.7988",
+      "operation": "Static .NET wrapper metadata decompilation; no IL2CPP methods executed."
+    },
+    {
+      "file": "REKApp.RobotCatalog.decompiled.cs",
+      "sha256": "08deaada6cd79f17736582c4712806a9be9aec3c45e91b68935bb73f24670658",
+      "input_assembly": "C:\\rekagent\\work\\rek-current-interop-b20ca0d\\interop-v1.5.3\\REKApp.dll",
+      "input_sha256": "faa94fb58e24fda95e2c06810e28b9eb2d6d9f9f8327541976a0dc1011f646d2",
+      "tool": "C:/rekagent/tools/ilspycmd.exe 9.1.0.7988",
+      "operation": "Static .NET wrapper metadata decompilation; no IL2CPP methods executed."
+    },
+    {
+      "file": "REKApp.RobotCatalogEntry.decompiled.cs",
+      "sha256": "e5181f4f5dd5583f6b46f0e252a58c330086e357dc5b1c051997602733752722",
+      "input_assembly": "C:\\rekagent\\work\\rek-current-interop-b20ca0d\\interop-v1.5.3\\REKApp.dll",
+      "input_sha256": "faa94fb58e24fda95e2c06810e28b9eb2d6d9f9f8327541976a0dc1011f646d2",
+      "tool": "C:/rekagent/tools/ilspycmd.exe 9.1.0.7988",
+      "operation": "Static .NET wrapper metadata decompilation; no IL2CPP methods executed."
+    },
+    {
+      "file": "REKApp.RobotSpawner.decompiled.cs",
+      "sha256": "ad7879c4c1da3a705285172000fefc6fa6137549512dc703b348bae3e9a0c563",
+      "input_assembly": "C:\\rekagent\\work\\rek-current-interop-b20ca0d\\interop-v1.5.3\\REKApp.dll",
+      "input_sha256": "faa94fb58e24fda95e2c06810e28b9eb2d6d9f9f8327541976a0dc1011f646d2",
+      "tool": "C:/rekagent/tools/ilspycmd.exe 9.1.0.7988",
+      "operation": "Static .NET wrapper metadata decompilation; no IL2CPP methods executed."
+    }
+  ]
+}

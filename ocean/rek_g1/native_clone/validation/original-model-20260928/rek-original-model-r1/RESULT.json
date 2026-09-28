@@ -1,0 +1,140 @@
+{
+  "schema": "rek.original_model_inventory.result.v1",
+  "utc": "2026-09-28T20:12:49.001722+00:00",
+  "status": "failed_incomplete",
+  "runtime_attempts": 1,
+  "automatic_retry": false,
+  "source_package_manifest_sha256": "7c9fd854734b881bdce478a67719d3eca5983a762a835af9c1ccda69ec2a46f0",
+  "closed_source_manifest_sha256": "ec38c1ca93f8e7d1d29fd76f7ad69438b83aafa213d7fa5b39901b389753c108",
+  "trace": {
+    "path": "closed-inventory-r1/session/out/oracle/inventory.jsonl.partial",
+    "bytes": 3007,
+    "sha256": "53f8998ab21c131ace726f3f8f9f693a95aca9bf16b5c8f6500a475df4f7a33c",
+    "complete_json_lines": 6,
+    "events": [
+      "header",
+      "loaded_counts",
+      "entrypoint",
+      "catalog",
+      "catalog_entry",
+      "catalog_entry"
+    ],
+    "success_footer_present": false
+  },
+  "container": {
+    "id": "ed0ecc5fb2610dd6e7a0ca3bc3de853f564a6ea97231355527451b15f9c61f7e",
+    "state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 5,
+      "Error": "",
+      "StartedAt": "2026-09-28T20:09:52.575100464Z",
+      "FinishedAt": "2026-09-28T20:10:46.376478113Z"
+    },
+    "docker_attach_exit": 5
+  },
+  "verified_partial_facts": {
+    "original_catalog_loaded": true,
+    "catalog_name": "RobotCatalog",
+    "catalog_entries": [
+      {
+        "event": "catalog_entry",
+        "index": 0,
+        "id": "g1",
+        "display_name": "L100",
+        "type_label": "Lightweight",
+        "prefab": {
+          "name": "g1_29dof_Prefab_SONIC",
+          "instance_id": 17010,
+          "scene_valid": false,
+          "active_self": true,
+          "active_in_hierarchy": false
+        }
+      },
+      {
+        "event": "catalog_entry",
+        "index": 1,
+        "id": "t800",
+        "display_name": "H100",
+        "type_label": "Heavyweight",
+        "prefab": {
+          "name": "engineai_t800_FactoryPolicy",
+          "instance_id": 15424,
+          "scene_valid": false,
+          "active_self": true,
+          "active_in_hierarchy": false
+        }
+      }
+    ],
+    "entrypoint_attestation": {
+      "event": "entrypoint",
+      "method": {
+        "type": "REKApp.RobotCatalog",
+        "method": "TryGetById",
+        "wrapper": "Boolean TryGetById(System.String, REKApp.RobotCatalogEntry ByRef)",
+        "module": "Z:\\session\\game\\GameAssembly.dll",
+        "rva": "0x22fdbb0",
+        "first32_sha256": "49ace4d067e859435658bb6aa13dc6b1a1964a7816a3c58330fa5d6d5362966d"
+      }
+    },
+    "initial_loaded_counts": {
+      "event": "loaded_counts",
+      "phase": "before_load",
+      "counts": {
+        "robots": {
+          "loaded": 0,
+          "scene_instances": 0,
+          "active_scene_instances": 0,
+          "asset_or_non_scene": 0
+        },
+        "runners": {
+          "loaded": 0,
+          "scene_instances": 0,
+          "active_scene_instances": 0,
+          "asset_or_non_scene": 0
+        },
+        "composers": {
+          "loaded": 0,
+          "scene_instances": 0,
+          "active_scene_instances": 0,
+          "asset_or_non_scene": 0
+        },
+        "mjscenes": {
+          "loaded": 1,
+          "scene_instances": 1,
+          "active_scene_instances": 1,
+          "asset_or_non_scene": 0
+        },
+        "scope": "asset counts may rise on Resources.Load; no singleton getters"
+      }
+    }
+  },
+  "failure_evidence": {
+    "exception": "c0000005",
+    "native_fault_module": "GameAssembly.dll",
+    "native_fault_rva": "0x206f371",
+    "accessed_address": "0x210",
+    "last_durable_event": "catalog_entry index1",
+    "next_source_operation": "catalog.TryGetById(\"g1\", out var entry)",
+    "first_transform_record_present": false,
+    "cause": "unknown; last record bounds control flow but does not establish failing operation or causal mechanism"
+  },
+  "not_obtained": [
+    "prefab component serialized-field inventory",
+    "MjGlobalSettings serialization",
+    "initialized mjModel or mjData",
+    "model/physics/dynamics parity"
+  ],
+  "scope": {
+    "no_additional_runtime_after_run": true,
+    "no_live_game_ui_input": true,
+    "private_network_none_no_gpu_container": true,
+    "whole_process_physics_instrumented": false,
+    "model_generation_or_robot_instantiation_called_by_harness": false
+  }
+}

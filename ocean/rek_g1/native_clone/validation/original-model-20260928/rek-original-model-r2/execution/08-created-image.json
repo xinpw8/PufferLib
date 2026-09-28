@@ -1,0 +1,6 @@
+{
+  "command": "docker inspect --format '{{.Image}}' rek-original-model-inventory-20260928-r2",
+  "exit_code": 0,
+  "started_utc": "2026-09-28T20:18:32.612598+00:00",
+  "finished_utc": "2026-09-28T20:18:32.671172+00:00"
+}

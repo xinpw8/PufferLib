@@ -1,0 +1,897 @@
+{
+  "schema": "rek.original_model_inventory.combined_publication.v1",
+  "utc": "2026-09-28T20:25:31.045032+00:00",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1627,
+      "sha256": "296327b9d7ea43d4ebfd3fd0e5aeba5d4c89448113a5500e770a55715d8a0786"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/container-inspect.json",
+      "bytes": 16317,
+      "sha256": "4d7d9b4cac9e6ec1428727a1dfba1fe942f1ed4fd5fb452aac0907cc7db1cec6"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/COPY-VERIFICATION.json",
+      "bytes": 544,
+      "sha256": "9d7038b6a51daa663ca135033accd71d057534f0af4a6b383eb8b7ad40a09eaa"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/isolation/container-created-receipt.json",
+      "bytes": 2145,
+      "sha256": "c8a75cd00eb34c81a61c53c5c35e579b4e8898a495e22ec735e8f3fae3a790f3"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/isolation/container-finished-receipt.json",
+      "bytes": 411,
+      "sha256": "c203767075626f3da869303402cf00a0137e3395807fc7fb76e72dcd5d00bd3e"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/isolation/container-prestart-receipt.json",
+      "bytes": 2145,
+      "sha256": "121a05b8a699ec7214897424491b26f310767ba0650a42b28e440eb53216e5ef"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/docker-create-command.json",
+      "bytes": 2246,
+      "sha256": "9b5615cd9f75dad948ee40ae2f2a7ee09f34eb67e4a579ba76734d1b7d023f5b"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/game/BepInEx/ErrorLog.log",
+      "bytes": 982,
+      "sha256": "77cfebb4d7134e27b5b9c2596b353dc70ea794b2b4f36f7fa2a5bc5dc08a6cb2"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/game/BepInEx/LogOutput.log",
+      "bytes": 1195,
+      "sha256": "c396a730c560838229dfb64dd33b48580c4eff3e4e4011c4a23b1e560fb9bb2a"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/input/fixtures.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/input/INPUT-STAGING.json",
+      "bytes": 764,
+      "sha256": "dbbb8ec13b380e772f4a7e75690615978eae43e82f2b49d9b993b12632afa592"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/input/run-config.json",
+      "bytes": 340,
+      "sha256": "92d76834c353cd193c7f29a187cf2aae448be32243bce79e53f6c67e9a39619a"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/INPUT.json",
+      "bytes": 487,
+      "sha256": "48fc7dfcd6c72ccaff790d9fa473602fea76d07ea107207beb9db59635e379b4"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/game.exit-code.txt",
+      "bytes": 2,
+      "sha256": "f0b5c2c2211c8d67ed15e75e656c7862d086e9245420892a7de62cd9ec582a06"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/game.finished.utc",
+      "bytes": 21,
+      "sha256": "558abf2784a38551c17465f82960a1fd31ae3e734a7d09cfa4a1e0caf589ced7"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/game.stderr.log",
+      "bytes": 131092,
+      "sha256": "92976941f324151c209d0d399cfd0c96cb4a9fbda5b7b8e299508e16c094c1eb"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/game.stdout.log",
+      "bytes": 1824,
+      "sha256": "bbdea4c79173e74741161e06331aab234362d29b36abbbc95841d8f5fd58ef93"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/image-packages.txt",
+      "bytes": 152,
+      "sha256": "44fcfa5c1bebd7b7480b06ab77d38e5ece4b69353003b451339828d29eb1bea1"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/oracle/inventory.jsonl.partial",
+      "bytes": 3007,
+      "sha256": "53f8998ab21c131ace726f3f8f9f693a95aca9bf16b5c8f6500a475df4f7a33c"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/unity.log",
+      "bytes": 8869,
+      "sha256": "81ae53f1f36b9288ced0bb92bd4af6e23912d6b57cfe7b4fb55020ca6453ff2c"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/x-display.txt",
+      "bytes": 26026,
+      "sha256": "783e1df6abc1a61169c12f174221e4c6ac2b2e251474a29bd6a9afa41ded1c54"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/xvfb.stderr.log",
+      "bytes": 1255,
+      "sha256": "0bac115c5580e35921d81254a7da3faf4a2bcbffe9063af638a27e97a1471a01"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/out/xvfb.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/PLUGIN.json",
+      "bytes": 165,
+      "sha256": "88723965709725e1c5c01c772b22b77c5fc1e49872da2af65931171af90a901b"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/run.started",
+      "bytes": 21,
+      "sha256": "0ce34e887fb343b58df59412c8b09751327f9ba1c96e4803fa36b4f4563ed878"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/session/STAGED.json",
+      "bytes": 106620,
+      "sha256": "0ba8b08ddfdb4929673c6c6424be7883f39fccf95106c05f9c8177b756bcb456"
+    },
+    {
+      "path": "rek-original-model-r1/closed-inventory-r1/SOURCE-MANIFEST.json",
+      "bytes": 8604,
+      "sha256": "ec38c1ca93f8e7d1d29fd76f7ad69438b83aafa213d7fa5b39901b389753c108"
+    },
+    {
+      "path": "rek-original-model-r1/execution/00-image.json",
+      "bytes": 162,
+      "sha256": "2c8e8ce9e48f04bfa44bd80d316408e40e2d5b337b39f7dc73515afb7af12561"
+    },
+    {
+      "path": "rek-original-model-r1/execution/00-image.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/00-image.stdout",
+      "bytes": 72,
+      "sha256": "1176f2b06b2b3fec41780cb899b10356b4c81c90baf1b4990873ede89e35c56e"
+    },
+    {
+      "path": "rek-original-model-r1/execution/01-fresh-root.json",
+      "bytes": 238,
+      "sha256": "13400f532d3169c5c6d3c6c80c5a5a078cbe9fe7ee436df3089bc2abec9138b3"
+    },
+    {
+      "path": "rek-original-model-r1/execution/01-fresh-root.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/01-fresh-root.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/02-unpack.json",
+      "bytes": 367,
+      "sha256": "b3c8cdd7ccbaccb2f7c03efd75f96acffab45e6ae99fc765af14610d4290c5f0"
+    },
+    {
+      "path": "rek-original-model-r1/execution/02-unpack.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/02-unpack.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/03-prepare-runtime.json",
+      "bytes": 211,
+      "sha256": "74532f459238912f8fb92f0fe51ea8df64f7f62616f4a1a0cd5c5b04dfc888f4"
+    },
+    {
+      "path": "rek-original-model-r1/execution/03-prepare-runtime.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/03-prepare-runtime.stdout",
+      "bytes": 168,
+      "sha256": "94bc9c548a99e20dc1b52c97eba74eeca39de16def3fb1e6044af239707a0213"
+    },
+    {
+      "path": "rek-original-model-r1/execution/04-plugin.json",
+      "bytes": 410,
+      "sha256": "7e8c174b16b18b9f787aee53d1d101a813df550f5da3d51c1991b0751f7cf15b"
+    },
+    {
+      "path": "rek-original-model-r1/execution/04-plugin.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/04-plugin.stdout",
+      "bytes": 53,
+      "sha256": "9c83bc86c657573dea3b6c74e37e9a0c5c373c6994f8eb9f64efc2baf3c320ee"
+    },
+    {
+      "path": "rek-original-model-r1/execution/05-inputs.json",
+      "bytes": 556,
+      "sha256": "78ec2236c65942fa26a3c89b2634346a19e2c4526a723c172b90abb1d7a1834c"
+    },
+    {
+      "path": "rek-original-model-r1/execution/05-inputs.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/05-inputs.stdout",
+      "bytes": 764,
+      "sha256": "dbbb8ec13b380e772f4a7e75690615978eae43e82f2b49d9b993b12632afa592"
+    },
+    {
+      "path": "rek-original-model-r1/execution/06-freeze.json",
+      "bytes": 212,
+      "sha256": "b7d6cfafb0a2a1847bd4842287a00c1077585759c8f921f32568758ffad1bed6"
+    },
+    {
+      "path": "rek-original-model-r1/execution/06-freeze.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/06-freeze.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/07-create.json",
+      "bytes": 206,
+      "sha256": "ffb157ba07def08630864abd716da2e33c7a764e8e7f91334fb4276993e20c6a"
+    },
+    {
+      "path": "rek-original-model-r1/execution/07-create.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/07-create.stdout",
+      "bytes": 1946,
+      "sha256": "dd5bad351bf2bf663eb1e9e15dd5c9fd3a77b7fc8d017b430eb206a51d10d91d"
+    },
+    {
+      "path": "rek-original-model-r1/execution/08-created-image.json",
+      "bytes": 165,
+      "sha256": "10e2177e14b9e7681d04bde010235ad9d83d274f0106387ad8b6d86ec4aab6ef"
+    },
+    {
+      "path": "rek-original-model-r1/execution/08-created-image.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/08-created-image.stdout",
+      "bytes": 72,
+      "sha256": "1176f2b06b2b3fec41780cb899b10356b4c81c90baf1b4990873ede89e35c56e"
+    },
+    {
+      "path": "rek-original-model-r1/execution/09-start.json",
+      "bytes": 268,
+      "sha256": "7f9b6ccfe85dd59071302bff682a69801ce279ae94d3d840b5fa355f24f3122e"
+    },
+    {
+      "path": "rek-original-model-r1/execution/09-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/09-start.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r1/execution/STAGED-READY.json",
+      "bytes": 566,
+      "sha256": "8471f920bd33c6b527ae1dd74de354568c47e4fb72d4b64f467b6db864ed66c8"
+    },
+    {
+      "path": "rek-original-model-r1/fetch_closed_inventory.py",
+      "bytes": 3458,
+      "sha256": "573747fe969c5d3d960a8c8f2f3021f061e2e554075d32241fa755e5292dc1a7"
+    },
+    {
+      "path": "rek-original-model-r1/original-model-inventory-package-r1.tar",
+      "bytes": 378880,
+      "sha256": "d91bb3f85ee40de2edecfd44d07d67d65622f6700d90162fef4de165dbb948d3"
+    },
+    {
+      "path": "rek-original-model-r1/package/api/Mujoco.MjGlobalSettings.decompiled.cs",
+      "bytes": 10649,
+      "sha256": "0fdcd7585f39ba3d7b4d705879c720e729a28a4505a74b2fd3f1e5e785ddc45b"
+    },
+    {
+      "path": "rek-original-model-r1/package/api/Mujoco.MjScene.decompiled.cs",
+      "bytes": 66330,
+      "sha256": "16ec5edbe25d63b5b2f0252b953a0a41014e09f956329b1f03dcb39371e5d6f0"
+    },
+    {
+      "path": "rek-original-model-r1/package/api/REKApp.RobotCatalog.decompiled.cs",
+      "bytes": 4711,
+      "sha256": "08deaada6cd79f17736582c4712806a9be9aec3c45e91b68935bb73f24670658"
+    },
+    {
+      "path": "rek-original-model-r1/package/api/REKApp.RobotCatalogEntry.decompiled.cs",
+      "bytes": 7779,
+      "sha256": "e5181f4f5dd5583f6b46f0e252a58c330086e357dc5b1c051997602733752722"
+    },
+    {
+      "path": "rek-original-model-r1/package/api/REKApp.RobotSpawner.decompiled.cs",
+      "bytes": 45054,
+      "sha256": "ad7879c4c1da3a705285172000fefc6fa6137549512dc703b348bae3e9a0c563"
+    },
+    {
+      "path": "rek-original-model-r1/package/api/SOURCE-PINS.json",
+      "bytes": 2618,
+      "sha256": "27af5683b26a4a1c6aefb0216bcf9a537beb874dc6e2387e83574d0d029ef5bb"
+    },
+    {
+      "path": "rek-original-model-r1/package/bin/RekOriginalModelInventory.dll",
+      "bytes": 52224,
+      "sha256": "79aa0a0ee713401a19d7e3ca192b577f5fc3981910bff86c652a149a87a0334c"
+    },
+    {
+      "path": "rek-original-model-r1/package/BUILD-RECEIPT.json",
+      "bytes": 2042,
+      "sha256": "ae0d897c63d14e1dd1a5ee750cf1a2ccbad8e244fdfea0a05c396f8b4d545832"
+    },
+    {
+      "path": "rek-original-model-r1/package/fixture.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    {
+      "path": "rek-original-model-r1/package/isolation/orchestrate.py",
+      "bytes": 5793,
+      "sha256": "5c2e92f1ca84af1f87808e67cf923ecad1be704dc11be4ad6288a092637c8c64"
+    },
+    {
+      "path": "rek-original-model-r1/package/isolation/prepare_runtime.py",
+      "bytes": 8394,
+      "sha256": "1fae5e1ee29f5eda3277a550a117e3b1026322d0446e220d059fa997eec85c3c"
+    },
+    {
+      "path": "rek-original-model-r1/package/MANIFEST.json",
+      "bytes": 5488,
+      "sha256": "7c9fd854734b881bdce478a67719d3eca5983a762a835af9c1ccda69ec2a46f0"
+    },
+    {
+      "path": "rek-original-model-r1/package/prepare_inputs.py",
+      "bytes": 3350,
+      "sha256": "088a22fe2dc5334bf19a966906b4a37146fe80ae8932ebe7837bf2a3ed9a1efc"
+    },
+    {
+      "path": "rek-original-model-r1/package/probe/Plugin.cs",
+      "bytes": 14552,
+      "sha256": "68301c6db7a457fe7ab0f362070dfeef029c8bb4bdaf0c5c0e86851a5c114f80"
+    },
+    {
+      "path": "rek-original-model-r1/package/probe/RekOriginalModelInventory.csproj",
+      "bytes": 1819,
+      "sha256": "cb5536cd56b3cbcd7c817ea3b3395bde940c145b9097ae16c7b89ff1a34f84d2"
+    },
+    {
+      "path": "rek-original-model-r1/package/README.md",
+      "bytes": 5606,
+      "sha256": "ff2053e914e4fde92e7030278c0c9a8e8012b35bfefe1f5649b7e86ca2a6d4cc"
+    },
+    {
+      "path": "rek-original-model-r1/package/review/passive-probe-independent-review-r1.json",
+      "bytes": 5700,
+      "sha256": "a529dd28088e1a8d5815ea4cec3f8d1a83701d4a7be8ffb17a109c861f99cf98"
+    },
+    {
+      "path": "rek-original-model-r1/package/review/passive-probe-independent-tests-r1.txt",
+      "bytes": 556,
+      "sha256": "3bd67b4a662c231c9f3b8bedac924aea67b5bb8d340796f6a9a4378f545fbdc8"
+    },
+    {
+      "path": "rek-original-model-r1/package/review/serialized-assets-review-r1.json",
+      "bytes": 88314,
+      "sha256": "774606273e2f9772beb50f7da32214a3e6b81bc3901d29ff041cb37b3453010f"
+    },
+    {
+      "path": "rek-original-model-r1/package/test_prepare_inputs.py",
+      "bytes": 2431,
+      "sha256": "e831e6c7dc96f9a7b1e37fa26a1917119577e759fa70c1c4e60a355fba1b8a6c"
+    },
+    {
+      "path": "rek-original-model-r1/package_and_stage.py",
+      "bytes": 4864,
+      "sha256": "cb51a9a38282a86fe99ec51612a639fd167e34c48be01743e20af09004a584ef"
+    },
+    {
+      "path": "rek-original-model-r1/PUBLICATION.json",
+      "bytes": 24342,
+      "sha256": "e813c26c61bc692461370581d57a2aca74dbfdfd513e8598acddd4aa000ad46b"
+    },
+    {
+      "path": "rek-original-model-r1/RESULT.json",
+      "bytes": 4478,
+      "sha256": "1dd11da82053b76fa7b92f8b58e0c04514540d2c291286240cf6e3a5abc4130f"
+    },
+    {
+      "path": "rek-original-model-r1/RESULT.md",
+      "bytes": 1828,
+      "sha256": "9e3c81be99cd63cfc11517d7d6e6e41e13c2cbd7cbaaaaf0aaf8604dfa50dde4"
+    },
+    {
+      "path": "rek-original-model-r1/run_authorized_once.py",
+      "bytes": 1085,
+      "sha256": "1da912f79f042960d37cb707c354f39bcf93ff80c4b662eb1dad944008d64dc9"
+    },
+    {
+      "path": "rek-original-model-r2/BUILD-RECEIPT.json",
+      "bytes": 2324,
+      "sha256": "c79e1e2f4d0772ff86eeafa56e0cf9c4e6049cb0ef90e8891075848e3d3236e1"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/container-inspect.json",
+      "bytes": 16317,
+      "sha256": "dc9ebe396532bbf7a522e937a65e4ab0d798d1130b56d9623f8c1c00aa60232e"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/COPY-VERIFICATION.json",
+      "bytes": 544,
+      "sha256": "0393650537ad5f5e1866e07fc401dd84d96c2115c2d6da59567a5d97fa3c1f76"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/isolation/container-created-receipt.json",
+      "bytes": 2145,
+      "sha256": "267121671a5868e849faf728abb02113770101d71fe714d57d47015e5b8c687e"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/isolation/container-finished-receipt.json",
+      "bytes": 411,
+      "sha256": "62f8c669c077c728b3bc155ebc334c050c72db2d0d03a727f8d8111e951e8554"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/isolation/container-prestart-receipt.json",
+      "bytes": 2145,
+      "sha256": "0500afa4c259675c733714ba3ba73c377b860728c349b71271245bdfa4595f0c"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/docker-create-command.json",
+      "bytes": 2246,
+      "sha256": "7bb5883b1467faea76c7a67298699e0f9681075885fc40c6f7e79fb319c5be95"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/game/BepInEx/ErrorLog.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/game/BepInEx/LogOutput.log",
+      "bytes": 1292,
+      "sha256": "e0efe65542fe0f6ae682118b3dc5bc3316b79ae8ebca2343e74417329c78bbc5"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/input/fixtures.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/input/INPUT-STAGING.json",
+      "bytes": 764,
+      "sha256": "6d4e3044bda929afb198a3c9662a2bb3c8a9232013b9856aaa3fbbc05a5b22a2"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/input/run-config.json",
+      "bytes": 340,
+      "sha256": "1abc263fa8aab3000a0e7329cdd8550dba7accb50331e8c4460787c1d9001b8c"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/INPUT.json",
+      "bytes": 487,
+      "sha256": "9ce338432565a4491d6a84810261da4f8751309cacb3d905f9867b9dd6107601"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/game.exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/game.finished.utc",
+      "bytes": 21,
+      "sha256": "8a0a39de163af71d5915cb0379f31245ee1fc6af00e0f4b780afe4694828fa3f"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/game.stderr.log",
+      "bytes": 125717,
+      "sha256": "a1ea0284ea84ae6101d4321673cd6eec25425ecb1d7f1af39537ef66f9f6d661"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/game.stdout.log",
+      "bytes": 1824,
+      "sha256": "bbdea4c79173e74741161e06331aab234362d29b36abbbc95841d8f5fd58ef93"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/image-packages.txt",
+      "bytes": 152,
+      "sha256": "44fcfa5c1bebd7b7480b06ab77d38e5ece4b69353003b451339828d29eb1bea1"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/oracle/inventory.jsonl",
+      "bytes": 401315,
+      "sha256": "74a3283921008f40c412fbcc90e3c794966fca45fa5669e99d4fa101156f5172"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/unity.log",
+      "bytes": 12402,
+      "sha256": "69163bcfd5ce63e64f3e7be1062b7341ca3e53e0bd88ef85e295d33059d23487"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/x-display.txt",
+      "bytes": 26026,
+      "sha256": "783e1df6abc1a61169c12f174221e4c6ac2b2e251474a29bd6a9afa41ded1c54"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/xvfb.stderr.log",
+      "bytes": 1255,
+      "sha256": "0bac115c5580e35921d81254a7da3faf4a2bcbffe9063af638a27e97a1471a01"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/out/xvfb.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/PLUGIN.json",
+      "bytes": 165,
+      "sha256": "c67dbf82bab40efd458cf7172a44bd25f9e881581691e6acfd9ab6ed2022bb2c"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/run.started",
+      "bytes": 21,
+      "sha256": "9de818ae5648405065d3f21390d430f68e493592747ea348bb1e15e804c02901"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/session/STAGED.json",
+      "bytes": 106620,
+      "sha256": "0ba8b08ddfdb4929673c6c6424be7883f39fccf95106c05f9c8177b756bcb456"
+    },
+    {
+      "path": "rek-original-model-r2/closed-inventory-r2/SOURCE-MANIFEST.json",
+      "bytes": 8589,
+      "sha256": "eea6cabbdd52c0aaf8fd53cf67e0dabfe4ba8b97a120ab165aec74122360b966"
+    },
+    {
+      "path": "rek-original-model-r2/execution/00-image.json",
+      "bytes": 225,
+      "sha256": "25b98f6e944edd690c66640daf0c69dd7893e0ab32afc558f0172498230a1fb0"
+    },
+    {
+      "path": "rek-original-model-r2/execution/00-image.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/00-image.stdout",
+      "bytes": 72,
+      "sha256": "1176f2b06b2b3fec41780cb899b10356b4c81c90baf1b4990873ede89e35c56e"
+    },
+    {
+      "path": "rek-original-model-r2/execution/01-fresh-root.json",
+      "bytes": 301,
+      "sha256": "060952503f5dcc39604f0ff5b4fe255fddbf2a15a7ce0b1f60959791ee8218c4"
+    },
+    {
+      "path": "rek-original-model-r2/execution/01-fresh-root.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/01-fresh-root.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/02-unpack.json",
+      "bytes": 430,
+      "sha256": "a9e95258adc8ae1aa68cdce033a1d535216c54648935c182f67827ef7948a14c"
+    },
+    {
+      "path": "rek-original-model-r2/execution/02-unpack.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/02-unpack.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/03-prepare-runtime.json",
+      "bytes": 274,
+      "sha256": "f54f2a091e37f370fc9375adf489954d1e9305cdc26ffcd5215e72ca6fdd3d94"
+    },
+    {
+      "path": "rek-original-model-r2/execution/03-prepare-runtime.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/03-prepare-runtime.stdout",
+      "bytes": 168,
+      "sha256": "7e058c0460e8a52f860892e17d3b153bf2bae35b2a290ca409512c899f0387e2"
+    },
+    {
+      "path": "rek-original-model-r2/execution/04-plugin.json",
+      "bytes": 473,
+      "sha256": "11dc783f29d01e01e35819c2e4463bf4a6062530fae4d3d0631231e4099bad5e"
+    },
+    {
+      "path": "rek-original-model-r2/execution/04-plugin.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/04-plugin.stdout",
+      "bytes": 53,
+      "sha256": "9c83bc86c657573dea3b6c74e37e9a0c5c373c6994f8eb9f64efc2baf3c320ee"
+    },
+    {
+      "path": "rek-original-model-r2/execution/05-inputs.json",
+      "bytes": 619,
+      "sha256": "db6ee788d11c9be2fd05a07ff523d2a8eaed9a4acef65f0aafb35ca763876850"
+    },
+    {
+      "path": "rek-original-model-r2/execution/05-inputs.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/05-inputs.stdout",
+      "bytes": 764,
+      "sha256": "6d4e3044bda929afb198a3c9662a2bb3c8a9232013b9856aaa3fbbc05a5b22a2"
+    },
+    {
+      "path": "rek-original-model-r2/execution/06-freeze.json",
+      "bytes": 275,
+      "sha256": "efdf5edcc1161ee250fa80f73668eab3d1d73c3b5e1c2c9bb93d4ff54ba1eb82"
+    },
+    {
+      "path": "rek-original-model-r2/execution/06-freeze.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/06-freeze.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/07-create.json",
+      "bytes": 269,
+      "sha256": "71557741cfe2b7b6f4ee82659eb0f9eaa35ab050e0c68bcdff91035e1ab91ffc"
+    },
+    {
+      "path": "rek-original-model-r2/execution/07-create.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/07-create.stdout",
+      "bytes": 1946,
+      "sha256": "e1cde22ddeab2324076fe85b378292dabf72339c5cb90ac58448fbb4a360a52e"
+    },
+    {
+      "path": "rek-original-model-r2/execution/08-created-image.json",
+      "bytes": 228,
+      "sha256": "9909f551c20a41010867dbc1b94ef92c4e892a386d6e854b9ab9141d72ae85b3"
+    },
+    {
+      "path": "rek-original-model-r2/execution/08-created-image.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/08-created-image.stdout",
+      "bytes": 72,
+      "sha256": "1176f2b06b2b3fec41780cb899b10356b4c81c90baf1b4990873ede89e35c56e"
+    },
+    {
+      "path": "rek-original-model-r2/execution/09-start.json",
+      "bytes": 268,
+      "sha256": "5e6246d77d96f6deaa432d35fdf3bc81db01e58ce1319dbf3f2b2e6316eccbc0"
+    },
+    {
+      "path": "rek-original-model-r2/execution/09-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/09-start.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rek-original-model-r2/execution/STAGED-READY.json",
+      "bytes": 538,
+      "sha256": "7464edf2b65e35e93b88a70d71cbbb47ef2573c5d82dd2d8dd234864b85ab5a4"
+    },
+    {
+      "path": "rek-original-model-r2/fetch_closed_inventory.py",
+      "bytes": 3460,
+      "sha256": "165eea6b17a903a432dc4b6110b2324383e2a1f05aa2bce9a496e57392de2f89"
+    },
+    {
+      "path": "rek-original-model-r2/original-model-inventory-package-r2.tar",
+      "bytes": 399360,
+      "sha256": "0631a136d4cc5cd35d4cf4cbbdf7f95bc62415a66a3f468b401aa926e779a951"
+    },
+    {
+      "path": "rek-original-model-r2/package/api/Mujoco.MjGlobalSettings.decompiled.cs",
+      "bytes": 10649,
+      "sha256": "0fdcd7585f39ba3d7b4d705879c720e729a28a4505a74b2fd3f1e5e785ddc45b"
+    },
+    {
+      "path": "rek-original-model-r2/package/api/Mujoco.MjScene.decompiled.cs",
+      "bytes": 66330,
+      "sha256": "16ec5edbe25d63b5b2f0252b953a0a41014e09f956329b1f03dcb39371e5d6f0"
+    },
+    {
+      "path": "rek-original-model-r2/package/api/REKApp.RobotCatalog.decompiled.cs",
+      "bytes": 4711,
+      "sha256": "08deaada6cd79f17736582c4712806a9be9aec3c45e91b68935bb73f24670658"
+    },
+    {
+      "path": "rek-original-model-r2/package/api/REKApp.RobotCatalogEntry.decompiled.cs",
+      "bytes": 7779,
+      "sha256": "e5181f4f5dd5583f6b46f0e252a58c330086e357dc5b1c051997602733752722"
+    },
+    {
+      "path": "rek-original-model-r2/package/api/REKApp.RobotSpawner.decompiled.cs",
+      "bytes": 45054,
+      "sha256": "ad7879c4c1da3a705285172000fefc6fa6137549512dc703b348bae3e9a0c563"
+    },
+    {
+      "path": "rek-original-model-r2/package/api/SOURCE-PINS.json",
+      "bytes": 2618,
+      "sha256": "27af5683b26a4a1c6aefb0216bcf9a537beb874dc6e2387e83574d0d029ef5bb"
+    },
+    {
+      "path": "rek-original-model-r2/package/bin/RekOriginalModelInventory.dll",
+      "bytes": 54784,
+      "sha256": "bc8df76dbc4664a539fd80c2bb6634c3f03f8ac0bf1bda19f6c550cb5014cb35"
+    },
+    {
+      "path": "rek-original-model-r2/package/BUILD-RECEIPT.json",
+      "bytes": 2324,
+      "sha256": "c79e1e2f4d0772ff86eeafa56e0cf9c4e6049cb0ef90e8891075848e3d3236e1"
+    },
+    {
+      "path": "rek-original-model-r2/package/fixture.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    {
+      "path": "rek-original-model-r2/package/isolation/orchestrate.py",
+      "bytes": 5793,
+      "sha256": "639f68940dc0d6eeebfd56fdcdcfc937ef2108c9967237b8efb60a7f682081df"
+    },
+    {
+      "path": "rek-original-model-r2/package/isolation/prepare_runtime.py",
+      "bytes": 8394,
+      "sha256": "83c8cca96d4ae98db5a0f7133e3c743b43db34a6df7fd3a656b5e3a89d7559ce"
+    },
+    {
+      "path": "rek-original-model-r2/package/MANIFEST.json",
+      "bytes": 5849,
+      "sha256": "9e9a8bcd20d211e6db2597f88d7bab22a3ed08919fb763f28e1dd832ee6a46a8"
+    },
+    {
+      "path": "rek-original-model-r2/package/prepare_inputs.py",
+      "bytes": 3350,
+      "sha256": "088a22fe2dc5334bf19a966906b4a37146fe80ae8932ebe7837bf2a3ed9a1efc"
+    },
+    {
+      "path": "rek-original-model-r2/package/probe/Plugin.cs",
+      "bytes": 15232,
+      "sha256": "093f1a54edee78346a4eda990e91af6f845b085fd34bc47756734c6b9e984656"
+    },
+    {
+      "path": "rek-original-model-r2/package/probe/RekOriginalModelInventory.csproj",
+      "bytes": 1819,
+      "sha256": "cb5536cd56b3cbcd7c817ea3b3395bde940c145b9097ae16c7b89ff1a34f84d2"
+    },
+    {
+      "path": "rek-original-model-r2/package/README.md",
+      "bytes": 7204,
+      "sha256": "d3d2013cf23933b85cf17fdae8397aa6912d148a3d1fd85fa9731f513d4e8e40"
+    },
+    {
+      "path": "rek-original-model-r2/package/review/closed-inventory-independent-review-r1.json",
+      "bytes": 7863,
+      "sha256": "d4749a58bd073c46af70c6c57becc1d4249d737dc77fe4b7e7f26bd8bc45a8f7"
+    },
+    {
+      "path": "rek-original-model-r2/package/review/serialized-assets-review-r1.json",
+      "bytes": 88314,
+      "sha256": "774606273e2f9772beb50f7da32214a3e6b81bc3901d29ff041cb37b3453010f"
+    },
+    {
+      "path": "rek-original-model-r2/package/revision/INDEPENDENT-REVIEW.json",
+      "bytes": 3597,
+      "sha256": "6ef80f797170f7724ec43ebd1b22b0f5feea801786978b857c9512d1b0310727"
+    },
+    {
+      "path": "rek-original-model-r2/package/revision/r1-to-r2.diff",
+      "bytes": 4343,
+      "sha256": "406aecba5c00ee04137dde71e15dc4678a99d4b7b12fbfc756146dc41623736d"
+    },
+    {
+      "path": "rek-original-model-r2/package/test_prepare_inputs.py",
+      "bytes": 2431,
+      "sha256": "e831e6c7dc96f9a7b1e37fa26a1917119577e759fa70c1c4e60a355fba1b8a6c"
+    },
+    {
+      "path": "rek-original-model-r2/PACKAGE-RECEIPT.json",
+      "bytes": 374,
+      "sha256": "3243d8cf263e632dc5b70fa1809b66f300b81f8c2a019309aff10da17e7cea0c"
+    },
+    {
+      "path": "rek-original-model-r2/package_source.py",
+      "bytes": 2269,
+      "sha256": "937ff5a735149ff2d76202aee97b50084b9b19ddf64aad629c10d69378491139"
+    },
+    {
+      "path": "rek-original-model-r2/PUBLICATION.json",
+      "bytes": 25531,
+      "sha256": "490ea815fa0be5b9700fc8944a8c46d9e9a28827ce64a5cce88388eefbd7ca82"
+    },
+    {
+      "path": "rek-original-model-r2/RESULT.json",
+      "bytes": 9287,
+      "sha256": "a11e67e0b27d6cb50edee3676eec0a43284e21d54c6cd32e8ee4552b1ac17bf3"
+    },
+    {
+      "path": "rek-original-model-r2/RESULT.md",
+      "bytes": 2339,
+      "sha256": "d9effc33f941a5193588effa7f61627ae63a6343a97f30c57a56043dc9b663bd"
+    },
+    {
+      "path": "rek-original-model-r2/stage_and_run_authorized_once.py",
+      "bytes": 3956,
+      "sha256": "72186482fea8071161648db9169898744d5771e31477adc9ab5431e74c1aadd2"
+    },
+    {
+      "path": "rek-original-model-r2/summarize_result.py",
+      "bytes": 6739,
+      "sha256": "5043209a12a5390c3f5036618ad7805d3c2ebb0c7be36ecb6117800bcbdd107c"
+    },
+    {
+      "path": "review-supplement/PUBLICATION.json",
+      "bytes": 795,
+      "sha256": "0b6586e5c9b8a0da863739d32461c5fefc3e2f44aac156b55ff8bb6492ab08a4"
+    },
+    {
+      "path": "review-supplement/r1-closed-independent-review.json",
+      "bytes": 7863,
+      "sha256": "d4749a58bd073c46af70c6c57becc1d4249d737dc77fe4b7e7f26bd8bc45a8f7"
+    },
+    {
+      "path": "review-supplement/r2-closed-independent-review.json",
+      "bytes": 17208,
+      "sha256": "367f6f701bb50fd54832141919009e1304956f5169bb2459920b6f5deafab38e"
+    },
+    {
+      "path": "STAGING-RECEIPT.json",
+      "bytes": 555,
+      "sha256": "6b30e49e3433460a97637176cd518527e372a1d8848f48401a5bfcb491337832"
+    }
+  ],
+  "revisions": {
+    "r1": "failed_incomplete_preserved",
+    "r2": "complete_passive_serialized_inventory"
+  },
+  "r2_independent_review_sha256": "367f6f701bb50fd54832141919009e1304956f5169bb2459920b6f5deafab38e",
+  "no_further_runtime": true
+}

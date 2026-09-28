@@ -1,0 +1,70 @@
+{
+  "schema": "rek.original_model_inventory.fixture.v1",
+  "catalog_resource": "Workshop/RobotCatalog",
+  "robot_id": "g1",
+  "expected_prefab_name": "g1_29dof_Prefab_SONIC",
+  "game_files": [
+    {
+      "file": "REK_Data/globalgamemanagers",
+      "bytes": 455636,
+      "sha256": "8f4107c56da769fc6a5d146d74f2c3acf0ec663dc7b3c845ae0157653af37701"
+    },
+    {
+      "file": "REK_Data/globalgamemanagers.assets",
+      "bytes": 2189792,
+      "sha256": "39d776b2eff4cfb5bb59e65d31a2f5dc1e891559a01c0c04c1977329521208cf"
+    },
+    {
+      "file": "REK_Data/resources.assets",
+      "bytes": 14345824,
+      "sha256": "626d2babd7209d8b39af0b8a6edcc6cb9c0fa3efdff86be75ede230f5dbaef46"
+    },
+    {
+      "file": "REK_Data/sharedassets0.assets",
+      "bytes": 31315504,
+      "sha256": "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355"
+    },
+    {
+      "file": "REK_Data/sharedassets1.assets",
+      "bytes": 4860176,
+      "sha256": "9a780ffcce97bb47744494a0eee0f69bd2cf4d70c6adff7fe0344d06ba119c82"
+    },
+    {
+      "file": "REK_Data/level1",
+      "bytes": 1097192,
+      "sha256": "d3aef29c86c5d072906d68cd938987b9bc84152a09653f10991f03c805b2ed13"
+    },
+    {
+      "file": "REK_Data/Plugins/x86_64/mujoco.dll",
+      "bytes": 3556352,
+      "sha256": "a6f6b6fd6f0cc35923f57fdc43e18a5cfa43b451fc719bfa355c71c745b43eea"
+    },
+    {
+      "file": "UnityPlayer.dll",
+      "bytes": 37370792,
+      "sha256": "277953a7035b1633c239904853bfbea7b2948937ef5567e70c1911c260dd1414"
+    }
+  ],
+  "mujoco_interop_sha256": "3a205663026e77885d5ca3b15a7c0c7ef6b6b108f27043342b8eae41980c94a7",
+  "serialized_binding_receipt_sha256": "774606273e2f9772beb50f7da32214a3e6b81bc3901d29ff041cb37b3453010f",
+  "serialized_binding": {
+    "resource_manager": {
+      "asset": "globalgamemanagers",
+      "path_id": 13
+    },
+    "catalog": {
+      "asset": "sharedassets0.assets",
+      "path_id": 2695
+    },
+    "prefab_gameobject_path_id": 893,
+    "prefab_transform_path_id": 1650,
+    "unloaded_level1_global_settings_path_id": 2882
+  },
+  "limits": [
+    "Runtime GetInstanceID is not a serialized pathID; correlate pointer references through exact bound objects.",
+    "level1 is hash-verified but not loaded by this probe; absent global settings do not imply defaults.",
+    "No model generation, robot initialization, dynamics, or server identity validation."
+  ],
+  "unity_core_interop_sha256": "3ac45305a21f5107c0a9e813c48503cf27944c15ab9f6495396f20f61840104a",
+  "unity_json_interop_sha256": "74e53423871003e41fcda3071195fff2579da9fe38fc09d08ea804fcfd83f43f"
+}

@@ -1,0 +1,10 @@
+{
+  "schema": "rek.original_model_inventory.closed_copy_verification.v1",
+  "source_manifest_sha256": "ec38c1ca93f8e7d1d29fd76f7ad69438b83aafa213d7fa5b39901b389753c108",
+  "container_inspect_sha256": "4d7d9b4cac9e6ec1428727a1dfba1fe942f1ed4fd5fb452aac0907cc7db1cec6",
+  "transport_archive_sha256": "cfe4e37e9f238f15369ae5449f9d35ded20cb7cd2532c67ce342b9b9f2f74920",
+  "files": 23,
+  "bytes": 292416,
+  "all_source_local_hashes_match": true,
+  "destination": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\closed-inventory-r1"
+}

@@ -1,0 +1,392 @@
+{
+  "Id": "ed0ecc5fb2610dd6e7a0ca3bc3de853f564a6ea97231355527451b15f9c61f7e",
+  "Created": "2026-09-28T20:06:53.798718057Z",
+  "Path": "/bin/bash",
+  "Args": [
+    "/usr/local/bin/rek-original-functions-entrypoint"
+  ],
+  "State": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 5,
+    "Error": "",
+    "StartedAt": "2026-09-28T20:09:52.575100464Z",
+    "FinishedAt": "2026-09-28T20:10:46.376478113Z"
+  },
+  "Image": "sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879",
+  "ResolvConfPath": "/var/lib/docker/containers/ed0ecc5fb2610dd6e7a0ca3bc3de853f564a6ea97231355527451b15f9c61f7e/resolv.conf",
+  "HostnamePath": "/var/lib/docker/containers/ed0ecc5fb2610dd6e7a0ca3bc3de853f564a6ea97231355527451b15f9c61f7e/hostname",
+  "HostsPath": "/var/lib/docker/containers/ed0ecc5fb2610dd6e7a0ca3bc3de853f564a6ea97231355527451b15f9c61f7e/hosts",
+  "LogPath": "/var/lib/docker/containers/ed0ecc5fb2610dd6e7a0ca3bc3de853f564a6ea97231355527451b15f9c61f7e/ed0ecc5fb2610dd6e7a0ca3bc3de853f564a6ea97231355527451b15f9c61f7e-json.log",
+  "Name": "/rek-original-model-inventory-20260928-r1",
+  "RestartCount": 0,
+  "Driver": "overlay2",
+  "Platform": "linux",
+  "MountLabel": "",
+  "ProcessLabel": "",
+  "AppArmorProfile": "docker-default",
+  "ExecIDs": null,
+  "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+      "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": [],
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+      "no-new-privileges"
+    ],
+    "Tmpfs": {
+      "/run": "rw,nosuid,size=16m,mode=755",
+      "/tmp": "rw,nosuid,size=512m,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 8589934592,
+    "NanoCpus": 4000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 8589934592,
+    "MemorySwappiness": null,
+    "OomKillDisable": null,
+    "PidsLimit": 256,
+    "Ulimits": [],
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1",
+        "Target": "/session"
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/input",
+        "Target": "/session/input",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game",
+        "Target": "/session/game",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx",
+        "Target": "/session/game/BepInEx"
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx/core",
+        "Target": "/session/game/BepInEx/core",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx/interop",
+        "Target": "/session/game/BepInEx/interop",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx/unity-libs",
+        "Target": "/session/game/BepInEx/unity-libs",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/codexrook-runtime/box64-upstream-20260924-r1",
+        "Target": "/opt/codexrook/box64",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/codexrook-runtime/wine-11.13",
+        "Target": "/opt/codexrook/wine-11.13",
+        "ReadOnly": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/home/spark-advantage/codexrook-runtime/x64root-ubuntu-24.04",
+        "Target": "/opt/codexrook/x64root-ubuntu-24.04",
+        "ReadOnly": true
+      }
+    ],
+    "MaskedPaths": [
+      "/proc/asound",
+      "/proc/acpi",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware",
+      "/sys/devices/virtual/powercap"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "GraphDriver": {
+    "Data": {
+      "ID": "ed0ecc5fb2610dd6e7a0ca3bc3de853f564a6ea97231355527451b15f9c61f7e",
+      "LowerDir": "/var/lib/docker/overlay2/154c86e48eac516f74063c5e215088d1372fa443572d014aec04527cc72df9e0-init/diff:/var/lib/docker/overlay2/ouub2f9xmomva11m2jlsvknll/diff:/var/lib/docker/overlay2/dly78puonvuocjiwuabe70hbw/diff:/var/lib/docker/overlay2/0s3wg4cohpg94yhaboosj0hwn/diff:/var/lib/docker/overlay2/vcuzn7a9b8qkxepj0habkc07l/diff:/var/lib/docker/overlay2/hk7hxi3mjy0ruyxi8xxctmw4y/diff:/var/lib/docker/overlay2/w5lkfvag6rymmg9961cwmu934/diff:/var/lib/docker/overlay2/l8ejbspcn1i2lrk9syfwngabs/diff:/var/lib/docker/overlay2/9e370184ca6540afcec9ba08e3aca86979307fea2a96f2479269bdb95204cf0d/diff:/var/lib/docker/overlay2/6475a692639a72fc01d3c5d389db618f6c67fb3105caa459a6843ab0f28b00fc/diff:/var/lib/docker/overlay2/a1d40b42938814397294173132685af281e2e71ffe9f26a63c7f1c793b1fddc0/diff:/var/lib/docker/overlay2/503a3c1bfe59ebc790f8720aba0b1c8756224100c8181bcbabbad3481325aa50/diff:/var/lib/docker/overlay2/6e665df6515bcb647d61acf543f7542851fb382ad56d16f412ff7091f9f50da4/diff:/var/lib/docker/overlay2/3ad1b49fbcb68255fe62f7f57f52110da67eb3638cf37da86f62a3d63dcdf2cc/diff:/var/lib/docker/overlay2/f528c37db8c710bf256c5344f987f43a280255f7214948e413a123b45a3ef3a7/diff:/var/lib/docker/overlay2/f525f7c17e3efea5aea7072d1f349e82d0e4af4816875ebe350c1237546b001e/diff:/var/lib/docker/overlay2/2fe78a1dd0a077f7cc40152aa6a84eb75bd6177929d02c13f2f66aa1725bb716/diff:/var/lib/docker/overlay2/c784c4e7d619bb917aa83e56d5b79561ad1701dc1c4d91970ce19baffed03133/diff:/var/lib/docker/overlay2/c4db8ca07a490b47ff8f2e3dcdb3c2b615a11105ba0ff0faa8b820dda0e6ca8e/diff",
+      "MergedDir": "/var/lib/docker/overlay2/154c86e48eac516f74063c5e215088d1372fa443572d014aec04527cc72df9e0/merged",
+      "UpperDir": "/var/lib/docker/overlay2/154c86e48eac516f74063c5e215088d1372fa443572d014aec04527cc72df9e0/diff",
+      "WorkDir": "/var/lib/docker/overlay2/154c86e48eac516f74063c5e215088d1372fa443572d014aec04527cc72df9e0/work"
+    },
+    "Name": "overlay2"
+  },
+  "Mounts": [
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1",
+      "Destination": "/session",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx/interop",
+      "Destination": "/session/game/BepInEx/interop",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/codexrook-runtime/wine-11.13",
+      "Destination": "/opt/codexrook/wine-11.13",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/codexrook-runtime/x64root-ubuntu-24.04",
+      "Destination": "/opt/codexrook/x64root-ubuntu-24.04",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/input",
+      "Destination": "/session/input",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game",
+      "Destination": "/session/game",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx",
+      "Destination": "/session/game/BepInEx",
+      "Mode": "",
+      "RW": true,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx/core",
+      "Destination": "/session/game/BepInEx/core",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1/game/BepInEx/unity-libs",
+      "Destination": "/session/game/BepInEx/unity-libs",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    },
+    {
+      "Type": "bind",
+      "Source": "/home/spark-advantage/codexrook-runtime/box64-upstream-20260924-r1",
+      "Destination": "/opt/codexrook/box64",
+      "Mode": "",
+      "RW": false,
+      "Propagation": "rprivate"
+    }
+  ],
+  "Config": {
+    "Hostname": "ed0ecc5fb261",
+    "Domainname": "",
+    "User": "1000:1000",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+      "HOME=/session/home",
+      "WINEPREFIX=/session/wineprefix",
+      "NVIDIA_VISIBLE_DEVICES=void",
+      "DISPLAY=:99",
+      "PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "NVARCH=sbsa",
+      "NVIDIA_REQUIRE_CUDA=cuda>=13.0 brand=unknown,driver>=535,driver<536 brand=grid,driver>=535,driver<536 brand=tesla,driver>=535,driver<536 brand=nvidia,driver>=535,driver<536 brand=quadro,driver>=535,driver<536 brand=quadrortx,driver>=535,driver<536 brand=nvidiartx,driver>=535,driver<536 brand=vapps,driver>=535,driver<536 brand=vpc,driver>=535,driver<536 brand=vcs,driver>=535,driver<536 brand=vws,driver>=535,driver<536 brand=cloudgaming,driver>=535,driver<536 brand=unknown,driver>=550,driver<551 brand=grid,driver>=550,driver<551 brand=tesla,driver>=550,driver<551 brand=nvidia,driver>=550,driver<551 brand=quadro,driver>=550,driver<551 brand=quadrortx,driver>=550,driver<551 brand=nvidiartx,driver>=550,driver<551 brand=vapps,driver>=550,driver<551 brand=vpc,driver>=550,driver<551 brand=vcs,driver>=550,driver<551 brand=vws,driver>=550,driver<551 brand=cloudgaming,driver>=550,driver<551 brand=unknown,driver>=565,driver<566 brand=grid,driver>=565,driver<566 brand=tesla,driver>=565,driver<566 brand=nvidia,driver>=565,driver<566 brand=quadro,driver>=565,driver<566 brand=quadrortx,driver>=565,driver<566 brand=nvidiartx,driver>=565,driver<566 brand=vapps,driver>=565,driver<566 brand=vpc,driver>=565,driver<566 brand=vcs,driver>=565,driver<566 brand=vws,driver>=565,driver<566 brand=cloudgaming,driver>=565,driver<566 brand=unknown,driver>=570,driver<571 brand=grid,driver>=570,driver<571 brand=tesla,driver>=570,driver<571 brand=nvidia,driver>=570,driver<571 brand=quadro,driver>=570,driver<571 brand=quadrortx,driver>=570,driver<571 brand=nvidiartx,driver>=570,driver<571 brand=vapps,driver>=570,driver<571 brand=vpc,driver>=570,driver<571 brand=vcs,driver>=570,driver<571 brand=vws,driver>=570,driver<571 brand=cloudgaming,driver>=570,driver<571 brand=unknown,driver>=575,driver<576 brand=grid,driver>=575,driver<576 brand=tesla,driver>=575,driver<576 brand=nvidia,driver>=575,driver<576 brand=quadro,driver>=575,driver<576 brand=quadrortx,driver>=575,driver<576 brand=nvidiartx,driver>=575,driver<576 brand=vapps,driver>=575,driver<576 brand=vpc,driver>=575,driver<576 brand=vcs,driver>=575,driver<576 brand=vws,driver>=575,driver<576 brand=cloudgaming,driver>=575,driver<576",
+      "NV_CUDA_CUDART_VERSION=13.0.88-1",
+      "CUDA_VERSION=13.0.1",
+      "LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64",
+      "NVIDIA_DRIVER_CAPABILITIES=compute,utility",
+      "NV_CUDA_LIB_VERSION=13.0.1-1",
+      "NV_NVTX_VERSION=13.0.85-1",
+      "NV_LIBNPP_VERSION=13.0.1.2-1",
+      "NV_LIBNPP_PACKAGE=libnpp-13-0=13.0.1.2-1",
+      "NV_LIBCUSPARSE_VERSION=12.6.3.3-1",
+      "NV_LIBCUBLAS_PACKAGE_NAME=libcublas-13-0",
+      "NV_LIBCUBLAS_VERSION=13.0.2.14-1",
+      "NV_LIBCUBLAS_PACKAGE=libcublas-13-0=13.0.2.14-1",
+      "NV_LIBNCCL_PACKAGE_NAME=libnccl2",
+      "NV_LIBNCCL_PACKAGE_VERSION=2.28.3-1",
+      "NCCL_VERSION=2.28.3-1",
+      "NV_LIBNCCL_PACKAGE=libnccl2=2.28.3-1+cuda13.0",
+      "NVIDIA_PRODUCT_NAME=CUDA",
+      "NV_CUDA_CUDART_DEV_VERSION=13.0.88-1",
+      "NV_NVML_DEV_VERSION=13.0.87-1",
+      "NV_LIBCUSPARSE_DEV_VERSION=12.6.3.3-1",
+      "NV_LIBNPP_DEV_VERSION=13.0.1.2-1",
+      "NV_LIBNPP_DEV_PACKAGE=libnpp-dev-13-0=13.0.1.2-1",
+      "NV_LIBCUBLAS_DEV_PACKAGE_NAME=libcublas-dev-13-0",
+      "NV_LIBCUBLAS_DEV_VERSION=13.0.2.14-1",
+      "NV_LIBCUBLAS_DEV_PACKAGE=libcublas-dev-13-0=13.0.2.14-1",
+      "NV_CUDA_NSIGHT_COMPUTE_VERSION=13.0.1-1",
+      "NV_CUDA_NSIGHT_COMPUTE_DEV_PACKAGE=cuda-nsight-compute-13-0=13.0.1-1",
+      "NV_LIBNCCL_DEV_PACKAGE_NAME=libnccl-dev",
+      "NV_LIBNCCL_DEV_PACKAGE_VERSION=2.28.3-1",
+      "NV_LIBNCCL_DEV_PACKAGE=libnccl-dev=2.28.3-1+cuda13.0",
+      "LIBRARY_PATH=/usr/local/cuda/lib64/stubs",
+      "DEBIAN_FRONTEND=noninteractive"
+    ],
+    "Cmd": null,
+    "Image": "rek-original-functions:20260927-r1",
+    "Volumes": null,
+    "WorkingDir": "/session/game",
+    "Entrypoint": [
+      "/bin/bash",
+      "/usr/local/bin/rek-original-functions-entrypoint"
+    ],
+    "OnBuild": null,
+    "Labels": {
+      "maintainer": "NVIDIA CORPORATION <cudatools@nvidia.com>",
+      "org.opencontainers.image.ref.name": "ubuntu",
+      "org.opencontainers.image.version": "24.04",
+      "rek.original-functions.base-image-id": "sha256:4166bcf2f07dfc7c392ca8b2f8e8a69351700bf37f734b605f441a6d122b9f92"
+    }
+  },
+  "NetworkSettings": {
+    "Bridge": "",
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "HairpinMode": false,
+    "LinkLocalIPv6Address": "",
+    "LinkLocalIPv6PrefixLen": 0,
+    "SecondaryIPAddresses": null,
+    "SecondaryIPv6Addresses": null,
+    "EndpointID": "",
+    "Gateway": "",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "IPAddress": "",
+    "IPPrefixLen": 0,
+    "IPv6Gateway": "",
+    "MacAddress": "",
+    "Networks": {
+      "none": {
+        "IPAMConfig": null,
+        "Links": null,
+        "Aliases": null,
+        "MacAddress": "",
+        "DriverOpts": null,
+        "GwPriority": 0,
+        "NetworkID": "1191b1b681e0b29b0227c1cbf64f68c0b7cb76567804f4949ae2d249d7575a71",
+        "EndpointID": "",
+        "Gateway": "",
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "DNSNames": null
+      }
+    }
+  }
+}

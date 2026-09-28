@@ -1,0 +1,5 @@
+{
+  "command": "mkdir /home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1 && tar -xf /home/spark-advantage/rek-training/rek-original-model-20260928-r1/original-model-inventory-package-r1.tar -C /home/spark-advantage/rek-training/rek-original-model-20260928-r1/package-r1",
+  "exit_code": 0,
+  "utc": "2026-09-28T20:06:51.107736+00:00"
+}

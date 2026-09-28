@@ -1,0 +1,6 @@
+{
+  "command": "test ! -e /home/spark-advantage/rek-training/rek-original-model-20260928-r2 && mkdir /home/spark-advantage/rek-training/rek-original-model-20260928-r2",
+  "exit_code": 0,
+  "started_utc": "2026-09-28T20:18:29.729367+00:00",
+  "finished_utc": "2026-09-28T20:18:29.773894+00:00"
+}

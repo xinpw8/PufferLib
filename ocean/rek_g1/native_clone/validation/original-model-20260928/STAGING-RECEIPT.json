@@ -1,0 +1,18 @@
+{
+  "schema": "rek.original_model_inventory.combined_publication_staging.v1",
+  "public_ready_after_review_supplement": true,
+  "copies": [
+    {
+      "revision": "r1",
+      "publication_sha256": "e813c26c61bc692461370581d57a2aca74dbfdfd513e8598acddd4aa000ad46b",
+      "files": 84,
+      "all_source_local_hashes_match": true
+    },
+    {
+      "revision": "r2",
+      "publication_sha256": "490ea815fa0be5b9700fc8944a8c46d9e9a28827ce64a5cce88388eefbd7ca82",
+      "files": 88,
+      "all_source_local_hashes_match": true
+    }
+  ]
+}

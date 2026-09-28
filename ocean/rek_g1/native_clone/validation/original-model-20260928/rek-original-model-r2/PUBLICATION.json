@@ -1,0 +1,533 @@
+{
+  "schema": "rek.original_model_inventory.publication.v1",
+  "utc": "2026-09-28T20:22:52.457006+00:00",
+  "revision": "r2",
+  "result": "complete_passive_serialized_inventory",
+  "source_and_nas_hashes_verified": true,
+  "prior_failure_immutable_publication": "../rek-original-model-r1/PUBLICATION.json",
+  "prior_failure_publication_sha256": "e813c26c61bc692461370581d57a2aca74dbfdfd513e8598acddd4aa000ad46b",
+  "files": [
+    {
+      "path": "BUILD-RECEIPT.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\BUILD-RECEIPT.json",
+      "bytes": 2324,
+      "sha256": "c79e1e2f4d0772ff86eeafa56e0cf9c4e6049cb0ef90e8891075848e3d3236e1"
+    },
+    {
+      "path": "closed-inventory-r2/container-inspect.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\container-inspect.json",
+      "bytes": 16317,
+      "sha256": "dc9ebe396532bbf7a522e937a65e4ab0d798d1130b56d9623f8c1c00aa60232e"
+    },
+    {
+      "path": "closed-inventory-r2/COPY-VERIFICATION.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\COPY-VERIFICATION.json",
+      "bytes": 544,
+      "sha256": "0393650537ad5f5e1866e07fc401dd84d96c2115c2d6da59567a5d97fa3c1f76"
+    },
+    {
+      "path": "closed-inventory-r2/isolation/container-created-receipt.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\isolation\\container-created-receipt.json",
+      "bytes": 2145,
+      "sha256": "267121671a5868e849faf728abb02113770101d71fe714d57d47015e5b8c687e"
+    },
+    {
+      "path": "closed-inventory-r2/isolation/container-finished-receipt.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\isolation\\container-finished-receipt.json",
+      "bytes": 411,
+      "sha256": "62f8c669c077c728b3bc155ebc334c050c72db2d0d03a727f8d8111e951e8554"
+    },
+    {
+      "path": "closed-inventory-r2/isolation/container-prestart-receipt.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\isolation\\container-prestart-receipt.json",
+      "bytes": 2145,
+      "sha256": "0500afa4c259675c733714ba3ba73c377b860728c349b71271245bdfa4595f0c"
+    },
+    {
+      "path": "closed-inventory-r2/session/docker-create-command.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\docker-create-command.json",
+      "bytes": 2246,
+      "sha256": "7bb5883b1467faea76c7a67298699e0f9681075885fc40c6f7e79fb319c5be95"
+    },
+    {
+      "path": "closed-inventory-r2/session/game/BepInEx/ErrorLog.log",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\game\\BepInEx\\ErrorLog.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "closed-inventory-r2/session/game/BepInEx/LogOutput.log",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\game\\BepInEx\\LogOutput.log",
+      "bytes": 1292,
+      "sha256": "e0efe65542fe0f6ae682118b3dc5bc3316b79ae8ebca2343e74417329c78bbc5"
+    },
+    {
+      "path": "closed-inventory-r2/session/input/fixtures.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\input\\fixtures.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    {
+      "path": "closed-inventory-r2/session/input/INPUT-STAGING.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\input\\INPUT-STAGING.json",
+      "bytes": 764,
+      "sha256": "6d4e3044bda929afb198a3c9662a2bb3c8a9232013b9856aaa3fbbc05a5b22a2"
+    },
+    {
+      "path": "closed-inventory-r2/session/input/run-config.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\input\\run-config.json",
+      "bytes": 340,
+      "sha256": "1abc263fa8aab3000a0e7329cdd8550dba7accb50331e8c4460787c1d9001b8c"
+    },
+    {
+      "path": "closed-inventory-r2/session/INPUT.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\INPUT.json",
+      "bytes": 487,
+      "sha256": "9ce338432565a4491d6a84810261da4f8751309cacb3d905f9867b9dd6107601"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/game.exit-code.txt",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\game.exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/game.finished.utc",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\game.finished.utc",
+      "bytes": 21,
+      "sha256": "8a0a39de163af71d5915cb0379f31245ee1fc6af00e0f4b780afe4694828fa3f"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/game.stderr.log",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\game.stderr.log",
+      "bytes": 125717,
+      "sha256": "a1ea0284ea84ae6101d4321673cd6eec25425ecb1d7f1af39537ef66f9f6d661"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/game.stdout.log",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\game.stdout.log",
+      "bytes": 1824,
+      "sha256": "bbdea4c79173e74741161e06331aab234362d29b36abbbc95841d8f5fd58ef93"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/image-packages.txt",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\image-packages.txt",
+      "bytes": 152,
+      "sha256": "44fcfa5c1bebd7b7480b06ab77d38e5ece4b69353003b451339828d29eb1bea1"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/oracle/inventory.jsonl",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\oracle\\inventory.jsonl",
+      "bytes": 401315,
+      "sha256": "74a3283921008f40c412fbcc90e3c794966fca45fa5669e99d4fa101156f5172"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/unity.log",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\unity.log",
+      "bytes": 12402,
+      "sha256": "69163bcfd5ce63e64f3e7be1062b7341ca3e53e0bd88ef85e295d33059d23487"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/x-display.txt",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\x-display.txt",
+      "bytes": 26026,
+      "sha256": "783e1df6abc1a61169c12f174221e4c6ac2b2e251474a29bd6a9afa41ded1c54"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/xvfb.stderr.log",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\xvfb.stderr.log",
+      "bytes": 1255,
+      "sha256": "0bac115c5580e35921d81254a7da3faf4a2bcbffe9063af638a27e97a1471a01"
+    },
+    {
+      "path": "closed-inventory-r2/session/out/xvfb.stdout.log",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\xvfb.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "closed-inventory-r2/session/PLUGIN.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\PLUGIN.json",
+      "bytes": 165,
+      "sha256": "c67dbf82bab40efd458cf7172a44bd25f9e881581691e6acfd9ab6ed2022bb2c"
+    },
+    {
+      "path": "closed-inventory-r2/session/run.started",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\run.started",
+      "bytes": 21,
+      "sha256": "9de818ae5648405065d3f21390d430f68e493592747ea348bb1e15e804c02901"
+    },
+    {
+      "path": "closed-inventory-r2/session/STAGED.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\STAGED.json",
+      "bytes": 106620,
+      "sha256": "0ba8b08ddfdb4929673c6c6424be7883f39fccf95106c05f9c8177b756bcb456"
+    },
+    {
+      "path": "closed-inventory-r2/SOURCE-MANIFEST.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\SOURCE-MANIFEST.json",
+      "bytes": 8589,
+      "sha256": "eea6cabbdd52c0aaf8fd53cf67e0dabfe4ba8b97a120ab165aec74122360b966"
+    },
+    {
+      "path": "execution/00-image.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\00-image.json",
+      "bytes": 225,
+      "sha256": "25b98f6e944edd690c66640daf0c69dd7893e0ab32afc558f0172498230a1fb0"
+    },
+    {
+      "path": "execution/00-image.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\00-image.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/00-image.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\00-image.stdout",
+      "bytes": 72,
+      "sha256": "1176f2b06b2b3fec41780cb899b10356b4c81c90baf1b4990873ede89e35c56e"
+    },
+    {
+      "path": "execution/01-fresh-root.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\01-fresh-root.json",
+      "bytes": 301,
+      "sha256": "060952503f5dcc39604f0ff5b4fe255fddbf2a15a7ce0b1f60959791ee8218c4"
+    },
+    {
+      "path": "execution/01-fresh-root.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\01-fresh-root.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/01-fresh-root.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\01-fresh-root.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/02-unpack.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\02-unpack.json",
+      "bytes": 430,
+      "sha256": "a9e95258adc8ae1aa68cdce033a1d535216c54648935c182f67827ef7948a14c"
+    },
+    {
+      "path": "execution/02-unpack.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\02-unpack.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/02-unpack.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\02-unpack.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/03-prepare-runtime.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\03-prepare-runtime.json",
+      "bytes": 274,
+      "sha256": "f54f2a091e37f370fc9375adf489954d1e9305cdc26ffcd5215e72ca6fdd3d94"
+    },
+    {
+      "path": "execution/03-prepare-runtime.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\03-prepare-runtime.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/03-prepare-runtime.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\03-prepare-runtime.stdout",
+      "bytes": 168,
+      "sha256": "7e058c0460e8a52f860892e17d3b153bf2bae35b2a290ca409512c899f0387e2"
+    },
+    {
+      "path": "execution/04-plugin.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\04-plugin.json",
+      "bytes": 473,
+      "sha256": "11dc783f29d01e01e35819c2e4463bf4a6062530fae4d3d0631231e4099bad5e"
+    },
+    {
+      "path": "execution/04-plugin.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\04-plugin.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/04-plugin.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\04-plugin.stdout",
+      "bytes": 53,
+      "sha256": "9c83bc86c657573dea3b6c74e37e9a0c5c373c6994f8eb9f64efc2baf3c320ee"
+    },
+    {
+      "path": "execution/05-inputs.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\05-inputs.json",
+      "bytes": 619,
+      "sha256": "db6ee788d11c9be2fd05a07ff523d2a8eaed9a4acef65f0aafb35ca763876850"
+    },
+    {
+      "path": "execution/05-inputs.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\05-inputs.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/05-inputs.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\05-inputs.stdout",
+      "bytes": 764,
+      "sha256": "6d4e3044bda929afb198a3c9662a2bb3c8a9232013b9856aaa3fbbc05a5b22a2"
+    },
+    {
+      "path": "execution/06-freeze.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\06-freeze.json",
+      "bytes": 275,
+      "sha256": "efdf5edcc1161ee250fa80f73668eab3d1d73c3b5e1c2c9bb93d4ff54ba1eb82"
+    },
+    {
+      "path": "execution/06-freeze.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\06-freeze.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/06-freeze.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\06-freeze.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/07-create.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\07-create.json",
+      "bytes": 269,
+      "sha256": "71557741cfe2b7b6f4ee82659eb0f9eaa35ab050e0c68bcdff91035e1ab91ffc"
+    },
+    {
+      "path": "execution/07-create.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\07-create.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/07-create.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\07-create.stdout",
+      "bytes": 1946,
+      "sha256": "e1cde22ddeab2324076fe85b378292dabf72339c5cb90ac58448fbb4a360a52e"
+    },
+    {
+      "path": "execution/08-created-image.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\08-created-image.json",
+      "bytes": 228,
+      "sha256": "9909f551c20a41010867dbc1b94ef92c4e892a386d6e854b9ab9141d72ae85b3"
+    },
+    {
+      "path": "execution/08-created-image.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\08-created-image.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/08-created-image.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\08-created-image.stdout",
+      "bytes": 72,
+      "sha256": "1176f2b06b2b3fec41780cb899b10356b4c81c90baf1b4990873ede89e35c56e"
+    },
+    {
+      "path": "execution/09-start.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\09-start.json",
+      "bytes": 268,
+      "sha256": "5e6246d77d96f6deaa432d35fdf3bc81db01e58ce1319dbf3f2b2e6316eccbc0"
+    },
+    {
+      "path": "execution/09-start.stderr",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\09-start.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/09-start.stdout",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\09-start.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "execution/STAGED-READY.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\execution\\STAGED-READY.json",
+      "bytes": 538,
+      "sha256": "7464edf2b65e35e93b88a70d71cbbb47ef2573c5d82dd2d8dd234864b85ab5a4"
+    },
+    {
+      "path": "fetch_closed_inventory.py",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\fetch_closed_inventory.py",
+      "bytes": 3460,
+      "sha256": "165eea6b17a903a432dc4b6110b2324383e2a1f05aa2bce9a496e57392de2f89"
+    },
+    {
+      "path": "original-model-inventory-package-r2.tar",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\original-model-inventory-package-r2.tar",
+      "bytes": 399360,
+      "sha256": "0631a136d4cc5cd35d4cf4cbbdf7f95bc62415a66a3f468b401aa926e779a951"
+    },
+    {
+      "path": "package/api/Mujoco.MjGlobalSettings.decompiled.cs",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\api\\Mujoco.MjGlobalSettings.decompiled.cs",
+      "bytes": 10649,
+      "sha256": "0fdcd7585f39ba3d7b4d705879c720e729a28a4505a74b2fd3f1e5e785ddc45b"
+    },
+    {
+      "path": "package/api/Mujoco.MjScene.decompiled.cs",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\api\\Mujoco.MjScene.decompiled.cs",
+      "bytes": 66330,
+      "sha256": "16ec5edbe25d63b5b2f0252b953a0a41014e09f956329b1f03dcb39371e5d6f0"
+    },
+    {
+      "path": "package/api/REKApp.RobotCatalog.decompiled.cs",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\api\\REKApp.RobotCatalog.decompiled.cs",
+      "bytes": 4711,
+      "sha256": "08deaada6cd79f17736582c4712806a9be9aec3c45e91b68935bb73f24670658"
+    },
+    {
+      "path": "package/api/REKApp.RobotCatalogEntry.decompiled.cs",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\api\\REKApp.RobotCatalogEntry.decompiled.cs",
+      "bytes": 7779,
+      "sha256": "e5181f4f5dd5583f6b46f0e252a58c330086e357dc5b1c051997602733752722"
+    },
+    {
+      "path": "package/api/REKApp.RobotSpawner.decompiled.cs",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\api\\REKApp.RobotSpawner.decompiled.cs",
+      "bytes": 45054,
+      "sha256": "ad7879c4c1da3a705285172000fefc6fa6137549512dc703b348bae3e9a0c563"
+    },
+    {
+      "path": "package/api/SOURCE-PINS.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\api\\SOURCE-PINS.json",
+      "bytes": 2618,
+      "sha256": "27af5683b26a4a1c6aefb0216bcf9a537beb874dc6e2387e83574d0d029ef5bb"
+    },
+    {
+      "path": "package/bin/RekOriginalModelInventory.dll",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\bin\\RekOriginalModelInventory.dll",
+      "bytes": 54784,
+      "sha256": "bc8df76dbc4664a539fd80c2bb6634c3f03f8ac0bf1bda19f6c550cb5014cb35"
+    },
+    {
+      "path": "package/BUILD-RECEIPT.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\BUILD-RECEIPT.json",
+      "bytes": 2324,
+      "sha256": "c79e1e2f4d0772ff86eeafa56e0cf9c4e6049cb0ef90e8891075848e3d3236e1"
+    },
+    {
+      "path": "package/fixture.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\fixture.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    {
+      "path": "package/isolation/orchestrate.py",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\isolation\\orchestrate.py",
+      "bytes": 5793,
+      "sha256": "639f68940dc0d6eeebfd56fdcdcfc937ef2108c9967237b8efb60a7f682081df"
+    },
+    {
+      "path": "package/isolation/prepare_runtime.py",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\isolation\\prepare_runtime.py",
+      "bytes": 8394,
+      "sha256": "83c8cca96d4ae98db5a0f7133e3c743b43db34a6df7fd3a656b5e3a89d7559ce"
+    },
+    {
+      "path": "package/MANIFEST.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\MANIFEST.json",
+      "bytes": 5849,
+      "sha256": "9e9a8bcd20d211e6db2597f88d7bab22a3ed08919fb763f28e1dd832ee6a46a8"
+    },
+    {
+      "path": "package/prepare_inputs.py",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\prepare_inputs.py",
+      "bytes": 3350,
+      "sha256": "088a22fe2dc5334bf19a966906b4a37146fe80ae8932ebe7837bf2a3ed9a1efc"
+    },
+    {
+      "path": "package/probe/Plugin.cs",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\probe\\Plugin.cs",
+      "bytes": 15232,
+      "sha256": "093f1a54edee78346a4eda990e91af6f845b085fd34bc47756734c6b9e984656"
+    },
+    {
+      "path": "package/probe/RekOriginalModelInventory.csproj",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\probe\\RekOriginalModelInventory.csproj",
+      "bytes": 1819,
+      "sha256": "cb5536cd56b3cbcd7c817ea3b3395bde940c145b9097ae16c7b89ff1a34f84d2"
+    },
+    {
+      "path": "package/README.md",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\README.md",
+      "bytes": 7204,
+      "sha256": "d3d2013cf23933b85cf17fdae8397aa6912d148a3d1fd85fa9731f513d4e8e40"
+    },
+    {
+      "path": "package/review/closed-inventory-independent-review-r1.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\review\\closed-inventory-independent-review-r1.json",
+      "bytes": 7863,
+      "sha256": "d4749a58bd073c46af70c6c57becc1d4249d737dc77fe4b7e7f26bd8bc45a8f7"
+    },
+    {
+      "path": "package/review/serialized-assets-review-r1.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\review\\serialized-assets-review-r1.json",
+      "bytes": 88314,
+      "sha256": "774606273e2f9772beb50f7da32214a3e6b81bc3901d29ff041cb37b3453010f"
+    },
+    {
+      "path": "package/revision/INDEPENDENT-REVIEW.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\revision\\INDEPENDENT-REVIEW.json",
+      "bytes": 3597,
+      "sha256": "6ef80f797170f7724ec43ebd1b22b0f5feea801786978b857c9512d1b0310727"
+    },
+    {
+      "path": "package/revision/r1-to-r2.diff",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\revision\\r1-to-r2.diff",
+      "bytes": 4343,
+      "sha256": "406aecba5c00ee04137dde71e15dc4678a99d4b7b12fbfc756146dc41623736d"
+    },
+    {
+      "path": "package/test_prepare_inputs.py",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package\\test_prepare_inputs.py",
+      "bytes": 2431,
+      "sha256": "e831e6c7dc96f9a7b1e37fa26a1917119577e759fa70c1c4e60a355fba1b8a6c"
+    },
+    {
+      "path": "PACKAGE-RECEIPT.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\PACKAGE-RECEIPT.json",
+      "bytes": 374,
+      "sha256": "3243d8cf263e632dc5b70fa1809b66f300b81f8c2a019309aff10da17e7cea0c"
+    },
+    {
+      "path": "package_source.py",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\package_source.py",
+      "bytes": 2269,
+      "sha256": "937ff5a735149ff2d76202aee97b50084b9b19ddf64aad629c10d69378491139"
+    },
+    {
+      "path": "RESULT.json",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\RESULT.json",
+      "bytes": 9287,
+      "sha256": "a11e67e0b27d6cb50edee3676eec0a43284e21d54c6cd32e8ee4552b1ac17bf3"
+    },
+    {
+      "path": "RESULT.md",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\RESULT.md",
+      "bytes": 2339,
+      "sha256": "d9effc33f941a5193588effa7f61627ae63a6343a97f30c57a56043dc9b663bd"
+    },
+    {
+      "path": "stage_and_run_authorized_once.py",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\stage_and_run_authorized_once.py",
+      "bytes": 3956,
+      "sha256": "72186482fea8071161648db9169898744d5771e31477adc9ab5431e74c1aadd2"
+    },
+    {
+      "path": "summarize_result.py",
+      "source_path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\summarize_result.py",
+      "bytes": 6739,
+      "sha256": "5043209a12a5390c3f5036618ad7805d3c2ebb0c7be36ecb6117800bcbdd107c"
+    }
+  ]
+}

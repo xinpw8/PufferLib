@@ -1,0 +1,78 @@
+{
+  "schema": "rek.original_model_inventory.revision_review.v1",
+  "reviewed_utc": "2026-09-28T20:17:10.602631+00:00",
+  "verdict": "GO for one bounded passive r2 inventory retry with parent authorization",
+  "runtime_performed_by_reviewer": false,
+  "files": [
+    {
+      "path": "probe/Plugin.cs",
+      "bytes": 15232,
+      "sha256": "093f1a54edee78346a4eda990e91af6f845b085fd34bc47756734c6b9e984656"
+    },
+    {
+      "path": "probe/RekOriginalModelInventory.csproj",
+      "bytes": 1819,
+      "sha256": "cb5536cd56b3cbcd7c817ea3b3395bde940c145b9097ae16c7b89ff1a34f84d2"
+    },
+    {
+      "path": "probe/bin/Release/net6.0/RekOriginalModelInventory.dll",
+      "bytes": 54784,
+      "sha256": "bc8df76dbc4664a539fd80c2bb6634c3f03f8ac0bf1bda19f6c550cb5014cb35"
+    },
+    {
+      "path": "fixture.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    {
+      "path": "prepare_inputs.py",
+      "bytes": 3350,
+      "sha256": "088a22fe2dc5334bf19a966906b4a37146fe80ae8932ebe7837bf2a3ed9a1efc"
+    },
+    {
+      "path": "test_prepare_inputs.py",
+      "bytes": 2431,
+      "sha256": "e831e6c7dc96f9a7b1e37fa26a1917119577e759fa70c1c4e60a355fba1b8a6c"
+    },
+    {
+      "path": "isolation/prepare_runtime.py",
+      "bytes": 8394,
+      "sha256": "83c8cca96d4ae98db5a0f7133e3c743b43db34a6df7fd3a656b5e3a89d7559ce"
+    },
+    {
+      "path": "isolation/orchestrate.py",
+      "bytes": 5793,
+      "sha256": "639f68940dc0d6eeebfd56fdcdcfc937ef2108c9967237b8efb60a7f682081df"
+    },
+    {
+      "path": "revision/r1-to-r2.diff",
+      "bytes": 4343,
+      "sha256": "406aecba5c00ee04137dde71e15dc4678a99d4b7b12fbfc756146dc41623736d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 7204,
+      "sha256": "d3d2013cf23933b85cf17fdae8397aa6912d148a3d1fd85fa9731f513d4e8e40"
+    }
+  ],
+  "checks": [
+    "Read complete final Plugin.cs and exact generated diff. Source delta replaces unsafe out-wrapper invocation with unique exact-id selection during already-demonstrated catalog enumeration.",
+    "Fixture, staging helper/tests and project bytes unchanged. All final build-receipt hashes and sizes verified.",
+    "Original TryGetById entrypoint is resolved only and explicitly logged invoked=false, semantics_validated=false. No new raw invoke or ABI shim.",
+    "Exactly one g1 required; null prefab, wrong name or scene-valid prefab still reject. Root source asset pins and original containment unchanged.",
+    "Isolation delta is fresh r2 session/container identifiers only. No model generation, initialization, explicit dynamics, live profile/network/GPU/input."
+  ],
+  "prior_failure_preserved": {
+    "review_path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\review\\closed-inventory-independent-review-r1.json",
+    "sha256": "d4749a58bd073c46af70c6c57becc1d4249d737dc77fe4b7e7f26bd8bc45a8f7"
+  },
+  "limits": [
+    "No successful TryGetById runtime semantics claim.",
+    "Catalog fallback selection and serialized prefab data do not establish initialized model, scene overrides or authoritative-server selection.",
+    "Original app already had one active MjScene during r1; only explicit harness calls are constrained.",
+    "Whole-process callback/physics activity is uninstrumented.",
+    "Runtime instanceID width/normalization remains unvalidated; raw references retained.",
+    "Closed success footer and actual record completeness are required before inventory success."
+  ],
+  "tests": "Existing four staging tests/source unchanged; author build/tests passed. No new Unity run by reviewer."
+}

@@ -1,0 +1,9 @@
+test_escape_and_duplicate_rejected (test_prepare_inputs.StageTests.test_escape_and_duplicate_rejected) ... ok
+test_existing_output_and_bad_schema_rejected (test_prepare_inputs.StageTests.test_existing_output_and_bad_schema_rejected) ... ok
+test_pin_change_rejected_before_writes (test_prepare_inputs.StageTests.test_pin_change_rejected_before_writes) ... ok
+test_success_and_no_overwrite (test_prepare_inputs.StageTests.test_success_and_no_overwrite) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.057s
+
+OK

@@ -1,0 +1,58 @@
+--- r1/probe/Plugin.cs
++++ r2/probe/Plugin.cs
+@@ -83,16 +83,21 @@
+         if(Time.frameCount<3)return;executing=true;
+         try {
+             Guard();Emit(new{@event="loaded_counts",phase="before_load",counts=Counts()});
+-            Emit(new{@event="entrypoint",method=Attest(typeof(RobotCatalog),"TryGetById")});
++            Emit(new{@event="entrypoint",method=Attest(typeof(RobotCatalog),"TryGetById"),invoked_by_harness=false});
+             var catalog=Resources.Load<RobotCatalog>("Workshop/RobotCatalog");Count("Resources.Load<RobotCatalog>");Require(catalog!=null,"catalog missing");
+             var entries=catalog.robots;Require(entries!=null && entries.Count is >0 and <=64,"catalog count bound");
+             Emit(new{@event="catalog",name=catalog.name,instance_id=catalog.GetInstanceID(),instance_id_scope="process-local, not serialized pathID",serialized=Serialize(catalog)});
++            RobotCatalogEntry? selectedEntry=null;int selectedMatches=0;
+             for(int i=0;i<entries.Count;i++){
+                 var e=entries[i];var p=e.previewPrefab;
++                if(e.id==Str(Fixture,"robot_id")){selectedEntry=e;selectedMatches++;}
+                 Emit(new{@event="catalog_entry",index=i,id=e.id,display_name=e.displayName,type_label=e.typeLabel,prefab=p==null?null:new{name=p.name,instance_id=p.GetInstanceID(),scene_valid=p.scene.IsValid(),active_self=p.activeSelf,active_in_hierarchy=p.activeInHierarchy}});
+             }
+-            bool found=catalog.TryGetById("g1",out var entry);Count("RobotCatalog.TryGetById");Require(found&&entry!=null&&entry.previewPrefab!=null,"g1 prefab missing");
+-            var prefab=entry.previewPrefab;Require(prefab.name==Str(Fixture,"expected_prefab_name"),"unexpected prefab name");
++            Require(selectedMatches==1 && selectedEntry!=null,"catalog must contain exactly one requested id");
++            Require(selectedEntry.previewPrefab!=null,"g1 prefab missing");
++            Count("catalog_enumeration_exact_id_selection");
++            Emit(new{@event="selection",method="direct_observed_catalog_enumeration",robot_id=Str(Fixture,"robot_id"),exact_matches=selectedMatches,original_TryGetById_invoked=false,original_TryGetById_semantics_validated=false});
++            var prefab=selectedEntry.previewPrefab;Require(prefab.name==Str(Fixture,"expected_prefab_name"),"unexpected prefab name");
+             Require(!prefab.scene.IsValid(),"catalog prefab is a scene instance");
+             Walk(prefab.transform,"",0);
+             int configCount=0;
+--- r1/isolation/prepare_runtime.py
++++ r2/isolation/prepare_runtime.py
+@@ -9,7 +9,7 @@
+ 
+ SOURCE = Path('/home/spark-advantage/codexrook-runtime/rek-core-referee-20260924-r1')
+ RUNTIME = SOURCE.parent
+-SESSION = Path('/home/spark-advantage/rek-training/rek-original-model-20260928-r1/unity-harness-inventory-r1')
++SESSION = Path('/home/spark-advantage/rek-training/rek-original-model-20260928-r2/unity-harness-inventory-r2')
+ BASE_IMAGE_ID = 'sha256:4166bcf2f07dfc7c392ca8b2f8e8a69351700bf37f734b605f441a6d122b9f92'
+ TRANSLATOR = RUNTIME/'box64-upstream-20260924-r1/bin/box64'
+ TRANSLATOR_SHA = '12a50a0f629f1ddeb08524c8f7399829e0b7101f79f4e20c094376c73a1af7ae'
+@@ -28,7 +28,7 @@
+     return h.hexdigest()
+ def create_command():
+     session=SESSION.as_posix()
+-    args=['docker','create','--name','rek-original-model-inventory-20260928-r1','--runtime','runc',
++    args=['docker','create','--name','rek-original-model-inventory-20260928-r2','--runtime','runc',
+           '--network','none','--ipc','private','--cap-drop','ALL','--security-opt','no-new-privileges',
+           '--read-only','--user','1000:1000','--pids-limit','256','--cpus','4','--memory','8g','--memory-swap','8g',
+           '--tmpfs','/tmp:rw,nosuid,size=512m,mode=1777','--tmpfs','/run:rw,nosuid,size=16m,mode=755',
+--- r1/isolation/orchestrate.py
++++ r2/isolation/orchestrate.py
+@@ -8,7 +8,7 @@
+ 
+ ROOT=Path(__file__).resolve().parent
+ IMAGE='rek-original-functions:20260927-r1'
+-NAME='rek-original-model-inventory-20260928-r1'
++NAME='rek-original-model-inventory-20260928-r2'
+ def read_json_command(argv):return json.loads(subprocess.check_output(argv,text=True))
+ def write_new(name,value):
+     with (ROOT/name).open('x') as f:json.dump(value,f,indent=2);f.write('\n')

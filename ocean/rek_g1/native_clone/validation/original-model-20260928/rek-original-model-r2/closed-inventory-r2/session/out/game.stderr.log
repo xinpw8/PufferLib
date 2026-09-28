@@ -1,0 +1,1812 @@
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine64 detected, WINEPRELOADRESERVE=""
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "REK.exe"
+[BOX64] Counted 68 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/bin/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="/session/game/REK.exe"
+[BOX64] argv[2]="-batchmode"
+[BOX64] argv[3]="-nographics"
+[BOX64] argv[4]="-job-worker-count"
+[BOX64] argv[5]="2"
+[BOX64] argv[6]="--rek-composer-oracle"
+[BOX64] argv[7]="-screen-fullscreen"
+[BOX64] argv[8]="0"
+[BOX64] argv[9]="-screen-width"
+[BOX64] argv[10]="1280"
+[BOX64] argv[11]="-screen-height"
+[BOX64] argv[12]="720"
+[BOX64] argv[13]="-disable-audio"
+[BOX64] argv[14]="-nosound"
+[BOX64] argv[15]="-logFile"
+[BOX64] argv[16]="Z:/session/out/unity.log"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/bin/../lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE=""
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "REK.exe"
+[BOX64] Counted 69 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="/session/game/REK.exe"
+[BOX64] argv[2]="-batchmode"
+[BOX64] argv[3]="-nographics"
+[BOX64] argv[4]="-job-worker-count"
+[BOX64] argv[5]="2"
+[BOX64] argv[6]="--rek-composer-oracle"
+[BOX64] argv[7]="-screen-fullscreen"
+[BOX64] argv[8]="0"
+[BOX64] argv[9]="-screen-width"
+[BOX64] argv[10]="1280"
+[BOX64] argv[11]="-screen-height"
+[BOX64] argv[12]="720"
+[BOX64] argv[13]="-disable-audio"
+[BOX64] argv[14]="-nosound"
+[BOX64] argv[15]="-logFile"
+[BOX64] argv[16]="Z:/session/out/unity.log"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] posix_spawn(0xf25bec3fe35c, "/opt/codexrook/wine-11.13/lib/wine/../../bin/wineserver", (nil), (nil), 0xf25bec3fe360["/opt/codexrook/wine-11.13/lib/wine/../../bin/wineserver", "", ...], 0xf25bec3fe860), IsX64=1, IsX86=0 IsScript=0 IsPython=0 envp is context->envv
+[BOX64]  => posix_spawn(0xf25bec3fe35c, "/opt/codexrook/box64/bin/box64", (nil), (nil), 0xffffffed8e40 ["/opt/codexrook/box64/bin/box64", "/opt/codexrook/wine-11.13/lib/wine/../../bin/wineserver", ""...:1], 0xffffffed9738)
+[BOX64] posix_spawn returned 0
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Detected 48bits at least of address space
+[BOX64] Counted 68 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/../../bin/wineserver
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] Rename process to "wineserver"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x7000000110b3, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000016, TRAPNO=0, ERR=0, RIP=0x7000000110b3, prot=0, mmapped:0
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="000000000-000000000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "wineboot.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\wineboot.exe"
+[BOX64] argv[2]="--init"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000001c, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="000000000-000000000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "services.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\services.exe"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000001e, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000001f, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000020, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="000000000-000000000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "rundll32.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\rundll32.exe"
+[BOX64] argv[2]="setupapi,InstallHinfSection"
+[BOX64] argv[3]="PreInstall"
+[BOX64] argv[4]="128"
+[BOX64] argv[5]="\\?\Z:\opt\codexrook\wine-11.13\share\wine\wine.inf"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000022, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="000000000-000000000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "explorer.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\explorer.exe"
+[BOX64] argv[2]="/desktop"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="000000000-000000000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "explorer.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\explorer.exe"
+[BOX64] argv[2]="/desktop"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000024, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000026, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winewayland.so
+[BOX64] Using native(wrapped) libwayland-client.so.0
+[BOX64] Using native(wrapped) libwayland-egl.so.1
+[BOX64] Using native(wrapped) libxkbcommon.so.0
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winewayland.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff040666ba, 2)
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Error loading needed lib libvulkan.so.1
+[BOX64] Warning: Cannot dlopen("libvulkan.so.1"/0x7fff0223930a, 2)
+0054:err:vulkan:vulkan_init_once Failed to load libvulkan.so.1
+[BOX64] Using native(wrapped) libEGL.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winewayland.so
+[BOX64] Using native(wrapped) libwayland-client.so.0
+[BOX64] Using native(wrapped) libwayland-egl.so.1
+[BOX64] Using native(wrapped) libxkbcommon.so.0
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winewayland.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff040666ba, 2)
+[BOX64] Error loading needed lib libvulkan.so.1
+[BOX64] Warning: Cannot dlopen("libvulkan.so.1"/0x7fff0223930a, 2)
+004c:err:vulkan:vulkan_init_once Failed to load libvulkan.so.1
+[BOX64] Using native(wrapped) libEGL.so.1
+[[31mBOX64[0m] Warning, no wrapper for glBlitFramebufferLayerEXT
+[[31mBOX64[0m] Warning, no wrapper for glBlitFramebufferLayersEXT
+[[31mBOX64[0m] Warning, no wrapper for glBlitFramebufferLayerEXT
+[[31mBOX64[0m] Warning, no wrapper for glBlitFramebufferLayersEXT
+[[31mBOX64[0m] Warning, no wrapper for glDeleteObjectBufferATI
+[[31mBOX64[0m] Warning, no wrapper for glDeleteObjectBufferATI
+[[31mBOX64[0m] Warning, no wrapper for glDrawMeshTasksEXT
+[[31mBOX64[0m] Warning, no wrapper for glDrawMeshTasksIndirectEXT
+[[31mBOX64[0m] Warning, no wrapper for glDrawMeshTasksEXT
+[[31mBOX64[0m] Warning, no wrapper for glDrawMeshTasksIndirectEXT
+[[31mBOX64[0m] Warning, no wrapper for glMTexCoord2fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMTexCoord2fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMTexCoord2fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMTexCoord2fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMaxActiveShaderCoresARM
+[[31mBOX64[0m] Warning, no wrapper for glMaxActiveShaderCoresARM
+[[31mBOX64[0m] Warning, no wrapper for glMultiDrawMeshTasksIndirectCountEXT
+[[31mBOX64[0m] Warning, no wrapper for glMultiDrawMeshTasksIndirectEXT
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiDrawMeshTasksIndirectCountEXT
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiDrawMeshTasksIndirectEXT
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoordPointerSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoordPointerSGIS
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+004c:err:ole:StdMarshalImpl_MarshalInterface Failed to create ifstub, hr 0x80004002
+004c:err:ole:CoMarshalInterface Failed to marshal the interface {6d5140c1-7436-11ce-8034-00aa006009fa}, hr 0x80004002
+004c:err:ole:apartment_get_local_server_stream Failed: 0x80004002
+004c:warn:seh:dispatch_exception RPC_S_SERVER_UNAVAILABLE exception (code=6ba) raised
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000079, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000007a, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000007b, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000007c, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+004c:err:ole:start_rpcss Failed to open RpcSs service
+0054:err:ole:StdMarshalImpl_MarshalInterface Failed to create ifstub, hr 0x80004002
+0054:err:ole:CoMarshalInterface Failed to marshal the interface {6d5140c1-7436-11ce-8034-00aa006009fa}, hr 0x80004002
+0054:err:ole:apartment_get_local_server_stream Failed: 0x80004002
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff030666ba, 2)
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff040666ba, 2)
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000007d, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-14000d000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x14000d000 done
+[BOX64] Detected running wine with "winedevice.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\winedevice.exe"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000007f, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000080, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000081, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000082, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000083, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0080:err:ntoskrnl:ServiceMain Failed to load L"C:\\windows\\system32\\win32k.sys"
+0080:err:ntoskrnl:ServiceMain Failed to load L"C:\\windows\\system32\\drivers\\dxgkrnl.sys"
+0080:err:ntoskrnl:ServiceMain Failed to load L"C:\\windows\\system32\\drivers\\dxgmms1.sys"
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000084, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/mountmgr.so
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000085, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000086, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using native(wrapped) libdbus-1.so.3
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="000000000-000000000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "rundll32.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\rundll32.exe"
+[BOX64] argv[2]="setupapi,InstallHinfSection"
+[BOX64] argv[3]="DefaultInstall"
+[BOX64] argv[4]="128"
+[BOX64] argv[5]="\\?\Z:\opt\codexrook\wine-11.13\share\wine\wine.inf"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000088, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff030666ba, 2)
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/avicap32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/crypt32.so
+[BOX64] Using native(wrapped) libgnutls.so.30
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winedmo.so
+[BOX64] Error loading needed lib libavutil.so.56
+[BOX64] Error loading needed lib libavformat.so.58
+[BOX64] Error loading needed lib libavcodec.so.58
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winedmo.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winegstreamer.so
+[[31mBOX64[0m] Error initializing native libgstvideo-1.0.so.0 (last dlerror is libgstvideo-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgstvideo-1.0.so.0
+[[31mBOX64[0m] Error initializing native libgstaudio-1.0.so.0 (last dlerror is libgstaudio-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgstaudio-1.0.so.0
+[[31mBOX64[0m] Error initializing native libgsttag-1.0.so.0 (last dlerror is libgsttag-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgsttag-1.0.so.0
+[[31mBOX64[0m] Error initializing native libgstreamer-1.0.so.0 (last dlerror is libgstreamer-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgstreamer-1.0.so.0
+[[31mBOX64[0m] Error initializing native libgobject-2.0.so.0 (last dlerror is libgobject-2.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgobject-2.0.so.0
+[[31mBOX64[0m] Error initializing native libglib-2.0.so.0 (last dlerror is libglib-2.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libglib-2.0.so.0
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winegstreamer.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wineps.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winspool.so
+[[31mBOX64[0m] Error initializing native libcups.so.2 (last dlerror is libcups.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libcups.so.2
+[BOX64] Warning: Cannot dlopen("libcups.so.2"/0x7fff0a001e00, 2)
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/localspl.so
+[[31mBOX64[0m] Error initializing native libcups.so.2 (last dlerror is libcups.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libcups.so.2
+[BOX64] Warning: Cannot dlopen("libcups.so.2"/0x7fff0b002bc0, 2)
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-140022000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x140022000 done
+[BOX64] Detected running wine with "iexplore.exe"
+[BOX64] Counted 72 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\iexplore.exe"
+[BOX64] argv[2]="/RegServer"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000008b, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff040666ba, 2)
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000008c, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-14000d000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x14000d000 done
+[BOX64] Detected running wine with "svchost.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\svchost.exe"
+[BOX64] argv[2]="-k"
+[BOX64] argv[3]="LocalServiceNetworkRestricted"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000008e, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000090, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000091, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000092, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-14000c000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x14000c000 done
+[BOX64] Detected running wine with "plugplay.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\plugplay.exe"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000094, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000095, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000096, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000097, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000098, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/dnsapi.so
+[BOX64] Using native(wrapped) libresolv.so.2
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/nsiproxy.so
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000099, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="000000000-000000000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "rundll32.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\syswow64\rundll32.exe"
+[BOX64] argv[2]="setupapi,InstallHinfSection"
+[BOX64] argv[3]="Wow64Install"
+[BOX64] argv[4]="128"
+[BOX64] argv[5]="\\?\Z:\opt\codexrook\wine-11.13\share\wine\wine.inf"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000009b, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff030666ba, 2)
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/avicap32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/crypt32.so
+[BOX64] Using native(wrapped) libgnutls.so.30
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winedmo.so
+[BOX64] Error loading needed lib libavutil.so.56
+[BOX64] Error loading needed lib libavformat.so.58
+[BOX64] Error loading needed lib libavcodec.so.58
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winedmo.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winegstreamer.so
+[[31mBOX64[0m] Error initializing native libgstvideo-1.0.so.0 (last dlerror is libgstvideo-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgstvideo-1.0.so.0
+[[31mBOX64[0m] Error initializing native libgstaudio-1.0.so.0 (last dlerror is libgstaudio-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgstaudio-1.0.so.0
+[[31mBOX64[0m] Error initializing native libgsttag-1.0.so.0 (last dlerror is libgsttag-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgsttag-1.0.so.0
+[[31mBOX64[0m] Error initializing native libgstreamer-1.0.so.0 (last dlerror is libgstreamer-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgstreamer-1.0.so.0
+[[31mBOX64[0m] Error initializing native libgobject-2.0.so.0 (last dlerror is libgobject-2.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libgobject-2.0.so.0
+[[31mBOX64[0m] Error initializing native libglib-2.0.so.0 (last dlerror is libglib-2.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libglib-2.0.so.0
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winegstreamer.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wineps.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winspool.so
+[[31mBOX64[0m] Error initializing native libcups.so.2 (last dlerror is libcups.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libcups.so.2
+[BOX64] Warning: Cannot dlopen("libcups.so.2"/0x7fff0a001e00, 2)
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/localspl.so
+[[31mBOX64[0m] Error initializing native libcups.so.2 (last dlerror is libcups.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libcups.so.2
+[BOX64] Warning: Cannot dlopen("libcups.so.2"/0x7fff0b002bc0, 2)
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="000400000-000421000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] Detected running wine with "iexplore.exe"
+[BOX64] Counted 72 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\iexplore.exe"
+[BOX64] argv[2]="/RegServer"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000009e, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff040666ba, 2)
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000009f, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+002c:err:setupapi:do_file_copyW Unsupported style(s) 0x10
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-14000d000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x14000d000 done
+[BOX64] Detected running wine with "winedevice.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\winedevice.exe"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000a1, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000a3, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000a4, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000a5, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000a6, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winebth.so
+[BOX64] Using native(wrapped) libdbus-1.so.3
+00f4:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\winebth": c00000e5
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000a7, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+002c:err:setupapi:SetupDiInstallDevice Failed to start service L"winebth" for device L"ROOT\\WINE\\WINEBTH", error 1359.
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000a8, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0166|sigaction handler for sig 3, pc=0xe7f5ec9696a4, x64pc=0x700000020b73, db=(nil)
+[[31mBOX64[0m] Signal 3: si_addr=0x3e80000001a, TRAPNO=0, ERR=0, RIP=0x700000020b73, prot=0, mmapped:0
+002c:err:setupapi:SetupDiInstallDevice Failed to control service L"winebth" for device L"ROOT\\WINE\\WINEBTH", error 1062.
+002c:err:setupapi:do_file_copyW Unsupported style(s) 0x10
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-14000d000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x14000d000 done
+[BOX64] Detected running wine with "winedevice.exe"
+[BOX64] Counted 71 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\winedevice.exe"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000aa, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ab, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ac, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ad, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ae, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winebus.so
+[BOX64] Using native(wrapped) libudev.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000af, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[[31mBOX64[0m] Error initializing native libSDL2-2.0.so.0 (last dlerror is libSDL2-2.0.so.0: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libSDL2-2.0.so.0
+[BOX64] Warning: Cannot dlopen("libSDL2-2.0.so.0"/0x7fff02011c0b, 2)
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000b0, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0124:err:hid:udev_bus_init UDEV monitor creation failed
+002c:err:setupapi:do_file_copyW Unsupported style(s) 0x10
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wineusb.so
+[[31mBOX64[0m] Error initializing native libusb-1.0.so.0 (last dlerror is libusb-1.0.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libusb-1.0.so.0
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wineusb.so
+0114:err:wineusb:DriverEntry Failed to initialize Unix library, status 0xc0000135.
+0114:err:ntoskrnl:ZwLoadDriver failed to create driver L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\wineusb": c0000135
+002c:err:setupapi:SetupDiInstallDevice Failed to start service L"wineusb" for device L"ROOT\\WINE\\WINEUSB", error 126.
+002c:err:setupapi:SetupDiInstallDevice Failed to control service L"wineusb" for device L"ROOT\\WINE\\WINEUSB", error 1062.
+011c:err:setupapi:do_file_copyW Unsupported style(s) 0x10
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000b1, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000b3, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+011c:err:setupapi:do_file_copyW Unsupported style(s) 0x10
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000b4, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000b5, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file REK.exe loaded at 0x140000000
+[BOX64] Detected UnityPlayer.dll
+[BOX64] Parsing volatile metadata of file UnityPlayer.dll loaded at 0x6ffffbb70000
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/secur32.so
+[BOX64] Using native(wrapped) libgnutls.so.30
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/kerberos.so
+[[31mBOX64[0m] Error initializing native libkrb5.so.3 (last dlerror is libkrb5.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libkrb5.so.3
+[BOX64] Warning: Cannot dlopen("libkrb5.so.3"/0x7fff04005c02, 2)
+0024:err:kerberos:kerberos_LsaApInitializePackage no Kerberos support, expect problems
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/dnsapi.so
+[BOX64] Using native(wrapped) libresolv.so.2
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/netapi32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/msv1_0.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/crypt32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/opengl32.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff0b0666ba, 2)
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+[BOX64] Parsing volatile metadata of file UnityCrashHandler64.exe loaded at 0x100420000
+[BOX64] Parsing volatile metadata of file UnityCrashHandler64.exe loaded at 0x100430000
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-1401b5000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x1401b5000 done
+[BOX64] Detected running wine with "UnityCrashHandler64.exe"
+[BOX64] Counted 72 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="Z:\session\game\UnityCrashHandler64.exe"
+[BOX64] argv[2]="--attach"
+[BOX64] argv[3]="32"
+[BOX64] argv[4]="38866944"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000b8, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file UnityCrashHandler64.exe loaded at 0x140000000
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000b9, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ba, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000bb, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000bc, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000bd, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000be, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000bf, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c0, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c1, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c2, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c3, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c4, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c5, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c6, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c7, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c8, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000c9, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ca, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000cb, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000cc, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Parsing volatile metadata of file GameAssembly.dll loaded at 0x6ffff5600000
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000cd, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file baselib.dll loaded at 0x6ffff5570000
+0024:err:combase:RoGetActivationFactory Failed to find library for L"Windows.System.DispatcherQueue"
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f804d0dc, x64pc=0x100063b80, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000016, TRAPNO=0, ERR=0, RIP=0x100063b80, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file coreclr.dll loaded at 0x6ffff5060000
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000cf, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d0, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0024:warn:seh:OutputDebugStringW L"Profiler was prevented from loading notification profiler due to app settings.\n  Process ID (decimal): 32.  Message ID: [0x2509].\n"
+0024:warn:seh:dispatch_exception L"Profiler was prevented from loading notification profiler due to app settings.\n  Process ID (decimal): 32.  Message ID: [0x2509].\n"
+0024:warn:seh:OutputDebugStringA "Profiler was prevented from loading notification profiler due to app settings.\n  Process ID (decimal): 32.  Message ID: [0x2509].\n"
+0024:warn:seh:dispatch_exception "Profiler was prevented from loading notification profiler due to app settings.\n  Process ID (decimal): 32.  Message ID: [0x2509].\n"
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d1, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file clrjit.dll loaded at 0x6ffff4ee0000
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d2, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"BepInEx.Unity.IL2CPP.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Runtime.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"BepInEx.Preloader.Core.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"netstandard.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"BepInEx.Core.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"MonoMod.Utils.dll" cannot be loaded
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d3, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"SemanticVersioning.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"BepInEx.Unity.Common.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"AssetRipper.Primitives.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Il2CppInterop.Runtime.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Text.Encoding.Extensions.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"0Harmony.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"MonoMod.RuntimeDetour.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Mono.Cecil.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Reflection.Emit.ILGeneration.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Reflection.Emit.Lightweight.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.IO.FileSystem.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Reflection.Primitives.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"mscorlib.dll" cannot be loaded
+0024:warn:seh:dispatch_exception unknown exception (code=e0434352) raised
+0024:warn:seh:dispatch_exception unknown exception (code=e0434352) raised
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-14003f000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x14003f000 done
+[BOX64] Detected running wine with "conhost.exe"
+[BOX64] Counted 72 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="C:\windows\system32\conhost.exe"
+[BOX64] argv[2]="--server"
+[BOX64] argv[3]="0x394"
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d5, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winex11.so
+[BOX64] Using native(wrapped) libXext.so.6
+[BOX64] Using native(wrapped) libX11.so.6
+[BOX64] Using native(wrapped) libxcb.so.1
+[BOX64] Using native(wrapped) libXau.so.6
+[BOX64] Using native(wrapped) libXdmcp.so.6
+[BOX64] Using native(wrapped) libXinerama.so.1
+[BOX64] Using native(wrapped) libXxf86vm.so.1
+[BOX64] Using native(wrapped) libXrender.so.1
+[BOX64] Using native(wrapped) libXrandr.so.2
+[BOX64] Using native(wrapped) libXcomposite.so.1
+[BOX64] Using native(wrapped) libXi.so.6
+[[31mBOX64[0m] Error initializing native libxkbregistry.so.0 (last dlerror is libxkbregistry.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libxkbregistry.so.0
+[BOX64] Warning: Cannot dlopen("libxkbregistry.so.0"/0x7fff030666ba, 2)
+[BOX64] Using native(wrapped) libXcursor.so.1
+[BOX64] Using native(wrapped) libXfixes.so.3
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Microsoft.Extensions.Logging.Abstractions.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Il2CppInterop.Common.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Il2CppInterop.HarmonySupport.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Microsoft.Extensions.Logging.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"LibCpp2IL.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Cpp2IL.Core.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Microsoft.Extensions.DependencyInjection.Abstractions.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Microsoft.Extensions.DependencyInjection.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Microsoft.Extensions.Options.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Diagnostics.Tracing.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"AsmResolver.DotNet.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"AsmResolver.PE.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"AsmResolver.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Il2CppInterop.Generator.dll" cannot be loaded
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d6, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file dobby.dll loaded at 0x6ffff4970000
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d9, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000da, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000db, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000dc, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000dd, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000de, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000df, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e0, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e1, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e3, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e2, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e4, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e5, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e6, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e7, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e8, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000e9, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ea, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file vivoxsdk.dll loaded at 0x6ffff3c60000
+[BOX64] Parsing volatile metadata of file audioplugin_phonon.dll loaded at 0x6ffff3c00000
+[BOX64] Parsing volatile metadata of file AppUINativePlugin.dll loaded at 0x6ffff3be0000
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winepulse.so
+[BOX64] Error loading needed lib libpulse.so.0
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winepulse.so
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winealsa.so
+[[31mBOX64[0m] Error initializing native libasound.so.2 (last dlerror is libasound.so.2: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libasound.so.2
+[BOX64] Error loading one of needed lib
+[BOX64] Error initializing needed lib /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winealsa.so
+0024:err:mmdevapi:init_driver No driver from L"pulse,alsa,oss,coreaudio" could be initialized. Maybe check dependencies with WINEDEBUG=warn+module.
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000eb, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ec, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ed, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ee, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ef, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f0, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0024:warn:seh:dispatch_exception unknown exception (code=e0434352) raised
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"RekOriginalModelInventory.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Numerics.Vectors.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Runtime.Intrinsics.dll" cannot be loaded
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"Iced.dll" cannot be loaded
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f1, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0024:err:module:fixup_imports_ilonly mscoree.dll not found, IL-only binary L"System.Reflection.Emit.dll" cannot be loaded
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f2, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000016, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f80741f4, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000016, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f80741f4, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000016, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000016, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/winspool.so
+[[31mBOX64[0m] Error initializing native libcups.so.2 (last dlerror is libcups.so: cannot open shared object file: No such file or directory)
+[BOX64] Error loading needed lib libcups.so.2
+[BOX64] Warning: Cannot dlopen("libcups.so.2"/0x7fff0e001e00, 2)
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f3, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Error loading needed lib libvulkan.so.1
+[BOX64] Warning: Cannot dlopen("libvulkan.so.1"/0x7fff0223930a, 2)
+0024:err:vulkan:vulkan_init_once Failed to load libvulkan.so.1
+[BOX64] Using native(wrapped) libEGL.so.1
+[[31mBOX64[0m] Warning, no wrapper for glBlitFramebufferLayerEXT
+[[31mBOX64[0m] Warning, no wrapper for glBlitFramebufferLayersEXT
+[[31mBOX64[0m] Warning, no wrapper for glDeleteObjectBufferATI
+[[31mBOX64[0m] Warning, no wrapper for glDrawMeshTasksEXT
+[[31mBOX64[0m] Warning, no wrapper for glDrawMeshTasksIndirectEXT
+[[31mBOX64[0m] Warning, no wrapper for glMTexCoord2fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMTexCoord2fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMaxActiveShaderCoresARM
+[[31mBOX64[0m] Warning, no wrapper for glMultiDrawMeshTasksIndirectCountEXT
+[[31mBOX64[0m] Warning, no wrapper for glMultiDrawMeshTasksIndirectEXT
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord1svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord2svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord3svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4dSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4dvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4fSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4fvSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4iSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4ivSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4sSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoord4svSGIS
+[[31mBOX64[0m] Warning, no wrapper for glMultiTexCoordPointerSGIS
+[BOX64] Parsing volatile metadata of file phonon.dll loaded at 0x6ffff04a0000
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000011d, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000011e, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file steam_api64.dll loaded at 0x6ffff0440000
+0024:warn:seh:dispatch_exception "[S_API] SteamAPI_Init(): SteamAPI_IsSteamRunning() did not locate a running instance of Steam.\n"
+0024:warn:seh:dispatch_exception "[S_API] SteamAPI_Init(): Could not determine Steam client install directory.\n"
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f2, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000011e, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000011f, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000120, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000121, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000122, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000123, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000124, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f2, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000011e, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f2, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000011e, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000122, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000123, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000124, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f80741f4, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f2, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f682f650, x64pc=0x1000147b0, db=0xe261f682f6c0(x64_addr=0x1000147b0-0x1000147b6, block:0xe261f682f620-0xe261f682f764)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000011e, TRAPNO=0, ERR=0, RIP=0x1000147b0, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000122, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000123, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000123, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000124, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000124, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f80741f4, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000f2, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000011e, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000123, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000122, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000124, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000ce, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d7, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010b73, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e8000000d8, TRAPNO=0, ERR=0, RIP=0x700000010b73, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file mujoco.dll loaded at 0x6fffefec0000
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000125, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0244:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0244:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0244:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0244:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000126, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000126, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000127, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000128, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e800000129, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000012a, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f80a80f0, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000012b, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+0024:warn:seh:dispatch_exception EXCEPTION_WINE_CXX_EXCEPTION exception (code=e06d7363) raised
+[BOX64] Dynarec for ARM64, with extension: ASIMD AES CRC32 PMULL ATOMICS SHA1 SHA2 USCAT FLAGM FLAGM2 FRINT AFP
+[BOX64] Running on Cortex-X925 with 20 cores, pagesize: 4096
+[BOX64] Will use hardware counter measured at 1.0 GHz emulating 2.0 GHz
+[BOX64] Wine preloader detected, loading "/opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine" directly
+[BOX64] Wine64 detected, WINEPRELOADRESERVE="140000000-1401b5000"
+[BOX64] Detected 48bits at least of address space
+[BOX64] WINE prereserve of 0x10000:0x8000 done
+[BOX64] WINE prereserve of 0x110000:0x30000000 done
+[BOX64] WINE prereserve of 0x7f000000:0x3000000 done
+[BOX64] WINE prereserve of 0x140000000:0x1401b5000 done
+[BOX64] Detected running wine with "UnityCrashHandler64.exe"
+[BOX64] Counted 72 Env var
+[BOX64] Library search path: 
+[BOX64] Binary search path: ./:bin/:/usr/local/nvidia/bin/:/usr/local/cuda/bin/:/usr/local/sbin/:/usr/local/bin/:/usr/sbin/:/usr/bin/:/sbin/:/bin/
+[BOX64] Looking for /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/wine
+[BOX64] BOX64ENV: Variables overridden:
+	BOX64_DYNAREC_STRONGMEM=2
+	BOX64_DYNAREC_WEAKBARRIER=0
+	BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+	BOX64_LOG=1
+	BOX64_NOBANNER=1
+	BOX64_NOPULSE=1
+	BOX64_NOVULKAN=1
+	BOX64_SHOWBT=1
+	BOX64_SHOWSEGV=1
+	BOX64_UNITY=1
+[BOX64] argv[1]="Z:\session\game\UnityCrashHandler64.exe"
+[BOX64] argv[2]="32"
+[BOX64] argv[3]="38866944"
+[BOX64] argv[4]="cbmUrl="
+[BOX64] Rename process to "wine"
+[BOX64] Using native(wrapped) libdl.so.2
+[BOX64] Using native(wrapped) libpthread.so.0
+[BOX64] Using native(wrapped) libc.so.6
+[BOX64] Using native(wrapped) ld-linux-x86-64.so.2
+[BOX64] Using native(wrapped) libutil.so.1
+[BOX64] Using native(wrapped) librt.so.1
+[BOX64] Using native(wrapped) libbsd.so.0
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ntdll.so
+[BOX64] Using emulated /opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+[BOX64] 0026|sigaction handler for sig 17, pc=0xe261f8097a70, x64pc=0x700000010713, db=(nil)
+[[31mBOX64[0m] Signal 17: si_addr=0x3e80000012d, TRAPNO=0, ERR=0, RIP=0x700000010713, prot=0, mmapped:0
+[BOX64] Parsing volatile metadata of file UnityCrashHandler64.exe loaded at 0x140000000
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/win32u.so
+[BOX64] Using native(wrapped) libm.so.6
+[BOX64] Using native(wrapped) libfreetype.so.6
+[BOX64] Using native(wrapped) libfontconfig.so.1
+[BOX64] Using native(wrapped) libexpat.so.1
+[BOX64] Using emulated /opt/codexrook/wine-11.13/lib/wine/x86_64-unix/ws2_32.so
+X connection to :99 broken (explicit kill or server shutdown).
+X connection to :99 broken (explicit kill or server shutdown).

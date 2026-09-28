@@ -1,0 +1,13 @@
+Fatal error. System.AccessViolationException: Attempted to read or write protected memory. This is often an indication that other memory is corrupt.
+Repeat 2 times:
+--------------------------------
+   at Il2CppInterop.Runtime.IL2CPP.il2cpp_runtime_invoke(IntPtr, IntPtr, Void**, IntPtr ByRef)
+--------------------------------
+   at Il2CppSystem.Exception.ToString(Boolean, Boolean)
+   at Il2CppInterop.Runtime.Il2CppException.BuildMessage(IntPtr)
+   at Il2CppInterop.Runtime.Il2CppException..ctor(IntPtr)
+   at Il2CppInterop.Runtime.Il2CppException.RaiseExceptionIfNecessary(IntPtr)
+   at REKApp.RobotCatalog.TryGetById(System.String, REKApp.RobotCatalogEntry ByRef)
+   at RekOriginalModelInventory.Plugin.OnUpdate()
+   at DynamicClass.Trampoline_VoidThisRekOriginalModelInventory.InventoryBehaviourUpdate(IntPtr, Il2CppInterop.Runtime.Runtime.Il2CppMethodInfo*)
+   at DynamicClass.Invoker_VoidThis(IntPtr, Il2CppInterop.Runtime.Runtime.Il2CppMethodInfo*, IntPtr, IntPtr*, IntPtr*)

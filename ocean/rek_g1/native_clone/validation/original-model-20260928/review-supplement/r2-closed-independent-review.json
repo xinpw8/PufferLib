@@ -1,0 +1,570 @@
+{
+  "schema": "rek.original_model_inventory.independent_closed_review.v1",
+  "reviewed_utc": "2026-09-28T20:24:44.778991+00:00",
+  "reviewer": "training_audit",
+  "verdict": "PASS for complete passive serialized prefab/config inventory only",
+  "runtime_executed_by_reviewer": false,
+  "source_manifest": {
+    "path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\SOURCE-MANIFEST.json",
+    "sha256": "eea6cabbdd52c0aaf8fd53cf67e0dabfe4ba8b97a120ab165aec74122360b966",
+    "verified_files": 23,
+    "verified_bytes": 687997
+  },
+  "trace": {
+    "path": "C:\\rekagent\\work\\rek-original-model-20260928-r2\\closed-inventory-r2\\session\\out\\oracle\\inventory.jsonl",
+    "sha256": "74a3283921008f40c412fbcc90e3c794966fca45fa5669e99d4fa101156f5172",
+    "bytes": 401315,
+    "rows": 773,
+    "event_counts": {
+      "header": 1,
+      "loaded_counts": 2,
+      "entrypoint": 1,
+      "catalog": 1,
+      "catalog_entry": 2,
+      "selection": 1,
+      "transform": 226,
+      "component": 498,
+      "loaded_robot_config": 2,
+      "loaded_clip_config": 36,
+      "loaded_global_settings": 1,
+      "settings_scope": 1,
+      "inventory_end": 1
+    },
+    "embedded_serializations_verified": 201,
+    "embedded_serialized_bytes_verified": 141465,
+    "finite_floating_values": 5548,
+    "outer_JSON_escaping_reversed_for_exact_original_hash": {
+      "line10": "Only U+003C/U+003E for backing-field key; reconstructed bytes match the recorded original SHA and length exactly. Initial raw-envelope-byte check failed here and was preserved in review history."
+    }
+  },
+  "container": {
+    "image": "sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879",
+    "state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-09-28T20:18:33.009963988Z",
+      "FinishedAt": "2026-09-28T20:19:31.405488787Z"
+    },
+    "containment_and_exact_mount_checks_pass": true
+  },
+  "header": {
+    "event": "header",
+    "schema": "rek.original_model_inventory.trace.v1",
+    "run_id": "original_model_inventory_20260928_r2",
+    "utc": "2026-09-28T20:18:57.0984954Z",
+    "game_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+    "metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+    "interop_sha256": "faa94fb58e24fda95e2c06810e28b9eb2d6d9f9f8327541976a0dc1011f646d2",
+    "plugin_sha256": "bc8df76dbc4664a539fd80c2bb6634c3f03f8ac0bf1bda19f6c550cb5014cb35",
+    "fixture_sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07",
+    "config_sha256": "1abc263fa8aab3000a0e7329cdd8550dba7accb50331e8c4460787c1d9001b8c",
+    "claims": [
+      "Original catalog and serialized prefab inspection only",
+      "No model generation, robot spawn, dynamics or authoritative-server claim"
+    ]
+  },
+  "selection": {
+    "event": "selection",
+    "method": "direct_observed_catalog_enumeration",
+    "robot_id": "g1",
+    "exact_matches": 1,
+    "original_TryGetById_invoked": false,
+    "original_TryGetById_semantics_validated": false
+  },
+  "entrypoint": {
+    "event": "entrypoint",
+    "method": {
+      "type": "REKApp.RobotCatalog",
+      "method": "TryGetById",
+      "wrapper": "Boolean TryGetById(System.String, REKApp.RobotCatalogEntry ByRef)",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "rva": "0x22fdbb0",
+      "first32_sha256": "49ace4d067e859435658bb6aa13dc6b1a1964a7816a3c58330fa5d6d5362966d"
+    },
+    "invoked_by_harness": false
+  },
+  "footer": {
+    "event": "inventory_end",
+    "success": true,
+    "reason": "inventory_complete",
+    "components": 498,
+    "transforms": 226,
+    "serialized_bytes": 141465,
+    "completed_wrapper_calls": {
+      "Resources.Load<RobotCatalog>": 1,
+      "JsonUtility.ToJson": 201,
+      "catalog_enumeration_exact_id_selection": 1
+    },
+    "error": null,
+    "elapsed_seconds": 27.3515178,
+    "no_instantiation_model_generation_dynamics_or_scene_load_by_harness": true,
+    "whole_process_physics_steps_not_instrumented": true
+  },
+  "physical_component_counts": {
+    "Mujoco.MjBody": 30,
+    "Mujoco.MjInertial": 30,
+    "Mujoco.MjHingeJoint": 29,
+    "Mujoco.MjFreeJoint": 1,
+    "Mujoco.MjGeom": 37,
+    "Mujoco.MjActuator": 29
+  },
+  "all_component_types": {
+    "UnityEngine.Transform": 226,
+    "REKApp.Robot": 1,
+    "REKApp.SonicPolicyRunner": 1,
+    "REKApp.RobotJointDiagnostics": 1,
+    "REKApp.SonicMotionComposer": 1,
+    "REKApp.RobotInputControllerCommand": 1,
+    "REKApp.GestureDetector": 1,
+    "REKApp.RobotInputControllerVR": 1,
+    "REKApp.RobotHeadCosmetics": 1,
+    "REKApp.RobotColorCosmetics": 1,
+    "Mujoco.MjBody": 30,
+    "REKApp.BodyPartTag": 6,
+    "Mujoco.MjInertial": 30,
+    "Mujoco.MjHingeJoint": 29,
+    "UnityEngine.MeshFilter": 38,
+    "UnityEngine.MeshRenderer": 38,
+    "Mujoco.MjGeom": 37,
+    "UnityEngine.BoxCollider": 20,
+    "UnityEngine.CapsuleCollider": 5,
+    "Mujoco.MjFreeJoint": 1,
+    "Mujoco.MjActuator": 29
+  },
+  "loaded_counts_before": {
+    "robots": {
+      "loaded": 0,
+      "scene_instances": 0,
+      "active_scene_instances": 0,
+      "asset_or_non_scene": 0
+    },
+    "runners": {
+      "loaded": 0,
+      "scene_instances": 0,
+      "active_scene_instances": 0,
+      "asset_or_non_scene": 0
+    },
+    "composers": {
+      "loaded": 0,
+      "scene_instances": 0,
+      "active_scene_instances": 0,
+      "asset_or_non_scene": 0
+    },
+    "mjscenes": {
+      "loaded": 1,
+      "scene_instances": 1,
+      "active_scene_instances": 1,
+      "asset_or_non_scene": 0
+    },
+    "scope": "asset counts may rise on Resources.Load; no singleton getters"
+  },
+  "loaded_counts_after": {
+    "robots": {
+      "loaded": 2,
+      "scene_instances": 0,
+      "active_scene_instances": 0,
+      "asset_or_non_scene": 2
+    },
+    "runners": {
+      "loaded": 1,
+      "scene_instances": 0,
+      "active_scene_instances": 0,
+      "asset_or_non_scene": 1
+    },
+    "composers": {
+      "loaded": 1,
+      "scene_instances": 0,
+      "active_scene_instances": 0,
+      "asset_or_non_scene": 1
+    },
+    "mjscenes": {
+      "loaded": 1,
+      "scene_instances": 1,
+      "active_scene_instances": 1,
+      "asset_or_non_scene": 0
+    },
+    "scope": "asset counts may rise on Resources.Load; no singleton getters"
+  },
+  "observed_settings": {
+    "line": 770,
+    "name": "MJSettings",
+    "scene_name": "Arena",
+    "scene_valid": true,
+    "serialized": {
+      "DebugFileName": "",
+      "MouseSpringStiffness": 100.0,
+      "UseRawGameObjectNames": false,
+      "GlobalOptions": {
+        "ImpRatio": 1.0,
+        "Magnetic": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "Wind": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "Density": 0.0,
+        "Viscosity": 0.0,
+        "OverrideMargin": 0.0,
+        "OverrideSolRef": {
+          "TimeConst": 0.019999999552965164,
+          "DampRatio": 1.0
+        },
+        "OverrideSolImp": {
+          "DMin": 0.8999999761581421,
+          "DMax": 0.949999988079071,
+          "Width": 0.0010000000474974513,
+          "Midpoint": 0.5,
+          "Power": 2.0
+        },
+        "Integrator": 3,
+        "Cone": 1,
+        "Jacobian": 2,
+        "Solver": 2,
+        "Iterations": 100,
+        "Tolerance": 9.99999993922529e-09,
+        "NoSlipIterations": 0,
+        "NoSlipTolerance": 9.999999974752427e-07,
+        "CcdIterations": 50,
+        "CcdTolerance": 9.999999974752427e-07,
+        "Flag": {
+          "Constraint": 0,
+          "Equality": 0,
+          "FrictionLoss": 0,
+          "Limit": 0,
+          "Contact": 0,
+          "Spring": 0,
+          "Damper": 0,
+          "Gravity": 0,
+          "ClampCtrl": 0,
+          "WarmStart": 0,
+          "FilterParent": 0,
+          "Actuation": 0,
+          "RefSafe": 0,
+          "Override": 1,
+          "Energy": 1,
+          "FwdInv": 1,
+          "MultiCCD": 1
+        }
+      },
+      "GlobalSizes": {
+        "Memory": "-1"
+      },
+      "CustomNumeric": []
+    },
+    "all_common_static_receipt_fields_equal": true,
+    "comparison_scope": "Prior static raw-bound fields, excluding common m_ Unity header; boolean values equivalent to previous0/1. No compiled/runtime-step interpretation."
+  },
+  "g1_config": {
+    "line": 732,
+    "name": "RobotConfig_G1_UnitreeFighting",
+    "serialized": {
+      "robotId": "g1",
+      "moves": [
+        {
+          "instanceID": 568105584918803798
+        },
+        {
+          "instanceID": 568105584918803692
+        },
+        {
+          "instanceID": 568105584918803818
+        },
+        {
+          "instanceID": 568105584918803800
+        },
+        {
+          "instanceID": 568105584918803802
+        },
+        {
+          "instanceID": 568105584918803822
+        },
+        {
+          "instanceID": 568105584918803804
+        },
+        {
+          "instanceID": 568105584918803806
+        },
+        {
+          "instanceID": 568105584918803808
+        },
+        {
+          "instanceID": 568105584918803810
+        },
+        {
+          "instanceID": 568105584918803812
+        },
+        {
+          "instanceID": 568105584918803814
+        },
+        {
+          "instanceID": 568105584918804402
+        },
+        {
+          "instanceID": 568105584918804160
+        },
+        {
+          "instanceID": 568105584918803820
+        },
+        {
+          "instanceID": 568105584918803816
+        },
+        {
+          "instanceID": 568105584918803578
+        }
+      ],
+      "vrControlSchemes": [
+        {
+          "instanceID": 568105584918804404
+        }
+      ],
+      "gamepadControlSchemes": [
+        {
+          "instanceID": 568105584918803796
+        },
+        {
+          "instanceID": 568105584918804406
+        }
+      ],
+      "keyboardControlSchemes": [
+        {
+          "instanceID": 568105584918804408
+        }
+      ],
+      "hasSpecialCommands": false,
+      "hasEStop": false,
+      "forwardSpeed": 1.0,
+      "strafeSpeed": 1.0,
+      "yawSpeed": 1.0,
+      "keyboardYawRampTime": 0.5,
+      "deadZone": 0.10000000149011612,
+      "locomotionTransitionSettle": true,
+      "transitionSettlePlanarSpeed": 0.029999999329447746,
+      "transitionSettleYawRate": 0.029999999329447746,
+      "stopBrakeRate": 2.0,
+      "allowMoveInterrupt": false,
+      "idle": {
+        "instanceID": 568105584918803574
+      },
+      "walkForward": {
+        "instanceID": 568105584918804388
+      },
+      "walkBackward": {
+        "instanceID": 568105584918804410
+      },
+      "strafeLeft": {
+        "instanceID": 568105584918804412
+      },
+      "strafeRight": {
+        "instanceID": 568105584918804414
+      },
+      "turnLeft": {
+        "instanceID": 568105584918804416
+      },
+      "turnRight": {
+        "instanceID": 568105584918804384
+      }
+    }
+  },
+  "runner": {
+    "line": 11,
+    "serialized": {
+      "autoAimEnabled": false,
+      "autoAimTarget": {
+        "instanceID": 0
+      },
+      "autoAimIterations": 6,
+      "autoAimLambda": 0.20000000298023224,
+      "autoAimDebugDraw": false,
+      "impactForgivenessDebugLogs": false,
+      "impactMetricsEnabled": false,
+      "impactOverlayEnabled": true,
+      "impactOverlayStrength": 1.0,
+      "debugDrawSkeleton": false,
+      "getUpProneClip": {
+        "instanceID": 0
+      },
+      "getUpSupineClip": {
+        "instanceID": 0
+      },
+      "recoveryUprightTilt": 35.0,
+      "recoveryTimeout": 12.0,
+      "encoderOnnxBytes": {
+        "instanceID": 0
+      },
+      "decoderOnnxBytes": {
+        "instanceID": 0
+      },
+      "fusedOnnxBytes": {
+        "instanceID": 0
+      },
+      "configJson": {
+        "instanceID": 0
+      },
+      "robot": {
+        "instanceID": 568105584918807300
+      },
+      "vrInput": {
+        "instanceID": 0
+      },
+      "leftWristTarget": {
+        "instanceID": 0
+      },
+      "rightWristTarget": {
+        "instanceID": 0
+      },
+      "torsoTarget": {
+        "instanceID": 0
+      },
+      "useDDSBridge": false,
+      "ddsBridgeRecvPort": 9003,
+      "ddsBridgeSendPort": 9002,
+      "ddsBridgeHost": "127.0.0.1",
+      "runUnityDecoderFromBridge": false,
+      "cppDecoderObsPort": 9007,
+      "motionJointPosCsv": {
+        "instanceID": 0
+      },
+      "motionJointVelCsv": {
+        "instanceID": 0
+      },
+      "motionBodyQuatCsv": {
+        "instanceID": 0
+      },
+      "motionComposer": {
+        "instanceID": 568105584918807302
+      },
+      "headingYawRateScale": 1.0,
+      "commandYawRateScale": 1.0,
+      "locomotionSpeedScale": 1.0,
+      "encoderModeOverride": 0,
+      "enableDebugLogs": false,
+      "debugObsDump": false,
+      "debugRefDiff": false,
+      "commandLpfCutoffHz": 50.0,
+      "elasticBandEnabled": false,
+      "poseMode": false,
+      "poseAdaptRate": 0.5,
+      "poseAdaptEpsilon": 0.019999999552965164
+    }
+  },
+  "composer": {
+    "line": 13,
+    "serialized": {
+      "jointConfigJson": {
+        "instanceID": 0
+      },
+      "controllerRateHz": 50,
+      "testClip": {
+        "instanceID": 0
+      },
+      "bypassPhysicsPreview": false,
+      "enableDebugLogs": false,
+      "drawBlendDebug": false
+    }
+  },
+  "clip_fields_by_observed_name": [
+    {
+      "line": 734,
+      "name": "idle_processed",
+      "instance_id": 13430,
+      "serialized": {
+        "utf8_bytes": 456,
+        "sha256": "7581793885dd76478a54b4206239453469716c275c42e9c159a0df2eeb8ca84f",
+        "value": {
+          "displayName": "",
+          "npzFile": {
+            "instanceID": 568105584918803576
+          },
+          "policyProfile": "",
+          "startFrame": 0,
+          "endFrame": -1,
+          "mirror": false,
+          "playbackSpeed": 1.0,
+          "loop": true,
+          "yawBlend": 0.0,
+          "yawForgiveness": 0.0,
+          "impactYawForgiveness": 0.0,
+          "impactForgivenessDuration": 0.6000000238418579,
+          "impactEvents": [],
+          "impactReversal": {
+            "enabled": false,
+            "spikeRatio": 1.25,
+            "spikeFloorNm": 30.0,
+            "emaAlpha": 0.05000000074505806,
+            "holdTime": 0.5
+          },
+          "blendInTime": 1.0,
+          "blendOutTime": 0.5139999985694885
+        },
+        "pointer_scope": "instanceID references require correlation; no serialized file/pathID claim"
+      }
+    },
+    {
+      "line": 755,
+      "name": "walking_processed",
+      "instance_id": 14244,
+      "serialized": {
+        "utf8_bytes": 441,
+        "sha256": "322897687805fb38e9147dacd7002d1dbeca2b47cb5aa015a10346be74538a26",
+        "value": {
+          "displayName": "",
+          "npzFile": {
+            "instanceID": 568105584918804390
+          },
+          "policyProfile": "",
+          "startFrame": 0,
+          "endFrame": -1,
+          "mirror": false,
+          "playbackSpeed": 1.0,
+          "loop": true,
+          "yawBlend": 0.0,
+          "yawForgiveness": 0.0,
+          "impactYawForgiveness": 0.0,
+          "impactForgivenessDuration": 0.6000000238418579,
+          "impactEvents": [],
+          "impactReversal": {
+            "enabled": false,
+            "spikeRatio": 1.25,
+            "spikeFloorNm": 30.0,
+            "emaAlpha": 0.05000000074505806,
+            "holdTime": 0.5
+          },
+          "blendInTime": 1.0,
+          "blendOutTime": 1.0
+        },
+        "pointer_scope": "instanceID references require correlation; no serialized file/pathID claim"
+      }
+    }
+  ],
+  "reference_scope": {
+    "nonzero_unique_serialized_references": 101,
+    "exceeding_32bits": 101,
+    "low32_candidate_match_to_emitted_ID_count": 66,
+    "normalization_verified": false,
+    "interpretation": "Raw64bit JsonUtility reference values preserved. Low32 matches to GetInstanceID are descriptive only, not a validated universal mapping or file/pathID proof; unenumerated TextAsset and control-scheme references remain unresolved."
+  },
+  "limits": [
+    "Prefab runner encoder/decoder/fused/config references and composer jointConfigJson are null. Later initialization must supply actual assets.",
+    "No initialized/compiled MJ model or reset state was measured. No explicit Instantiate, Robot.Init, model compilation, reset or motor/dynamics execution by harness.",
+    "One Arena/MJSettings object was actually serialized and matches prior static values. Authoritative-server applicability and runtime overrides remain unknown.",
+    "Original TryGetById was not invoked in r2. Exact unique observed-id selection is explicit; original r1 failure/ABI defect preserved.",
+    "Catalog fallback does not prove actual scene overridePrefab or server selection.",
+    "Duplicate geometry sibling path strings exist; use traversal order and process object IDs, not human-readable path alone.",
+    "One active scene MjScene existed before and after; whole-process scene/physics activity uninstrumented."
+  ],
+  "prior_failed_run_review": {
+    "path": "C:\\rekagent\\work\\rek-original-model-20260928-r1\\review\\closed-inventory-independent-review-r1.json",
+    "sha256": "d4749a58bd073c46af70c6c57becc1d4249d737dc77fe4b7e7f26bd8bc45a8f7"
+  }
+}

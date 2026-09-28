@@ -1,0 +1,19 @@
+{
+  "files": [
+    {
+      "path": "input/INPUT-STAGING.json",
+      "bytes": 764,
+      "sha256": "6d4e3044bda929afb198a3c9662a2bb3c8a9232013b9856aaa3fbbc05a5b22a2"
+    },
+    {
+      "path": "input/fixtures.json",
+      "bytes": 2647,
+      "sha256": "9acff8b3ae8e98221bf76380b232f5c92894b98b7815dab0e031d2e4e146fa07"
+    },
+    {
+      "path": "input/run-config.json",
+      "bytes": 340,
+      "sha256": "1abc263fa8aab3000a0e7329cdd8550dba7accb50331e8c4460787c1d9001b8c"
+    }
+  ]
+}
