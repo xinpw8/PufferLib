@@ -1,0 +1,90 @@
+{
+  "schema": "rek.native_clone.playback_publication.v1",
+  "utc": "2026-09-28T21:05:43.951458+00:00",
+  "files": [
+    {
+      "path": "APP-R4-RECEIPT.json",
+      "bytes": 1430,
+      "sha256": "e2a5c0af770d6f48ec2042fcb94f3b785cea34272c0a9ff9ef399c8c59291271"
+    },
+    {
+      "path": "launch_viewer.py",
+      "bytes": 7679,
+      "sha256": "e8ea7a2ba243d8a548ee99f7b35229679b17803936a1812d31f50efb48b146e0"
+    },
+    {
+      "path": "launch_viewer.reviewed-r1.py",
+      "bytes": 4229,
+      "sha256": "617bcbe75205ec464fffa6a98f24e08253386220a0d28a7dfeb4b6c2aeb88acf"
+    },
+    {
+      "path": "LAUNCHER-R2-RECEIPT.json",
+      "bytes": 986,
+      "sha256": "a027bddf22a76c8499ebf7f35ca6d537f6329d3e88bbd7146a9661c9462c3cb8"
+    },
+    {
+      "path": "launcher-r2.diff",
+      "bytes": 7264,
+      "sha256": "a8657bcc346b79cafb64106e998db11458f650f4a34c846a89ff4bf6ad26e7cd"
+    },
+    {
+      "path": "launcher-tests-r1-failed.txt",
+      "bytes": 2052,
+      "sha256": "14081e35cf832361146d23236553a3bb25ff8838245514257b8049713a9e259b"
+    },
+    {
+      "path": "launcher-tests-r2.txt",
+      "bytes": 1206,
+      "sha256": "3536936810e8fe1a51b3f6a213f05721b19c6e029222315d0281f92ea607b6af"
+    },
+    {
+      "path": "publication-tests.txt",
+      "bytes": 1206,
+      "sha256": "4b5c18c26c7c9b313880f94928ee60b500afe666cffc682ff643788b7ff8a1ab"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3212,
+      "sha256": "989f5c4293b699f998a8ed0add4b0c7939db47633c83f3fadaae3ed4c5a4d09c"
+    },
+    {
+      "path": "test_launch_viewer.py",
+      "bytes": 6394,
+      "sha256": "afc2e40d0daa013d482a06f00daee31ada9d02eb47d85ad312363d837932fadd"
+    }
+  ],
+  "copied_source_tests": {
+    "started_utc": "2026-09-28T21:05:43.539572+00:00",
+    "exit_code": 0,
+    "tests": 7,
+    "stdout": "publication-tests.txt",
+    "command": [
+      "python3",
+      "-B",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tools/playback",
+      "-p",
+      "test_launch_viewer.py",
+      "-v"
+    ]
+  },
+  "app": {
+    "manifest_path": "../../app/SOURCE-MANIFEST.json",
+    "manifest_sha256": "8a240b78a16b62531a3d64a34904e36c73ae206df413643efbf0506ccc5cc42b",
+    "entries_verified": 147,
+    "cpu_tests_passed": 39,
+    "app_files_unchanged_during_publication": true
+  },
+  "scope": {
+    "native_process_started": false,
+    "live_viewer_accessed": false,
+    "gpu_execution": false,
+    "deployment_claim": false,
+    "real_time_1x_claim": false,
+    "human_raw_captures_included": false
+  },
+  "main_readme_sha256": "bf36116b68f209c0b04d3498d6ac49ac2c8276520fc6ca46b39c4558508788dc"
+}

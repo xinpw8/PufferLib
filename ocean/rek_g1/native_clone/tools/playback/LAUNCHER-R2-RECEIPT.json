@@ -1,0 +1,33 @@
+{
+  "utc": "2026-09-28T21:02:08.862770+00:00",
+  "exit_code": 0,
+  "tests": 7,
+  "execution": "CPU mock only; no child viewer or native executable launched",
+  "files": [
+    {
+      "path": "launch_viewer.py",
+      "sha256": "e8ea7a2ba243d8a548ee99f7b35229679b17803936a1812d31f50efb48b146e0",
+      "bytes": 7679
+    },
+    {
+      "path": "launch_viewer.reviewed-r1.py",
+      "sha256": "617bcbe75205ec464fffa6a98f24e08253386220a0d28a7dfeb4b6c2aeb88acf",
+      "bytes": 4229
+    },
+    {
+      "path": "test_launch_viewer.py",
+      "sha256": "afc2e40d0daa013d482a06f00daee31ada9d02eb47d85ad312363d837932fadd",
+      "bytes": 6394
+    },
+    {
+      "path": "launcher-r2.diff",
+      "sha256": "a8657bcc346b79cafb64106e998db11458f650f4a34c846a89ff4bf6ad26e7cd",
+      "bytes": 7264
+    },
+    {
+      "path": "launcher-tests-r2.txt",
+      "sha256": "3536936810e8fe1a51b3f6a213f05721b19c6e029222315d0281f92ea607b6af",
+      "bytes": 1206
+    }
+  ]
+}

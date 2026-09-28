@@ -1,0 +1,174 @@
+{
+  "schema": "rek.playback.compact_publication.v1",
+  "created_utc": "2026-09-28T21:12:49.774280+00:00",
+  "source_package_manifest_sha256": "7bc3f2aa17816564b7cb19526e57a5c4316bc9d9703dc84772276343290eac80",
+  "copied_files": [
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\RESULTS.json",
+      "path": "validation/playback-20260928/RESULTS.json",
+      "bytes": 6245,
+      "sha256": "e825f68d76a44fd3050f46aeeda01d4634686f978a72d7f73dd613e6da4e81b5"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\closed\\fast-compare-r1\\summary.json",
+      "path": "validation/playback-20260928/closed/fast-compare-r1/summary.json",
+      "bytes": 4963,
+      "sha256": "631a25223da1d8fddeaca5141d3c3916bd365218b8956a6d994e611ed433e3d6"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\closed\\fast-cpu-single-r1\\summary.json",
+      "path": "validation/playback-20260928/closed/fast-cpu-single-r1/summary.json",
+      "bytes": 1303,
+      "sha256": "9e7f7aa8eb6917d1518da64f27794584f7ba70a94556de02f4e923c33d6023c6"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\closed\\app-benchmark-results-r1\\summary.json",
+      "path": "validation/playback-20260928/closed/app-benchmark-results-r1/summary.json",
+      "bytes": 20196,
+      "sha256": "2472027e621b79f8c81f8e99fe64302ef8de45912eca8b88e543b25e83e15a2d"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\benchmark.py",
+      "path": "validation/playback-20260928/tools/benchmark.py",
+      "bytes": 20923,
+      "sha256": "79db557c319a4ebc4c4a5d2d6aacfd82eab9052be0b89b74cb522a042d49d75e"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\test_benchmark.py",
+      "path": "validation/playback-20260928/tools/test_benchmark.py",
+      "bytes": 4104,
+      "sha256": "1372931d86081280bebd18bedfde03feddd355bbf60bf04332c3d09d1b69d7c5"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\run_single_affinity.py",
+      "path": "validation/playback-20260928/tools/run_single_affinity.py",
+      "bytes": 2655,
+      "sha256": "98370eeb3894c880452f3cc9ecf8d36e3a040ca8aa5a72db3737d6ede67a3272"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\STAGED-r2.json",
+      "path": "validation/playback-20260928/tools/STAGED-r2.json",
+      "bytes": 493,
+      "sha256": "dae4e55931a85bbc583464a4daeb1702a3382a15846292584ecaf73fa11883d1"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\affinity-stage.json",
+      "path": "validation/playback-20260928/tools/affinity-stage.json",
+      "bytes": 379,
+      "sha256": "5fcbf6567d44afa245e353a096540dd2c93cc846f67f5d1e03a77fbfa11177c9"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\remote-tests.stdout",
+      "path": "validation/playback-20260928/tools/remote-tests.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\remote-tests.stderr",
+      "path": "validation/playback-20260928/tools/remote-tests.stderr",
+      "bytes": 1265,
+      "sha256": "912d7d88f8a3c29d53d10034dd56770b00bf0e50d3e54390b57407612578a41a"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\app-benchmark-r1.command.json",
+      "path": "validation/playback-20260928/tools/app-benchmark-r1.command.json",
+      "bytes": 646,
+      "sha256": "712b4e878f9e6bdade87f15cebbc9c6ef3936269d7dac90a8217ab41bac47050"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\fast-compare-r1.command.json",
+      "path": "validation/playback-20260928/tools/fast-compare-r1.command.json",
+      "bytes": 619,
+      "sha256": "7067c8213f8e9d0c91b22c42154a2965f1a42076436ae7e3b747ca30e2b05702"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\publication-r1\\tools\\fast-cpu-single-r1.command.json",
+      "path": "validation/playback-20260928/tools/fast-cpu-single-r1.command.json",
+      "bytes": 364,
+      "sha256": "32f2ca1d6f5dd8fbdc8ef9175f6883e222cfddaf85505929c2c6a9c7730c5b8d"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\profile-result-r1\\REPORT.md",
+      "path": "validation/playback-20260928/profile/REPORT.md",
+      "bytes": 1606,
+      "sha256": "73bca0c0f158297086a17e49e1bf6f299189ba0151808a414a675167b1ed3911"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\profile-result-r1\\INTERPRETATION.json",
+      "path": "validation/playback-20260928/profile/INTERPRETATION.json",
+      "bytes": 1858,
+      "sha256": "e000a8470f5f3cd6ef46694a2c0f488100c72ab4e7bbe6e5491656befafec946"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\profile-result-r1\\summary.json",
+      "path": "validation/playback-20260928/profile/summary.json",
+      "bytes": 4299,
+      "sha256": "32f76eee4c1e5700875ecd00c332a0fae5a1e2f488a02b1b1b46569d56b5782a"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\profile-result-r1\\worker\\stderr.log",
+      "path": "validation/playback-20260928/profile/worker/stderr.log",
+      "bytes": 4174,
+      "sha256": "0919cefaa01ef43a8eb079410f893f760aad1ffaf9c79feb15079e82b9f74375"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\VIEWER-PREPARED.json",
+      "path": "validation/playback-20260928/deployment/VIEWER-PREPARED.json",
+      "bytes": 702,
+      "sha256": "60e2942a8e0dca7a74e12c283e245283c3e6d556e0fb2838cec8a346ee4650ec"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r1\\VIEWER-LOCAL-VERIFIED.json",
+      "path": "validation/playback-20260928/deployment/VIEWER-LOCAL-VERIFIED.json",
+      "bytes": 508,
+      "sha256": "69944bed721178b001cb9206ab9a1cc3de2af7043accf925e84772f65d4a1471"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\RELEASE-CANDIDATE.json",
+      "path": "validation/playback-20260928/candidate/RELEASE-CANDIDATE.json",
+      "bytes": 529,
+      "sha256": "4a359fbf0a6a843a1955edd4794755b6474442e89115433c69f3266fd09cb021"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\CPU-TESTS.json",
+      "path": "validation/playback-20260928/candidate/CPU-TESTS.json",
+      "bytes": 266,
+      "sha256": "20d1f1a992bd915103f6fc4d2719da0393779ad7158625ebc3416dd7428b7593"
+    },
+    {
+      "source": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\rek-native-clone-playback-candidate-r1.tar.gz",
+      "path": "artifacts/rek-native-clone-playback-candidate-r1.tar.gz",
+      "bytes": 2779759,
+      "sha256": "a781889f84609bd3f2007e3d2d0ec0d2c8dbe62ab465fbdd4ad7083947a0e69a"
+    }
+  ],
+  "benchmark_cpu_tests": {
+    "exit_code": 0,
+    "passed": 11,
+    "stdout_stderr": {
+      "path": "CPU-TESTS.txt",
+      "bytes": 1281,
+      "sha256": "dbe942981b759b5b2cee6f8d4d23408ba26fc4ff3c67e4a23f1fb3e1ff0902d3"
+    }
+  },
+  "app_manifest": {
+    "sha256": "8a240b78a16b62531a3d64a34904e36c73ae206df413643efbf0506ccc5cc42b",
+    "verified_files": 147,
+    "source_changed_by_this_publication": false
+  },
+  "candidate_archive": {
+    "sha256": "a781889f84609bd3f2007e3d2d0ec0d2c8dbe62ab465fbdd4ad7083947a0e69a",
+    "verified_manifest_entries": 68,
+    "source_files_equal_current_repository": 51
+  },
+  "scope": "Closed synthetic benchmark summaries, aggregate prior human pace only, CPU tests, exact candidate source/binary archive, initial paused deployment receipts.",
+  "excluded": [
+    "raw human timing audit",
+    "live guard observation logs",
+    "growing gameplay logs",
+    "bulk synthetic PNGs and trajectories",
+    "authentication data"
+  ],
+  "historical_payload_manifest_unchanged": true,
+  "native_or_gpu_or_viewer_launched_by_publication": false
+}

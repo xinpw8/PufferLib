@@ -1,0 +1,215 @@
+{
+  "schema": "rek.playback_speed.closed_benchmarks.v1",
+  "created_utc": "2026-09-28T21:02:35.699544+00:00",
+  "dt_seconds": 0.02,
+  "physics_substeps": 10,
+  "physics_dt_seconds": 0.002,
+  "cuda_graph": false,
+  "live_unchanged": true,
+  "live_summary_only": {
+    "active_intervals": 6516,
+    "active_wall_ms": 236812.719,
+    "real_time_ratio": 0.55030828,
+    "last_step_ms": 29.9343,
+    "last_frame_ms": 19.297,
+    "paused_at_benchmarks": true,
+    "tick": 260
+  },
+  "native_runs": [
+    {
+      "label": "old-a",
+      "ticks": 150,
+      "sps": 44.191157111523424,
+      "rpc": {
+        "n": 150,
+        "mean": 22.34297971333333,
+        "median": 21.1252435,
+        "p90": 24.281041,
+        "p99": 26.832936,
+        "min": 15.35907,
+        "max": 176.844856
+      }
+    },
+    {
+      "label": "old-b",
+      "ticks": 150,
+      "sps": 44.94138350434975,
+      "rpc": {
+        "n": 150,
+        "mean": 22.072205273333335,
+        "median": 21.199869,
+        "p90": 23.567754,
+        "p99": 25.514365,
+        "min": 15.033403,
+        "max": 174.322033
+      }
+    },
+    {
+      "label": "new",
+      "ticks": 150,
+      "sps": 44.882153036620316,
+      "rpc": {
+        "n": 150,
+        "mean": 21.958548246666666,
+        "median": 20.669376,
+        "p90": 24.062288,
+        "p99": 25.673022,
+        "min": 16.16415,
+        "max": 179.202046
+      }
+    }
+  ],
+  "affinity_native": {
+    "label": "candidate-fast-cpu",
+    "identity": {
+      "pid": 2927812,
+      "start_ticks": "131700864",
+      "argv": [
+        "/usr/bin/taskset",
+        "--cpu-list",
+        "5-9,15-19",
+        "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/build-r1/rek-native-clone",
+        "--config",
+        "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r4/worker.json"
+      ],
+      "affinity_cpu_ids": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "last_observed_cpu": 5
+    },
+    "binary_sha256": "ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975",
+    "ticks": 150,
+    "elapsed_seconds": 3.3258242870215327,
+    "control_sps": 45.10160100320082,
+    "step_rpc_ms": {
+      "n": 150,
+      "mean": 21.74102235333333,
+      "median": 20.761481500000002,
+      "p90": 23.714078,
+      "p99": 27.374464,
+      "min": 13.784129,
+      "max": 174.686256
+    },
+    "cache_behavior_checks": [
+      "step then snapshot exact",
+      "three-step batch reports one edge",
+      "invalid command does not advance",
+      "reset snapshot exact",
+      "reset frame PNG and no state advance"
+    ]
+  },
+  "affinity_gain_percent": 0.488942601308473,
+  "parallel_render_app": {
+    "elapsed_seconds": 20.09314851812087,
+    "start_tick": 0,
+    "final_tick": 776,
+    "pace": {
+      "steps": 776,
+      "activeIntervals": 775,
+      "activeWallMs": 20055.788155078888,
+      "lastStepMs": 23.749629020690918,
+      "lastFrameMs": 29.189248085021973,
+      "simulationStepSeconds": 0.02,
+      "realTimeRatio": 0.7728442223336315
+    },
+    "guard_failure": null
+  },
+  "old_old_comparison": {
+    "exact_discrete_fields": true,
+    "discrete_differences": [],
+    "numeric": {
+      "qpos": {
+        "different_values": 10703,
+        "max_abs": 0.016048848628997803,
+        "values": 10872,
+        "rmse": 0.0010751403128244413
+      },
+      "qvel": {
+        "different_values": 10480,
+        "max_abs": 0.7733354568481445,
+        "values": 10570,
+        "rmse": 0.03196552411178059
+      },
+      "raw": {
+        "different_values": 43618,
+        "max_abs": 1,
+        "values": 67346,
+        "rmse": 0.024004772935923242
+      }
+    },
+    "first_numeric_difference": {
+      "index": 1,
+      "field": "qpos",
+      "component": 1,
+      "left": -6.56586780678481e-05,
+      "right": -6.56585398246534e-05
+    },
+    "exact_observed_trajectory": false,
+    "all_state_fields_equal": false,
+    "similar_scatter_is_not_parity_proof": true
+  },
+  "old_new_comparison": {
+    "exact_discrete_fields": true,
+    "discrete_differences": [],
+    "numeric": {
+      "qpos": {
+        "different_values": 10642,
+        "max_abs": 0.04249995946884144,
+        "values": 10872,
+        "rmse": 0.0016941341185825805
+      },
+      "qvel": {
+        "different_values": 10482,
+        "max_abs": 1.1526057720184326,
+        "values": 10570,
+        "rmse": 0.039912509848444196
+      },
+      "raw": {
+        "different_values": 43460,
+        "max_abs": 1.1526057720184326,
+        "values": 67346,
+        "rmse": 0.027068923130164235
+      }
+    },
+    "first_numeric_difference": {
+      "index": 1,
+      "field": "qpos",
+      "component": 1,
+      "left": -6.56586780678481e-05,
+      "right": -6.565872172359377e-05
+    },
+    "exact_observed_trajectory": false,
+    "all_state_fields_equal": false,
+    "similar_scatter_is_not_parity_proof": true
+  },
+  "all_cache_checks_passed": true,
+  "all_owned_benchmarks_closed": true,
+  "guards_failed": false,
+  "quiet_background_observation": {
+    "official_rek_pid": 3905442,
+    "start_ticks": "114148897",
+    "nvidia_smi_pmon_sm_percent": 19,
+    "aggregate_gpu_percent": 21,
+    "other_processes_modified": false,
+    "unavailable_per_process_counters_are_not_zero": true
+  },
+  "limitations": [
+    "Single bounded trials; no rate confidence interval.",
+    "Observed fast-path trajectories are not bit-exact even old vs old. No behavioral parity pass.",
+    "qpos mixes coordinates and angles; aggregate max/RMSE are not metres.",
+    "Private app used20Hz separate rendering; live baseline serial rendering had different cadence and user command history.",
+    "No authoritative official-physics parity claim.",
+    "Affinity main-thread allowed set checked per reply; timed loop includes this extra read/log overhead.",
+    "Current GPU background workload retained; rates are not isolated-GPU performance.",
+    "Guard polls every0.2s with0.75s HTTPtimeout, so reaction is not guaranteed within0.2s."
+  ]
+}

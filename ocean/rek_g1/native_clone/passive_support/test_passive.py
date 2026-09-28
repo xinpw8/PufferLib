@@ -15,6 +15,11 @@ class Sftp:
     def __init__(self,path):self.path=path
     def open(self,*args):return RemoteFile(self.path)
 class Tests(unittest.TestCase):
+    def test_independent_viewer_port_preserves_default_and_bounds(self):
+        self.assertEqual(p.parse_args(['tunnel']).port,18771)
+        self.assertEqual(p.parse_args(['tunnel','--port','18772']).port,18772)
+        for value in ['0','1023','65536','-1']:
+            with self.assertRaisesRegex(ValueError,'port'):p.parse_args(['tunnel','--port',value])
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(prefix='clone-passive-test-');self.root=Path(self.temp.name).resolve()
     def tearDown(self):
@@ -110,9 +115,10 @@ class Tests(unittest.TestCase):
             def get_transport(self):return Transport()
             def close(self):self.closed=True
         client=Client()
-        def init(server,address,handler):server.fake_address=address
+        def init(server,address,handler):
+            self.assertEqual(address,('127.0.0.1',18772));server.fake_address=address
         def handle(server):(control/'STOP').write_text('stop')
-        args=SimpleNamespace(local=control,minutes=None,until_stop=True)
+        args=SimpleNamespace(local=control,minutes=None,until_stop=True,port=18772)
         with patch.object(p,'connect',return_value=client),patch.object(p.socketserver.ThreadingTCPServer,'__init__',init),patch.object(p.socketserver.ThreadingTCPServer,'handle_request',handle),patch.object(p.socketserver.ThreadingTCPServer,'server_close'):
             p.tunnel(args)
         self.assertTrue(client.closed)

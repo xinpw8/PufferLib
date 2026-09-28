@@ -1,0 +1,27 @@
+{
+  "schema": "rek.app.render_decoupling.review.v1",
+  "utc": "2026-09-28T20:50:13.527811+00:00",
+  "source_manifest": {
+    "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\SOURCE-MANIFEST.json",
+    "sha256": "8a240b78a16b62531a3d64a34904e36c73ae206df413643efbf0506ccc5cc42b"
+  },
+  "files_verified": 147,
+  "verified_bytes": 15681143,
+  "cpu_tests": {
+    "count": 39,
+    "failed": 0,
+    "receipt_path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\validation\\tests-r4-final.json"
+  },
+  "implementation": [
+    "one separate render-only process, one in-flight render and one replaceable latest qpos snapshot",
+    "physics fixed20ms, serial and independent of rendering, render maximum20Hz",
+    "paused frame:true returns only after exact identified snapshot rendering",
+    "generation invalidation after in-flight physics completes; stale images never published",
+    "renderer-only startup/timeout/closed failure guards, no retry backlog",
+    "image tick/generation/SHA256/publication age, PNG archive async write; raw physics logs preserved"
+  ],
+  "review": "research_pathways read final source and39-test receipt; no blocker",
+  "live_viewer_changed": false,
+  "native_runtime_executed_by_this_agent": false,
+  "performance_outcome": "pending parent-authorized isolated actual benchmark"
+}

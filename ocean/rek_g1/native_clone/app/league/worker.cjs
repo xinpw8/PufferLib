@@ -4,10 +4,10 @@ const readline=require('node:readline');
 const fs=require('node:fs');
 
 class NativeWorker {
-  constructor({executable,config,env={},logFile}){
-    this.serial=0;this.pending=new Map();this.closed=false;
+  constructor({executable,config,env={},logFile,renderOnly=false,spawnProcess=spawn}){
+    this.serial=0;this.pending=new Map();this.closed=false;this.renderOnly=renderOnly;
     const log=logFile?fs.openSync(logFile,'a',0o600):'inherit';
-    this.child=spawn(executable,['--config',config],{env:{...process.env,...env},
+    this.child=spawnProcess(executable,[...(renderOnly?['--render-only']:[]),'--config',config],{env:{...process.env,...env},
       stdio:['pipe','pipe',log],windowsHide:true});
     if(typeof log==='number')fs.closeSync(log);
     this.ready=new Promise((resolve,reject)=>{
@@ -17,6 +17,9 @@ class NativeWorker {
     readline.createInterface({input:this.child.stdout}).on('line',line=>{
       let value;try{value=JSON.parse(line);}catch{return;}
       if(value.event==='ready'){
+        if(renderOnly&&value.rendererOnly!==true){
+          this.fail(new Error('Native renderer role mismatch'));this.child.kill('SIGTERM');return;
+        }
         clearTimeout(this.readyTimer);this.readyResolve(value);return;
       }
       if(value.event==='fatal'){this.fail(new Error(value.error));return;}
@@ -36,7 +39,11 @@ class NativeWorker {
     await this.ready;if(this.closed)throw new Error('Native worker unavailable');
     const id=++this.serial;
     return new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>{this.pending.delete(id);reject(new Error(`Native ${op} timeout`));},timeout);
+      const timer=setTimeout(()=>{
+        const error=new Error(`Native ${op} timeout`);
+        if(this.renderOnly){this.fail(error);this.child.kill('SIGTERM');}
+        else{this.pending.delete(id);reject(error);}
+      },timeout);
       this.pending.set(id,{resolve,reject,timer});
       this.child.stdin.write(JSON.stringify({id,op,...args})+'\n');
     });

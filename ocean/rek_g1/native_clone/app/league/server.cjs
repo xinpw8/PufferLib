@@ -2,30 +2,54 @@
 const http=require('node:http');
 const {performance}=require('node:perf_hooks');
 const {startPacedLoop}=require('./paced_loop.cjs');
+const {LatestFrameQueue}=require('./render_queue.cjs');
 const fs=require('node:fs');
 const path=require('node:path');
+const crypto=require('node:crypto');
 const {League}=require('./league.cjs');
 const {NativeWorker}=require('./worker.cjs');
 const {HumanInput,validateCommand}=require('./input.cjs');
 const {publicStanding}=require('./public_result.cjs');
 const {HumanSession,createHumanConfig,HUMAN_ROUND_SECONDS,DEFAULT_HUMAN_ROUND_SECONDS}=require('./human_session.cjs');
 
-async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
+async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,intermissionMs=3000}={}){
   const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
   const port=config.port||18768,host='127.0.0.1';
   const league=new League({file:config.leagueFile});
   const backends=config.backends;
   for(const backend of backends)if(backend.trainingFile)
     backend.training=JSON.parse(fs.readFileSync(path.resolve(path.dirname(configPath),backend.trainingFile),'utf8'));
-  let active=null,worker=null,state={ok:false,failure:'Select a backend'},png=null;
-  let busy=false,switching=false,lastClient=0,frameDue=0,workerGeneration=0;
+  let active=null,worker=null,renderer=null,state={ok:false,failure:'Select a backend'},png=null;
+  let busy=false,switching=false,lastClient=0,workerGeneration=0,frameGeneration=0;
+  let frameState=null,renderFailure=null;
   let humanConfig=null,paused=true,roundRestartAt=0;
   const session=new HumanSession();
   const input=new HumanInput();
   let pace={steps:0,activeIntervals:0,activeWallMs:0,lastStepMs:null,lastFrameMs:null},lastStepStart=null;
   const runtimeState=()=>({...state,active,switching,paused,
+    frame:frameState?{...frameState,ageMs:Math.max(0,Date.now()-frameState.publishedAtMs)}:null,renderFailure,
     intermissionSeconds:Math.max(0,(roundRestartAt-Date.now())/1000),session:session.snapshot(),
     pace:{...pace,simulationStepSeconds:.02,realTimeRatio:pace.activeWallMs>0?pace.activeIntervals*20/pace.activeWallMs:null}});
+  const renderQueue=new LatestFrameQueue({
+    render:snapshot=>{
+      if(renderer.closed)throw Error('Native renderer unavailable; select a backend to recreate it');
+      return renderer.request('frame',snapshot);
+    },
+    onFrame:(reply,snapshot)=>{
+      png=Buffer.from(reply.png,'base64');renderFailure=null;pace.lastFrameMs=snapshot.durationMs;
+      frameState={tick:snapshot.snapshotTick,generation:snapshot.generation,publishedAtMs:Date.now(),
+        sha256:crypto.createHash('sha256').update(png).digest('hex')};
+    },
+    onError:error=>{renderFailure=error.message;},
+  });
+  function invalidateFrames(){
+    renderQueue.invalidate(++frameGeneration);png=null;frameState=null;renderFailure=null;
+  }
+  function frameSnapshot(){return {qpos:state.qpos,snapshotTick:state.tick,generation:frameGeneration};}
+  function offerFrame(){
+    if(renderer?.closed){renderFailure=renderFailure||'Native renderer unavailable; select a backend to recreate it';return;}
+    try{renderQueue.offer(frameSnapshot());}catch(error){renderFailure=error.message;}
+  }
   function recordResult(result){
     state=result.state;
     for(const completed of result.rounds||[]){session.record(completed);session.recordFight(completed);}
@@ -59,15 +83,19 @@ async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
     switching=true;workerGeneration++;input.reset();
     try{
       while(busy)await new Promise(resolve=>setTimeout(resolve,5));
+      invalidateFrames();
       // This private viewer override never changes the training/league config.
       const nextConfig=createHumanConfig(backend.workerConfig,roundSeconds);
       if(worker)await worker.close();
+      if(renderer)await renderer.close();
       if(humanConfig)humanConfig.close();
       humanConfig=nextConfig;
       state={ok:false,failure:'Loading native evaluator'};png=null;
       worker=new Worker({executable:backend.executable,config:humanConfig.path,
         env:backend.env,logFile:backend.logFile});
-      await worker.ready;
+      renderer=new Renderer({executable:backend.executable,config:humanConfig.path,
+        env:backend.env,logFile:backend.logFile,renderOnly:true});
+      await Promise.all([worker.ready,renderer.ready]);
       if(policy.kind==='trained')await worker.request('policy',{
         side:1-humanSide,checkpoint:policy.checkpoint.path,sha256:policy.checkpoint.sha256,
         hiddenSize:policy.checkpoint.model.hiddenSize||256,layers:policy.checkpoint.model.layers||2,
@@ -77,7 +105,7 @@ async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
         legacyFastHidden:policy.checkpoint.model.legacyFastHidden||0});
       else if(humanSide===1)await worker.request('policy',{side:0,scripted:true,checkpoint:''});
       state=(await worker.request('snapshot')).state;
-      png=Buffer.from((await worker.request('frame')).png,'base64');
+      offerFrame();
       active={backend:backend.id,opponent:policy.id,humanSide,roundSeconds,
         trainingRoundSeconds:humanConfig.trainingRoundSeconds};lastClient=Date.now();
       session.reset();paused=true;roundRestartAt=0;
@@ -96,7 +124,7 @@ async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
       lastStepStart=started;
       const result=await worker.request('step',{command:input.next(state,active.humanSide),humanSide:active.humanSide,steps:1});
       pace.lastStepMs=performance.now()-started;pace.steps++;recordResult(result);
-      if(Date.now()>=frameDue){const frameStart=performance.now();png=Buffer.from((await worker.request('frame')).png,'base64');pace.lastFrameMs=performance.now()-frameStart;frameDue=Date.now()+50;}
+      offerFrame();
     }catch(error){state={...state,ok:false,failure:error.message};input.release();}
     finally{busy=false;}
   }
@@ -130,7 +158,13 @@ async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
         actions:33,observationFloats:446,maskBytes:66,qpos:72,qvel:70,
         reset:'POST /api/reset; remains paused',terminal:'rounds contains captured native terminals; no official parity claim'});
       if(req.method==='GET'&&url.pathname==='/health')return json(state.ok?200:503,{ok:state.ok,failure:state.failure});
-      if(req.method==='GET'&&url.pathname==='/frame.png')return png?send(200,'image/png',png):json(503,{error:'Frame unavailable'});
+      if(req.method==='GET'&&url.pathname==='/frame.png'){
+        if(!png)return json(503,{error:renderFailure||'Frame unavailable'});
+        res.setHeader('X-Rek-Snapshot-Tick',String(frameState.tick));
+        res.setHeader('X-Rek-Frame-Generation',String(frameState.generation));
+        res.setHeader('X-Rek-Frame-Sha256',frameState.sha256);
+        return send(200,'image/png',png);
+      }
       if(req.method==='POST'&&url.pathname==='/api/input'){
         if(switching)return json(409,{error:'Switch in progress'});
         const generation=workerGeneration;
@@ -168,7 +202,8 @@ async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
           while(busy)await new Promise(resolve=>setTimeout(resolve,5));
           input.release();lastStepStart=null;
           const result=await worker.request('step',args);recordResult(result);
-          if(value.frame===true)png=Buffer.from((await worker.request('frame')).png,'base64');
+          if(value.frame===true)await renderQueue.exact(frameSnapshot());
+          else offerFrame();
           return json(200,{...result,state:{...runtimeState(),switching:false}});
         }finally{switching=false;}
       }
@@ -176,9 +211,10 @@ async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
         if(switching||!worker)return json(409,{error:'Evaluator not ready'});
         switching=true;workerGeneration++;try{
           while(busy)await new Promise(resolve=>setTimeout(resolve,5));
+          invalidateFrames();
           session.abandonFight(state);input.reset();paused=true;roundRestartAt=0;session.newRoundStream();lastStepStart=null;
           state=(await worker.request('reset')).state;
-          png=Buffer.from((await worker.request('frame')).png,'base64');return json(200,{ok:true});
+          offerFrame();return json(200,{ok:true});
         }finally{switching=false;}
       }
       if(req.method==='GET'){
@@ -193,10 +229,10 @@ async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
   server.listen(port,host,()=>process.stdout.write(JSON.stringify({ready:true,url:`http://${host}:${port}`})+'\n'));
   if(config.initial)select(config.initial).catch(error=>process.stderr.write(error.message+'\n'));
   async function close(){
-    timer.stop();switching=true;server.close();
+    timer.stop();renderQueue.close();switching=true;server.close();
     process.removeListener('SIGTERM',shutdown);process.removeListener('SIGINT',shutdown);
     while(busy)await new Promise(resolve=>setTimeout(resolve,5));
-    if(worker)await worker.close();if(humanConfig)humanConfig.close();
+    if(worker)await worker.close();if(renderer)await renderer.close();if(humanConfig)humanConfig.close();
   }
   function shutdown(){close().finally(()=>process.exit(0));}
   process.once('SIGTERM',shutdown);process.once('SIGINT',shutdown);

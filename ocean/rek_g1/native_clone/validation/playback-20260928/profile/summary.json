@@ -1,0 +1,182 @@
+{
+  "success": true,
+  "binary_sha256": "ac424c254c4b23544f298789cbe9426cac1220622d544c131d67056b2b25f9d0",
+  "guard_source_sha256": "79db557c319a4ebc4c4a5d2d6aacfd82eab9052be0b89b74cb522a042d49d75e",
+  "ticks_requested": 256,
+  "graph_enabled": false,
+  "rendering": false,
+  "identity": {
+    "pid": 2931294,
+    "start_ticks": "131709443",
+    "argv": [
+      "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/profile-r2/build-r1/rek-native-clone",
+      "--config",
+      "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r4/worker.json"
+    ]
+  },
+  "ticks_completed": 256,
+  "elapsed_seconds": 6.041776541853324,
+  "control_sps": 42.37164321232437,
+  "step_rpc_ms": {
+    "n": 256,
+    "mean": 23.3721977578125,
+    "median": 22.052023499999997,
+    "p90": 27.719976,
+    "p99": 30.531686,
+    "min": 16.354504,
+    "max": 174.127062
+  },
+  "last_tick": 256,
+  "owned_exit_code": 0,
+  "profile": {
+    "schema": "rek.eval_cpu_cuda_profile.v1",
+    "units": "ms",
+    "phases": {
+      "cuda_input_policy_timeline": {
+        "count": 256,
+        "sum": 42.7642561,
+        "mean": 0.167047875,
+        "min": 0.00988799985,
+        "median": 0.0606399998,
+        "max": 1.72332799
+      },
+      "cuda_post_runtime_validation_timeline": {
+        "count": 256,
+        "sum": 307.081184,
+        "mean": 1.19953587,
+        "min": 0.223199993,
+        "median": 1.12134397,
+        "max": 2.89331198
+      },
+      "cuda_runtime_timeline": {
+        "count": 256,
+        "sum": 5339.05178,
+        "mean": 20.855671,
+        "min": 13.139616,
+        "median": 19.7792969,
+        "max": 169.668228
+      },
+      "host_control_tick_before_events": {
+        "count": 256,
+        "sum": 5781.22626,
+        "mean": 22.5829151,
+        "min": 15.6642079,
+        "median": 21.2096789,
+        "max": 173.512863
+      },
+      "host_input_policy_enqueue": {
+        "count": 256,
+        "sum": 4.73499203,
+        "mean": 0.0184960626,
+        "min": 0.0101599693,
+        "median": 0.0160160065,
+        "max": 0.0541930199
+      },
+      "host_runtime_enqueue": {
+        "count": 256,
+        "sum": 705.895388,
+        "mean": 2.75740386,
+        "min": 1.87826109,
+        "median": 2.03003788,
+        "max": 158.930476
+      },
+      "host_snapshot_feedback_readback": {
+        "count": 256,
+        "sum": 90.5410702,
+        "mean": 0.353676056,
+        "min": 0.101184845,
+        "median": 0.324082851,
+        "max": 1.1199491
+      },
+      "host_status_wait_including_pending_runtime": {
+        "count": 256,
+        "sum": 4975.56471,
+        "mean": 19.4357996,
+        "min": 12.8890252,
+        "median": 18.8621318,
+        "max": 28.8047071
+      },
+      "json_serialize": {
+        "count": 258,
+        "sum": 62.817215,
+        "mean": 0.243477577,
+        "min": 0.000703811646,
+        "median": 0.210482121,
+        "max": 0.421476126
+      },
+      "request_before_serialization": {
+        "count": 257,
+        "sum": 5803.92646,
+        "mean": 22.5833714,
+        "min": 0.405683994,
+        "median": 21.2972312,
+        "max": 173.561088
+      },
+      "state_json_build_including_will_connect": {
+        "count": 257,
+        "sum": 21.6523283,
+        "mean": 0.0842503045,
+        "min": 0.0368320942,
+        "median": 0.0647370815,
+        "max": 0.209058046
+      },
+      "stdout_write": {
+        "count": 258,
+        "sum": 16.3633502,
+        "mean": 0.0634238378,
+        "min": 0.00227189064,
+        "median": 0.0306720734,
+        "max": 0.212002039
+      },
+      "will_connect_json": {
+        "count": 257,
+        "sum": 5.99109912,
+        "mean": 0.0233116697,
+        "min": 0.0148160458,
+        "median": 0.0223360062,
+        "max": 0.0521919727
+      }
+    },
+    "affinity_cpu_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "control_tick_cpu_counts": {
+      "1": 5,
+      "2": 5,
+      "3": 8,
+      "4": 11,
+      "5": 15,
+      "7": 55,
+      "8": 74,
+      "9": 10,
+      "11": 6,
+      "13": 7,
+      "14": 7,
+      "15": 2,
+      "16": 6,
+      "17": 26,
+      "18": 13,
+      "19": 6
+    }
+  },
+  "guard_failure": null
+}

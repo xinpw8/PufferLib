@@ -53,11 +53,11 @@
     const c=s.commandResults?.[s.active?.humanSide??0];
     if(c?.attempted||c?.cancelled||c?.reason)$('command-status').textContent=`Native action: ${c.accepted?'accepted':c.rejected?'rejected':c.cancelled?'cancelled':'processed'} · ${['none','invalid','recovering','punching','round inactive'][c.reason]??c.reason??''}`;
     const pace=s.pace||{};$('pace').textContent=Number.isFinite(pace.realTimeRatio)?`${pace.realTimeRatio.toFixed(2)}× wall-clock pace`:'Pace awaiting play';
-    $('timing').textContent=`20 ms control · step ${Number.isFinite(pace.lastStepMs)?pace.lastStepMs.toFixed(1):'?'} ms · frame ${Number.isFinite(pace.lastFrameMs)?pace.lastFrameMs.toFixed(1):'?'} ms`;
+    $('timing').textContent=`20 ms control · step ${Number.isFinite(pace.lastStepMs)?pace.lastStepMs.toFixed(1):'?'} ms · frame ${Number.isFinite(pace.lastFrameMs)?pace.lastFrameMs.toFixed(1):'?'} ms · image ${s.frame?`tick ${s.frame.tick}, age ${Math.round(s.frame.ageMs)} ms`:'pending'}`;
     if(s.tick!==lastTick){lastTick=s.tick;lastAdvance=performance.now();}
     $('connection').textContent=!s.ok?(s.failure||'Loading'):paused?'Ready · paused':performance.now()-lastAdvance>3000?'Waiting for simulation':'Running';
     $('runtime-info').textContent=`Native step ${number(s.tick)} · ${globalThis.RekStateLabels.phaseLabel(s.phase)} · ties ${number(s.ties)} · redos ${number(s.redos)} · unclassified ${number(s.unclassified)} · unfinished resets ${number(q.abandonedMatches)}`;
-    if(s.failure)showError(s.failure);displayPause();
+    if(s.failure||s.renderFailure)showError(s.failure||`Renderer: ${s.renderFailure}`);displayPause();
   }
   async function stateLoop(){
     while(!stopped){try{update(await api('/api/state'));}catch(e){$('connection').textContent='Connection unavailable';showError(e.message);}

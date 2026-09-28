@@ -1,0 +1,8 @@
+{
+  "previous_incomplete_stage": {
+    "path": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r1/benchmark-r2/run_single_affinity.py",
+    "bytes": 0
+  },
+  "path": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r1/benchmark-r2/run_single_affinity_r1.py",
+  "sha256": "98370eeb3894c880452f3cc9ecf8d36e3a040ca8aa5a72db3737d6ede67a3272"
+}

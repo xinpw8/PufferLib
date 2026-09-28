@@ -1,0 +1,17 @@
+{
+  "remote": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r1/benchmark-r2",
+  "files": [
+    {
+      "path": "benchmark.py",
+      "sha256": "79db557c319a4ebc4c4a5d2d6aacfd82eab9052be0b89b74cb522a042d49d75e",
+      "bytes": 20923
+    },
+    {
+      "path": "test_benchmark.py",
+      "sha256": "1372931d86081280bebd18bedfde03feddd355bbf60bf04332c3d09d1b69d7c5",
+      "bytes": 4104
+    }
+  ],
+  "remote_cpu_tests_passed": 11,
+  "runtime_executed": false
+}

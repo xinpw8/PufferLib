@@ -1,0 +1,23 @@
+test_changed_worker_environment_executable_port_and_log_rejected (test_launch_viewer.LauncherTests.test_changed_worker_environment_executable_port_and_log_rejected) ... ok
+test_cleanup_escalates_only_owned_group_after_grace_period (test_launch_viewer.LauncherTests.test_cleanup_escalates_only_owned_group_after_grace_period) ... ERROR
+test_executable_bytes_and_external_expected_hash_are_checked (test_launch_viewer.LauncherTests.test_executable_bytes_and_external_expected_hash_are_checked) ... ok
+test_orphaned_worker_in_original_group_still_found (test_launch_viewer.LauncherTests.test_orphaned_worker_in_original_group_still_found) ... ok
+test_post_spawn_record_failure_reaches_owned_group_cleanup (test_launch_viewer.LauncherTests.test_post_spawn_record_failure_reaches_owned_group_cleanup) ... ok
+test_prepared_files_match_identity_and_expected_binary (test_launch_viewer.LauncherTests.test_prepared_files_match_identity_and_expected_binary) ... ok
+test_reused_pid_or_different_group_never_signalled (test_launch_viewer.LauncherTests.test_reused_pid_or_different_group_never_signalled) ... ok
+
+======================================================================
+ERROR: test_cleanup_escalates_only_owned_group_after_grace_period (test_launch_viewer.LauncherTests.test_cleanup_escalates_only_owned_group_after_grace_period)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\rekagent\work\rek-playback-speed-20260928-r1\test_launch_viewer.py", line 61, in test_cleanup_escalates_only_owned_group_after_grace_period
+    launcher.cleanup_owned_group(process,777)
+  File "C:\rekagent\work\rek-playback-speed-20260928-r1\launch_viewer.py", line 69, in cleanup_owned_group
+    try:os.killpg(process.pid,signal.SIGKILL)
+                              ^^^^^^^^^^^^^^
+AttributeError: module 'signal' has no attribute 'SIGKILL'. Did you mean: 'SIGILL'?
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.156s
+
+FAILED (errors=1)

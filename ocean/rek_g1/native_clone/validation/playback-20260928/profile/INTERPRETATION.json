@@ -1,0 +1,31 @@
+{
+  "schema": "rek.profile_interpretation.v1",
+  "summary_sha256": "32f76eee4c1e5700875ecd00c332a0fae5a1e2f488a02b1b1b46569d56b5782a",
+  "success": true,
+  "owned_exit_code": 0,
+  "guard_failure": null,
+  "disjoint_host_tick_means_ms": {
+    "host_input_policy_enqueue": 0.0184960626,
+    "host_runtime_enqueue": 2.75740386,
+    "host_status_wait_including_pending_runtime": 19.4357996,
+    "host_snapshot_feedback_readback": 0.353676056
+  },
+  "overlapping_cuda_timeline_means_ms": {
+    "cuda_input_policy_timeline": 0.167047875,
+    "cuda_runtime_timeline": 20.855671,
+    "cuda_post_runtime_validation_timeline": 1.19953587
+  },
+  "sampled_fast_cluster_ticks": 207,
+  "sampled_total_ticks": 256,
+  "status_packing_justified_as_primary_fix": false,
+  "reason": "Runtime CUDA timeline dominates. Post-runtime validation ~1.20 ms plus snapshot/feedback ~0.35 ms is insufficient to explain or eliminate the requested ~5 ms app latency gap. The 19.44 ms host status scope waits for pending runtime and cannot be labeled validation overhead.",
+  "limits": [
+    "CUDA event intervals include host enqueue gaps, not summed pure-kernel time",
+    "Host and CUDA timings overlap and must not be added",
+    "state_json_build includes will_connect_json",
+    "Profile inserts timing events and has a startup outlier, so its 42.37 SPS is not the uninstrumented speed estimate",
+    "CPU IDs sampled once at tick start do not prove no migration during a tick",
+    "Only one bounded profile workload; no optimization or parity conclusion from similar trajectory scatter"
+  ],
+  "next_diagnostic": "If further native latency work is authorized, measure runtime phases separately (reset/preparation, motor encode/decode, ten physics/control substeps, and export). Keep timestep, kernel order, status checks and CUDA graphs unchanged."
+}

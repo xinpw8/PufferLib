@@ -1,0 +1,7 @@
+{
+  "cpu_parser_checks": 97,
+  "failures": 0,
+  "renderer_or_cuda_executed": false,
+  "worker_sha256": "6e0acbafe2987411cb3c8480ac31b968c4330165b10611708085ae683b6d9cf0",
+  "header_sha256": "cc220f05e5b10e9b8a4a4cd4fc1533081fb4e39605c393ad7832ab8b1334915a"
+}

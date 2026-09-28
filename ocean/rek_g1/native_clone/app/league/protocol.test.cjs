@@ -3,6 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),net=require('node:net'),http=require('node:http');
 const {once}=require('node:events'),{setTimeout:delay}=require('node:timers/promises');
 const {League}=require('./league.cjs'),{serve}=require('./server.cjs');
+const {TestRenderer}=require('./test_renderer.cjs');
 test('paused protocol preserves continuous inputs, native events and exclusive requests across delayed HTTP bodies',async()=>{
   const reservation=net.createServer();reservation.listen(0,'127.0.0.1');await once(reservation,'listening');
   const port=reservation.address().port;await new Promise(r=>reservation.close(r));
@@ -34,7 +35,7 @@ test('paused protocol preserves continuous inputs, native events and exclusive r
   }
   let service;
   try{
-    service=await serve(cfg,{Worker});if(!service.server.listening)await once(service.server,'listening');
+    service=await serve(cfg,{Worker,Renderer:TestRenderer});if(!service.server.listening)await once(service.server,'listening');
     const base=`http://127.0.0.1:${port}`;
     async function api(route,value){const r=await fetch(base+route,value===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});return {status:r.status,data:await r.json()};}
     function slow(route){

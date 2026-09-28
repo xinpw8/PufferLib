@@ -1,0 +1,22 @@
+{
+  "utc": "2026-09-28T21:08:01.732535+00:00",
+  "url": "http://127.0.0.1:18772/",
+  "ok": true,
+  "paused": true,
+  "tick": 0,
+  "png_sha256": "eba4623196e2a011dd3fbd4ee61142ed4469cd86700c8f531ce6f0fc70101e20",
+  "image_size": [
+    1280,
+    720
+  ],
+  "renderer_failure": null,
+  "pace": {
+    "steps": 0,
+    "activeIntervals": 0,
+    "activeWallMs": 0,
+    "lastStepMs": null,
+    "lastFrameMs": 303.66975116729736,
+    "simulationStepSeconds": 0.02,
+    "realTimeRatio": null
+  }
+}

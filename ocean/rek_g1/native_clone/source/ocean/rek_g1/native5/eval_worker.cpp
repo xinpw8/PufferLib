@@ -4,6 +4,7 @@
 #include "native_policy.h"
 #include "fast_mode_config.h"
 #include "eval_renderer.h"
+#include "eval_render_request.h"
 #include "will_connect_json.h"
 #include "../../../vendor/cJSON.h"
 #include <cuda_runtime.h>
@@ -44,6 +45,24 @@ void runtime_ok(int e){if(e)throw std::runtime_error(rek_native5_error());}
 void policy_ok(int e){if(e)throw std::runtime_error(rek_native_policy_error());}
 void policy_side_ok(int e,int side){if(e)throw std::runtime_error("policy: "+std::to_string(side)+" "+rek_native_policy_error());}
 
+class RenderOnlyWorker {
+    std::string model_path;
+    std::unique_ptr<rek_eval::Renderer> renderer;
+public:
+    explicit RenderOnlyWorker(const cJSON* config):model_path(str(config,"render_model_path",str(config,"model_path").c_str())) {
+        if(model_path.empty())throw std::runtime_error("Renderer model path required");
+    }
+    Json request(const cJSON* command) {
+        auto frame=rek_eval::frame_request(command);
+        auto reply=object();num(reply.get(),"id",integer(command,"id",0));
+        cJSON_AddBoolToObject(reply.get(),"ok",true);
+        if(frame.has_tick)num(reply.get(),"snapshotTick",frame.tick);
+        if(frame.has_generation)num(reply.get(),"generation",frame.generation);
+        if(!renderer)renderer=std::make_unique<rek_eval::Renderer>(model_path.c_str());
+        text(reply.get(),"png",renderer->frame(frame.qpos.data()));return reply;
+    }
+};
+
 class Worker {
     int arenas=4;
     uint64_t tick=0;
@@ -74,12 +93,15 @@ class Worker {
     bool failed=false;
     bool use_step_graph=false;
     EvalStepGraph step_graph;
+    RekNative5Snapshot last_snapshot{};
+    RekG1CudaDirectResult last_feedback[2]{};
     template<class T>T* allocate(size_t count){
         T* p=nullptr;cuda_ok(cudaMalloc((void**)&p,count*sizeof(T)));
         allocations.push_back(p);cuda_ok(cudaMemsetAsync(p,0,count*sizeof(T),stream));return p;
     }
-    RekNative5Snapshot snapshot(){
-        RekNative5Snapshot s{};runtime_ok(rek_native5_read_snapshot(runtime,0,&s,stream));return s;
+    void refresh_snapshot(){
+        runtime_ok(rek_native5_read_snapshot(runtime,0,&last_snapshot,stream));
+        runtime_ok(rek_native5_read_command_results(runtime,0,last_feedback,stream));
     }
     Json state(const RekNative5Snapshot& s){
         auto o=object();cJSON_AddBoolToObject(o.get(),"ok",!failed&&!s.round.failure_bits);
@@ -94,9 +116,8 @@ class Worker {
         num(o.get(),"phase",s.round.phase);num(o.get(),"fightResult",s.round.fight_result);num(o.get(),"fightWinner",s.round.fight_winner);
         num(o.get(),"ties",double(s.round.ties));num(o.get(),"redos",double(s.round.redos));num(o.get(),"unclassified",double(s.round.unclassified));
         array(o.get(),"qpos",s.qpos,72);array(o.get(),"qvel",s.qvel,70);
-        RekG1CudaDirectResult feedback[2]{};runtime_ok(rek_native5_read_command_results(runtime,0,feedback,stream));
         auto* command_results=cJSON_AddArrayToObject(o.get(),"commandResults");
-        for(const auto& result:feedback){auto entry=object();
+        for(const auto& result:last_feedback){auto entry=object();
             num(entry.get(),"attempted",result.move_attempted);num(entry.get(),"accepted",result.move_accepted);
             num(entry.get(),"rejected",result.move_rejected);num(entry.get(),"cancelled",result.cancelled);
             num(entry.get(),"suspended",result.suspended);num(entry.get(),"reason",result.rejection_reason);
@@ -186,6 +207,7 @@ public:
             step_graph.capture(stream,[&]{runtime_ok(rek_native5_step(runtime,stream));});
             std::fprintf(stderr,"eval_worker cuda_graph_step=1 captured_runtime_step_only=1\n");
         }
+        refresh_snapshot();
     }
     Json request(const cJSON* command){
         auto reply=object();num(reply.get(),"id",integer(command,"id",0));
@@ -241,12 +263,12 @@ public:
             for(int side=0;side<2;side++)control_mode[side]=desired[side];
             auto* events=cJSON_AddArrayToObject(reply.get(),"rounds");
             auto* command_events=cJSON_AddArrayToObject(reply.get(),"commandEvents");
-            auto before=snapshot();uint64_t rounds=before.round.completed_rounds;
+            uint64_t rounds=last_snapshot.round.completed_rounds;
             const bool stop_at_round=cJSON_IsTrue(field(command,"stopAtRound"));
             for(int i=0;i<steps;i++){
                 int actual_action=action;
                 if(scripted_player&&!policies[0]&&!gpu_scripted){
-                    const auto current=snapshot();const float* o=current.raw_observations;
+                    const auto& current=last_snapshot;const float* o=current.raw_observations;
                     const double n=std::sqrt(double(o[3])*o[3]+double(o[4])*o[4]+double(o[5])*o[5]+double(o[6])*o[6]);
                     const double w=o[3]/n,x=o[4]/n,y=o[5]/n,z=o[6]/n;
                     const double fx=1-2*(y*y+z*z),fy=2*(w*z+x*y),yaw=std::atan2(fy,fx);
@@ -290,8 +312,9 @@ public:
                     runtime_ok(rek_native5_check_status(runtime,stream));
                     for(int side=0;side<2;side++)if(policies[side])policy_side_ok(rek_native_policy_check_status(policies[side],stream),side);
                 }catch(...){failed=true;throw;}
-                auto s=snapshot();
-                RekG1CudaDirectResult feedback[2]{};runtime_ok(rek_native5_read_command_results(runtime,0,feedback,stream));
+                refresh_snapshot();
+                const auto& s=last_snapshot;
+                const auto* feedback=last_feedback;
                 for(int side=0;side<2;side++)if(feedback[side].move_attempted||feedback[side].cancelled||feedback[side].rejection_reason||feedback[side].status){
                     auto event=object();num(event.get(),"tick",double(tick));num(event.get(),"side",side);
                     num(event.get(),"attempted",feedback[side].move_attempted);num(event.get(),"accepted",feedback[side].move_accepted);
@@ -307,9 +330,10 @@ public:
         }else if(op=="reset")reset();
         else if(op=="frame"){
             if(!renderer)renderer=std::make_unique<rek_eval::Renderer>(render_model_path.c_str());
-            auto s=snapshot();text(reply.get(),"png",renderer->frame(s.qpos));return reply;
-        }else if(op!="snapshot")throw std::runtime_error("Unknown worker operation");
-        cJSON_AddItemToObject(reply.get(),"state",state(snapshot()).release());return reply;
+            text(reply.get(),"png",renderer->frame(last_snapshot.qpos));return reply;
+        }else if(op=="snapshot")refresh_snapshot();
+        else throw std::runtime_error("Unknown worker operation");
+        cJSON_AddItemToObject(reply.get(),"state",state(last_snapshot).release());return reply;
     }
     ~Worker(){
         if(stream)cudaStreamSynchronize(stream);
@@ -326,18 +350,24 @@ int main(int argc,char** argv){
         // stdout is a strict JSON transport. Keep native diagnostics visible
         // on stderr, including MuJoCo/OpenGL warnings during scene creation.
         mju_user_warning=[](const char* warning){std::fprintf(stderr,"MuJoCo warning: %s\n",warning);};
-        if(argc!=3||std::string(argv[1])!="--config")throw std::runtime_error("Usage: rek-eval-worker --config FILE.json");
-        std::ifstream file(argv[2]);if(!file)throw std::runtime_error("Cannot open evaluator config");
+        const bool render_only=argc==4&&std::string(argv[1])=="--render-only"&&std::string(argv[2])=="--config";
+        if(!render_only&&(argc!=3||std::string(argv[1])!="--config"))throw std::runtime_error("Usage: rek-eval-worker [--render-only] --config FILE.json");
+        std::ifstream file(argv[render_only?3:2]);if(!file)throw std::runtime_error("Cannot open evaluator config");
         std::stringstream content;content<<file.rdbuf();Json config(cJSON_Parse(content.str().c_str()));
         if(!config)throw std::runtime_error("Invalid evaluator config");
-        Worker worker(config.get());auto ready=object();text(ready.get(),"event","ready");
+        std::unique_ptr<Worker> worker;
+        std::unique_ptr<RenderOnlyWorker> render_worker;
+        if(render_only)render_worker=std::make_unique<RenderOnlyWorker>(config.get());
+        else worker=std::make_unique<Worker>(config.get());
+        auto ready=object();text(ready.get(),"event","ready");
         if(REK_EVAL_BACKEND[0])text(ready.get(),"runtimeBackend",REK_EVAL_BACKEND);
+        if(render_only)cJSON_AddBoolToObject(ready.get(),"rendererOnly",true);
         output(ready.get());
         std::string line;
         while(std::getline(std::cin,line)){
             if(line.size()>16384)throw std::runtime_error("Worker command too large");
             Json command(cJSON_Parse(line.c_str()));auto error=object();
-            try{if(!command)throw std::runtime_error("Invalid JSON command");auto reply=worker.request(command.get());output(reply.get());}
+            try{if(!command)throw std::runtime_error("Invalid JSON command");auto reply=render_only?render_worker->request(command.get()):worker->request(command.get());output(reply.get());}
             catch(const std::exception& e){num(error.get(),"id",command?integer(command.get(),"id",0):0);
                 cJSON_AddBoolToObject(error.get(),"ok",false);text(error.get(),"error",e.what());output(error.get());}
         }

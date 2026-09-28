@@ -1,0 +1,26 @@
+{
+  "schema": "rek.app.cpu_tests.v1",
+  "started_utc": "2026-09-28T20:47:27.839127+00:00",
+  "finished_utc": "2026-09-28T20:47:29.160284+00:00",
+  "exit_code": 0,
+  "args": [
+    "C:\\Users\\Daniel\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+    "--test",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\controls.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\human_session.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\input.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\native_phase.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\paced_loop.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\protocol.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\render_decoupling.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\render_queue.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\server.test.cjs",
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app\\league\\worker.test.cjs"
+  ],
+  "stdout": {
+    "path": "tests-r4.txt",
+    "bytes": 3963,
+    "sha256": "bef3e5448e579443e3f400b11cf2d21f219c8fd3be60a6755f59dc217a8cfe2d"
+  },
+  "no_native_gpu_or_live_viewer": true
+}

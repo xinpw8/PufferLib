@@ -6,7 +6,7 @@ To restore the verified existing session, root will use this revision's `passive
 
 These helpers are staged only. They do not execute commands on Spark, launch or stop the game/viewer, or generate input. The tunnel forwards user HTTP traffic. The mirror reads the chosen isolated run and writes a fresh task-owned NAS subtree.
 
-Two independent Windows processes use Paramiko, the saved `dgx_spark` alias, existing SSH keys/agent and existing known_hosts. Unknown host keys are rejected. The tunnel binds only Windows `127.0.0.1:18771` and forwards to Spark `127.0.0.1:18771`. Neither process changes a service or host configuration.
+Two independent Windows processes use Paramiko, the saved `dgx_spark` alias, existing SSH keys/agent and existing known_hosts. Unknown host keys are rejected. The tunnel binds only Windows loopback and forwards to the matching Spark loopback port. The default remains `18771`; `--port 18772` allows a separate tested viewer while preserving the existing session. Ports must be in `1024..65535`. Neither process changes a service or host configuration.
 
 The default source is `/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r2`. Root may supply a later isolated `run-rN` using `--remote`. The destination defaults to `R:\pufferlib\rek-evidence\2026-09-27\rek-native-clone-r1\live-session-r1`. The local control directory defaults to this package's `active` directory, with an independent lock and status for each mode.
 
@@ -32,4 +32,4 @@ Tests are fake local files/SFTP only, with no remote or viewer connection:
 & 'C:\Python312\python.exe' -m unittest -v test_passive.py
 ```
 
-Eleven tests cover append resumption after interruption, prefix-change and truncation rejection, immutable hash/readback and conflict preservation, incomplete PNG rejection, path boundaries, fresh/resumed ownership, STOP-before-connect, exclusive process locking, untimed STOP in both loops, timed default/cap preservation and incompatible option rejection.
+Twelve tests cover append resumption after interruption, prefix-change and truncation rejection, immutable hash/readback and conflict preservation, incomplete PNG rejection, path boundaries, fresh/resumed ownership, STOP-before-connect, exclusive process locking, untimed STOP in both loops, timed default/cap preservation, incompatible option rejection, and independent loopback port selection.

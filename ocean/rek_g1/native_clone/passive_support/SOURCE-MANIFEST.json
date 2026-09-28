@@ -1,32 +1,34 @@
 {
-  "schema": "rek.native_clone.passive_until_stop_revision.v1",
-  "utc": "2026-09-28T11:56:46.7161740Z",
-  "parent": "passive-support-r1",
+  "schema": "rek.native_clone.passive_port_revision.v1",
+  "utc": "2026-09-28T20:46:18.225407+00:00",
+  "parent_manifest": "SOURCE-MANIFEST.parent-r2.json",
+  "default_port": 18771,
+  "tests_passed": 12,
   "files": [
     {
       "path": "passive.py",
-      "bytes": 16037,
-      "sha256": "aa2d3ad86fd62448c713245379e45f420fee0c6b481aa9a9c0dc2adf95644f95"
+      "bytes": 16266,
+      "sha256": "9d92e0e6516ce46c06cfe98e60e689d36152871e2d3d8b8c336085e067fe7e17"
     },
     {
       "path": "test_passive.py",
-      "bytes": 7742,
-      "sha256": "3aeb09289b3206cfd7f0d26bfeebf538a381adc26690780fba9dbfefc4224e2e"
+      "bytes": 8173,
+      "sha256": "4dfb1b1b9330944dc25ee90a7642dbd9aa67276726a7741d815cce14247f1a22"
     },
     {
       "path": "README.md",
-      "bytes": 4688,
-      "sha256": "fb2c394296b813466a147d6eded6e413eaccf7ff5f9717f98061727863c1c7f3"
+      "bytes": 4873,
+      "sha256": "a89dc60f130819549619b125c24493cd322e5e750da5108b960d6c36697fca4c"
     },
     {
       "path": "tests.txt",
-      "bytes": 1503,
-      "sha256": "873d578372c52018a2c8fca73f53038d61cb961abb742f861256e61d3b7c6585"
+      "bytes": 1648,
+      "sha256": "541a6671782b7589be72860fe224f83dda79bfa59bd84be2fcfdfcdc921f11e2"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r2.json",
+      "bytes": 979,
+      "sha256": "0bc360bac95801c4e8b64a47733576d3f723ec7fb7bf09176f3fab6d2362c9e4"
     }
-  ],
-  "tests_passed": 11,
-  "independent_review": "GO on exact passive.py hash; independent11test rerun passed",
-  "helper_launched_by_preparer": false,
-  "active_copied": false,
-  "original_preserved": true
+  ]
 }

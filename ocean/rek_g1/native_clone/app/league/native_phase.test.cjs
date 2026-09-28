@@ -3,6 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),net=require('node:net');
 const {once}=require('node:events'),{setTimeout:delay}=require('node:timers/promises');
 const {League}=require('./league.cjs'),{serve}=require('./server.cjs');
+const {TestRenderer}=require('./test_renderer.cjs');
 const {phaseLabel,roundStatus}=require('./public/state_labels.js');
 test('native phase labels do not invent a timer or treat round terminal as match complete',()=>{
   assert.deepEqual([0,1,2,3,4].map(phaseLabel),['Idle','Countdown','Fighting','Between rounds','Match complete']);
@@ -13,7 +14,7 @@ test('native phase labels do not invent a timer or treat round terminal as match
 });
 test('launched zero-intermission server continues stepping native between-round phase without an extra browser timer',async()=>{
   const launch=fs.readFileSync(path.join(__dirname,'../launch_logged.cjs'),'utf8');
-  assert(launch.includes('{Worker:RecordedWorker,intermissionMs:0}'));
+  assert(launch.includes('{Worker:RecordedWorker,Renderer:RecordedWorker,intermissionMs:0}'));
   const listener=net.createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');
   const port=listener.address().port;await new Promise(r=>listener.close(r));
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rek-native-phase-'));
@@ -23,7 +24,7 @@ test('launched zero-intermission server continues stepping native between-round 
   fs.writeFileSync(cfg,JSON.stringify({port,leagueFile:league.file,backends:[{id:'mujoco',workerConfig:wc,configHash:'c'.repeat(64)}]}));
   let steps=0;
   class Worker{
-    constructor(){this.ready=Promise.resolve();this.state={ok:true,tick:0,phase:2,roundNumber:1,terminal:0,fightResult:0,fightWinner:-1,score:[0,0],roundResult:0,winner:-1};}
+    constructor(){this.ready=Promise.resolve();this.state={ok:true,tick:0,phase:2,roundNumber:1,terminal:0,fightResult:0,fightWinner:-1,score:[0,0],roundResult:0,winner:-1,qpos:Array(72).fill(0)};}
     async request(op){
       if(op==='frame')return {png:''};
       if(op==='step'){
@@ -36,7 +37,7 @@ test('launched zero-intermission server continues stepping native between-round 
   }
   let service;
   try{
-    service=await serve(cfg,{Worker,intermissionMs:0});if(!service.server.listening)await once(service.server,'listening');
+    service=await serve(cfg,{Worker,Renderer:TestRenderer,intermissionMs:0});if(!service.server.listening)await once(service.server,'listening');
     const base=`http://127.0.0.1:${port}`;
     const post=async(route,value)=>{const r=await fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});assert.equal(r.status,200);return r.json();};
     await post('/api/select',{backend:'mujoco',opponent:'bot1',humanSide:0,roundSeconds:120});

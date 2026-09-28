@@ -1,0 +1,52 @@
+{
+  "success": true,
+  "result": {
+    "label": "candidate-fast-cpu",
+    "identity": {
+      "pid": 2927812,
+      "start_ticks": "131700864",
+      "argv": [
+        "/usr/bin/taskset",
+        "--cpu-list",
+        "5-9,15-19",
+        "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/build-r1/rek-native-clone",
+        "--config",
+        "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r4/worker.json"
+      ],
+      "affinity_cpu_ids": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "last_observed_cpu": 5
+    },
+    "binary_sha256": "ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975",
+    "ticks": 150,
+    "elapsed_seconds": 3.3258242870215327,
+    "control_sps": 45.10160100320082,
+    "step_rpc_ms": {
+      "n": 150,
+      "mean": 21.74102235333333,
+      "median": 20.761481500000002,
+      "p90": 23.714078,
+      "p99": 27.374464,
+      "min": 13.784129,
+      "max": 174.686256
+    },
+    "cache_behavior_checks": [
+      "step then snapshot exact",
+      "three-step batch reports one edge",
+      "invalid command does not advance",
+      "reset snapshot exact",
+      "reset frame PNG and no state advance"
+    ]
+  },
+  "guard_failure": null
+}

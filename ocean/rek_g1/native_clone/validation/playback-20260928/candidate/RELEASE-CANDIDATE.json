@@ -1,0 +1,9 @@
+{
+  "package": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\release-candidate-r1",
+  "archive": "C:\\rekagent\\work\\rek-playback-native-20260928-r1\\rek-native-clone-playback-candidate-r1.tar.gz",
+  "archive_bytes": 2779759,
+  "archive_sha256": "a781889f84609bd3f2007e3d2d0ec0d2c8dbe62ab465fbdd4ad7083947a0e69a",
+  "manifest_sha256": "a08240c08216295ea6e08b848a73ed2be52a96dac78083c04f20be0bbc701972",
+  "binary_sha256": "ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975",
+  "file_count": 69
+}

@@ -214,7 +214,7 @@ def tunnel(args):
         def handle(self):
             channel=None;counts['connections']+=1
             try:
-                channel=transport.open_channel('direct-tcpip',('127.0.0.1',18771),self.request.getpeername(),timeout=7)
+                channel=transport.open_channel('direct-tcpip',('127.0.0.1',args.port),self.request.getpeername(),timeout=7)
                 channel.settimeout(2);self.request.settimeout(2)
                 while not stop():
                     ready,_,_=select.select([self.request,channel],[],[],.5)
@@ -230,22 +230,25 @@ def tunnel(args):
         allow_reuse_address=False;daemon_threads=True
     server=None
     try:
-        server=Server(('127.0.0.1',18771),Handler);server.timeout=.5;written=0
+        server=Server(('127.0.0.1',args.port),Handler);server.timeout=.5;written=0
         while not stop():
             server.handle_request()
             if not transport.is_active():raise ConnectionError('SSH transport disconnected')
             if time.monotonic()-written>=2:
-                atomic(args.local/'tunnel-status.json',{'utc':utc(),'pid':os.getpid(),'phase':'listening','local':'127.0.0.1:18771','remote':'127.0.0.1:18771','counts':counts,'errors':errors[-10:]});written=time.monotonic()
+                endpoint='127.0.0.1:'+str(args.port)
+                atomic(args.local/'tunnel-status.json',{'utc':utc(),'pid':os.getpid(),'phase':'listening','local':endpoint,'remote':endpoint,'counts':counts,'errors':errors[-10:]});written=time.monotonic()
     finally:
         halt.set()
         if server:server.server_close()
         client.close();atomic(args.local/'tunnel-status.json',{'utc':utc(),'pid':os.getpid(),'phase':'stopped','reason':'STOP' if (args.local/'STOP').exists() else 'deadline_or_error','counts':counts,'errors':errors[-10:]})
 def parse_args(argv=None):
     p=argparse.ArgumentParser();p.add_argument('mode',choices=['tunnel','mirror']);p.add_argument('--local',type=Path,default=HERE/'active');p.add_argument('--nas',type=Path,default=NAS)
+    p.add_argument('--port',type=int,default=18771,help='Matching local and remote loopback port')
     lifetime=p.add_mutually_exclusive_group()
     lifetime.add_argument('--minutes',type=float,help='Stop after this many minutes, at most240; default240')
     lifetime.add_argument('--until-stop',action='store_true',help='No timed expiry; stop using the shared STOP marker')
     p.add_argument('--resume',action='store_true');p.add_argument('--remote',default=REMOTE);args=p.parse_args(argv)
+    if not 1024<=args.port<=65535:raise ValueError('Loopback port must be1024..65535')
     if args.minutes is None and not args.until_stop:args.minutes=240
     if not args.until_stop and not 0<args.minutes<=240:raise ValueError('Bounded duration required, at most240minutes')
     if not re.fullmatch(r'/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r[0-9]+',args.remote):raise ValueError('Remote must be a named isolated native clone run')

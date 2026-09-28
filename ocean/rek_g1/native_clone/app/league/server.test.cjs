@@ -9,6 +9,7 @@ const {once}=require('node:events');
 const {setTimeout:delay}=require('node:timers/promises');
 const {League}=require('./league.cjs');
 const {serve}=require('./server.cjs');
+const {TestRenderer}=require('./test_renderer.cjs');
 
 test('human server pauses, extends rounds, retains results and leaves league fixtures unchanged',async()=>{
   const reservation=net.createServer();reservation.listen(0,'127.0.0.1');
@@ -31,7 +32,7 @@ test('human server pauses, extends rounds, retains results and leaves league fix
       this.duration=JSON.parse(fs.readFileSync(spec.config,'utf8')).round_seconds;
       this.reset();workers.push(this);}
     reset(){this.state={ok:true,tick:0,score:[0,0],terminal:0,winner:-1,roundResult:0,roundNumber:1,
-      timeRemaining:this.duration,mask:Array(66).fill(1),raw:Array(446).fill(0)};}
+      timeRemaining:this.duration,qpos:Array(72).fill(0),mask:Array(66).fill(1),raw:Array(446).fill(0)};}
     async request(op){
       if(op==='reset')this.reset();
       if(op==='frame')return {png:''};
@@ -50,7 +51,7 @@ test('human server pauses, extends rounds, retains results and leaves league fix
   }
   let instance;
   try{
-    instance=await serve(configPath,{Worker,intermissionMs:100});
+    instance=await serve(configPath,{Worker,Renderer:TestRenderer,intermissionMs:100});
     if(!instance.server.listening)await once(instance.server,'listening');
     const origin=`http://127.0.0.1:${port}`;
     async function api(url,body){
