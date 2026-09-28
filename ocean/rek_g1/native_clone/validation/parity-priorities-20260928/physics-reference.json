@@ -1,0 +1,339 @@
+{
+  "schema": "rek.native_gpu_cpu_open_loop_reference.v1",
+  "complete": true,
+  "simulated_seconds": 1,
+  "substeps": 500,
+  "arenas": 4,
+  "robots": 8,
+  "initial_conditions": "synthetic 4 m separated, zero all29joint angles, zero velocity and warmstart; original reset path",
+  "controls": "captured actual actuator controls every2ms; all high-level commands neutral; same controls in each CPU replay",
+  "geometry": "actual post-runtime-override host model saved directly as MJB; native original model geometry, no capsule substitution",
+  "model_options": {
+    "mujoco_version": "3.7.0",
+    "nq": 72,
+    "nv": 70,
+    "nu": 58,
+    "na": 0,
+    "ngeom": 91,
+    "timestep": 0.002,
+    "tolerance": 9.99999993922529e-09,
+    "gpu_effective_tolerance": 1e-06,
+    "iterations": 100,
+    "ls_iterations": 50,
+    "ls_tolerance": 0.01,
+    "integrator": 3,
+    "solver": 2,
+    "cone": 1,
+    "jacobian": 2,
+    "geom_type": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      3,
+      3,
+      6,
+      2,
+      2,
+      2,
+      2,
+      6,
+      6,
+      3,
+      3,
+      6,
+      2,
+      2,
+      2,
+      2,
+      6,
+      6,
+      6,
+      3,
+      5,
+      5,
+      6,
+      6,
+      6,
+      6,
+      6,
+      5,
+      5,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      3,
+      3,
+      6,
+      2,
+      2,
+      2,
+      2,
+      6,
+      6,
+      3,
+      3,
+      6,
+      2,
+      2,
+      2,
+      2,
+      6,
+      6,
+      6,
+      3,
+      5,
+      5,
+      6,
+      6,
+      6,
+      6,
+      6,
+      5,
+      5,
+      6,
+      6,
+      6,
+      6,
+      6
+    ]
+  },
+  "geometry_counts": {
+    "2": 16,
+    "3": 10,
+    "5": 8,
+    "6": 57
+  },
+  "trace_checks": [
+    "500 complete records",
+    "all finite",
+    "pre/post continuity exact",
+    "initial matches initial receipt",
+    "all joints and velocities zero initially",
+    "no reset/fall/score/interrobot contacts",
+    "requested/effective commands zero",
+    "50Hz tick boundaries equal2ms trace"
+  ],
+  "results": {
+    "model-open": {
+      "max_pelvis_error_m": 3.314217528901236e-05,
+      "rms_pelvis_error_m": 7.03835205377089e-06,
+      "final_pelvis_errors_m": [
+        [
+          1.8832329625439708e-05,
+          1.8503406511181903e-05
+        ],
+        [
+          2.8926557787973952e-05,
+          2.088658677790857e-05
+        ],
+        [
+          2.2382865410128393e-05,
+          3.314217528901236e-05
+        ],
+        [
+          5.087054683217081e-06,
+          6.391177639808229e-06
+        ]
+      ],
+      "max_error_at_substep_arena_fighter": [
+        499,
+        2,
+        1
+      ],
+      "max_root_quaternion_angle_deg": 0.019037235419252584,
+      "max_joint_angle_error_rad": 0.0008661933907816444,
+      "max_qpos_absolute_error_mixed_units": 0.0008661933907816444,
+      "max_qvel_absolute_error_mixed_units": 0.08683077187276375,
+      "first_step_max_qpos_error": 9.669067013717836e-08,
+      "first_step_max_qvel_error": 1.796661250708098e-05,
+      "max_time_error_seconds": 5.7816505438790244e-06,
+      "warnings": 0
+    },
+    "model-forced": {
+      "max_pelvis_error_m": 2.3550581545655868e-07,
+      "rms_pelvis_error_m": 6.42545810979224e-08,
+      "final_pelvis_errors_m": [
+        [
+          1.928679074291987e-08,
+          3.0823193213856545e-08
+        ],
+        [
+          3.604748033834015e-08,
+          1.9505348107066222e-08
+        ],
+        [
+          2.8489087560647643e-08,
+          2.9939929827591446e-08
+        ],
+        [
+          5.168511193669144e-08,
+          4.6483902751991526e-08
+        ]
+      ],
+      "max_error_at_substep_arena_fighter": [
+        323,
+        1,
+        0
+      ],
+      "max_root_quaternion_angle_deg": 0.00015190454345428745,
+      "max_joint_angle_error_rad": 7.088463798875233e-05,
+      "max_qpos_absolute_error_mixed_units": 7.088463798875233e-05,
+      "max_qvel_absolute_error_mixed_units": 0.0354427958315342,
+      "first_step_max_qpos_error": 9.669067013717836e-08,
+      "first_step_max_qvel_error": 1.796661250708098e-05,
+      "max_time_error_seconds": 2.5749206544745107e-08,
+      "warnings": 0
+    },
+    "gpu-open": {
+      "max_pelvis_error_m": 3.315088718832599e-05,
+      "rms_pelvis_error_m": 7.042521702906776e-06,
+      "final_pelvis_errors_m": [
+        [
+          1.8844208933526212e-05,
+          1.85149925995114e-05
+        ],
+        [
+          2.8919364235272774e-05,
+          2.0892270288282698e-05
+        ],
+        [
+          2.239414936765033e-05,
+          3.315088718832599e-05
+        ],
+        [
+          5.0999124090142425e-06,
+          6.405453632302405e-06
+        ]
+      ],
+      "max_error_at_substep_arena_fighter": [
+        499,
+        2,
+        1
+      ],
+      "max_root_quaternion_angle_deg": 0.01903664115431484,
+      "max_joint_angle_error_rad": 0.000866225547636934,
+      "max_qpos_absolute_error_mixed_units": 0.000866225547636934,
+      "max_qvel_absolute_error_mixed_units": 0.0868305198791314,
+      "first_step_max_qpos_error": 9.669067013717836e-08,
+      "first_step_max_qvel_error": 1.796661250708098e-05,
+      "max_time_error_seconds": 5.7816505438790244e-06,
+      "warnings": 0
+    },
+    "gpu-forced": {
+      "max_pelvis_error_m": 2.3550581545655868e-07,
+      "rms_pelvis_error_m": 6.425457341350028e-08,
+      "final_pelvis_errors_m": [
+        [
+          1.928679074291987e-08,
+          3.0823193213856545e-08
+        ],
+        [
+          3.604748033834015e-08,
+          1.9505348107066222e-08
+        ],
+        [
+          2.8489087560647643e-08,
+          2.9939929827591446e-08
+        ],
+        [
+          5.168511193669144e-08,
+          4.6483902751991526e-08
+        ]
+      ],
+      "max_error_at_substep_arena_fighter": [
+        323,
+        1,
+        0
+      ],
+      "max_root_quaternion_angle_deg": 0.00015190454345428745,
+      "max_joint_angle_error_rad": 7.088463798873845e-05,
+      "max_qpos_absolute_error_mixed_units": 7.088463798873845e-05,
+      "max_qvel_absolute_error_mixed_units": 0.03544279583152998,
+      "first_step_max_qpos_error": 9.669067013717836e-08,
+      "first_step_max_qvel_error": 1.796661250708098e-05,
+      "max_time_error_seconds": 2.5749206544745107e-08,
+      "warnings": 0
+    }
+  },
+  "limitations": [
+    "CPU float64 vs GPU float32 state/model arithmetic; GPU timestep float32 vs CPU model double0.002",
+    "open-loop captured controls intentionally remove motor-policy feedback differences",
+    "same saved local model does not establish authoritative-server dynamic parameter equality",
+    "single1second neutral fixture is not general contact/combat or long-horizon physics parity",
+    "CPU runs are diagnostic and no training throughput claim is made"
+  ],
+  "pins": {
+    "frame-fixture.run.json": "61776d4dfdc63712d28c8eab0c2ed3806791e10be9ee8802add3b6821fce7b8e",
+    "cpu-model-forced-r1.run.json": "6f61ac70895ddc103ae4e8418c787278d8d7391e6d43ce88d00e3dbba17b7545",
+    "run-native-neutral.sh": "fb5f42a3e2e7d8356ddc6fc0e7dbc343d3bc0853abb53722d4de2d755e060d74",
+    "README.md": "442a0aef53b18f591cc8a6ea550ffbfd8c42f66dd8d8bd51ba3eb2f394191a75",
+    "cpu-model-forced-r1.json": "0d2c4dd449639df1ece89f546ffe78ac4d23de1ec71cee277240fee5c485dca1",
+    "cpu-replay": "d64d208f19916b7084f9e231652d073f56f7cbaa6eef67322af024db5c4d6e16",
+    "cpu-model-open-r1.run.json": "4a8602af79162ea56e9888aaab797b66354d2c1dcf41b930add3f96d6008864b",
+    "prepare_probe.py": "cbb0ad6fdac4d4016dfe3c58fcc806a9881ee4d61fd93ae3f20f3462d006fdd3",
+    "cpu-gpu-open-r1.steps.jsonl": "bd2a5b83cf1537a45719a00b2eecd2469a14afce454daadab7651b3e316ee8d9",
+    "cpu-model-open-r1.steps.jsonl": "4c5056c3498a949e085b05bf316dd7ff7ac41c0c183afbaa5ab40aa3458d3e96",
+    "cpu-gpu-forced-r1.json": "0f05b6e73f92cc7208b468b5c41717b2ec40fd6f53482711d73d08dea8b24a48",
+    "frame-fixture": "257a8c82570b1b45ac46213e8e81327683eb23747f06a76790c2a729a3cb2922",
+    "neutral-50ticks.f32": "24ddaa4710480313757f965c38d60208a334556cb244f830d5006a893edd8da7",
+    "cpu-build-command.json": "9c27eb5085ee798f815f90172700816f8753042c63397d05ca4ead9318815fd9",
+    "cpu-gpu-forced-r1.f64": "e2bab5b6ff24a4a68d91700826a2c82bfb3660a5cc8802c8192b81d9a5e944fb",
+    "prepare_run.py": "8d5bbafece089ca5961cb30cbd1ccad82b978d2621bfdc951ce73ceaff4334d3",
+    "cpu-gpu-open-r1.run.json": "5bbcc5e887fab564b271350ff4c8cae962abe28cbaedb3a4aea963f47dbfc12d",
+    "cpu-gpu-forced-r1.run.json": "f7acf5abc4ba59acd61d804889d4ad8d650576c4fb02ebb7c475ef2bd4ee82f6",
+    "analyze.py": "bfb5c8b4171ee35daac908a42213cdfda7c593aa91090d993f44d9e6dbb6d9e9",
+    "cpu-model-forced-r1.f64": "bf9b3eb0f188498f4cc5572fc832dabc400625ce6eff8117ae7f6ee1c6b57980",
+    "cpu-gpu-forced-r1.steps.jsonl": "9f00ec8c0d5615ae29e83b1b68a103fd5c63626ff89fdb4c988471b6c01b1344",
+    "cpu-model-open-r1.json": "4ea549278db0c6e81bedc9b9d0c9dadf40c847959a9a10dcaf780065f9cdbd6d",
+    "cpu-model-forced-r1.steps.jsonl": "7f9be7ee8a187d9067a331897bf70424d5a854bf07b0952c4042801ad72f5f39",
+    "cpu-gpu-open-r1.json": "4ebdff516402ee3ff0afbb36971f336b4764123a95e3acfc8566d8d6a74369fb",
+    "frame-fixture.json": "658c6919f47e8de3be91ba4b4021126d261896837d81565e4bd6967c2c743261",
+    "frame_fixture.cpp": "8a8469cb9969d3e4586713bde643721a0f59654df84035a0315f3149f6f91b2f",
+    "cpu-model-open-r1.f64": "fb28163fe91fd849c63862e2897d17866ffc05519441200392f525e432901bcd",
+    "cpu-gpu-open-r1.f64": "b01dfa6992866409751157c3dbc89655576cf7424524233f3762bf2b748b0ec1",
+    "PROVENANCE.json": "876c7d9dc6aa63f6d1110c6cd0c1459d2bdab9bfdc05d88a4a8b2f749e62e4f0",
+    "cpu_replay.cpp": "f2a3c5440e0ead9e3c2c88d63663367b548fe1dcf047ed0bfe87815ec1eeb806",
+    "native-neutral-r1/response.model.mjb": "ebc6ec6ef359b049ef7fdbca448db30c08d226f80b6f0fc925e81ade5ee34dba",
+    "native-neutral-r1/response.ticks.jsonl": "16dea6156c97afc64ede3870c1ac6876257cb9c0ba9ba03b035ae982242444fa",
+    "native-neutral-r1/command.txt": "ffd06313729904edda2e339acea86eed89c588d8fc4b5cc3d25b821bf55f2723",
+    "native-neutral-r1/response.substeps.json": "2d8d6b5ed373b748fa4f96ec45ce72514cc2904dbce4b4b034172cd742775ea6",
+    "native-neutral-r1/stderr.txt": "5556f2c3f9ebf30b0fc9d894cbd45088d76d9a17e1b89ee40e4d376368239f32",
+    "native-neutral-r1/response.initial.json": "58e3eb316f082e551aa4a04bf685cd0b9281931f3dfe50b64920892eda9654ab",
+    "native-neutral-r1/response.model.json": "73bd9def25ac7307f55c4453b4f78fb92aea38634fe42909368fda30aec361f2",
+    "native-neutral-r1/finished.utc": "a6d5592320720b6d792e048c8ac071989f896d5b97e016a5e3b95b3ae402c1a0",
+    "native-neutral-r1/stdout.txt": "425144061b8b1c831063d99555005eb9f7b66b73896e5839438d7a9e5f45d1e2",
+    "native-neutral-r1/response.json": "2398c9e3a1226f4a6f5a73874de2cbddf0ca69da30581e554447f30736ac8c8a",
+    "native-neutral-r1/response.f32": "b5236bef58de95d7d2dd3fb76088db896041223af317a27db8ab2b1b1622568f",
+    "native-neutral-r1/started.utc": "e5781141293506d79596c663374a1f69599a2f71a869f0f3c13e188b4ac8a492",
+    "native-neutral-r1/inputs.sha256": "1c3602d07c4efe1225af3a96aa17024bc519fd96adc6c0860f97765764b8fef2",
+    "native-neutral-r1/exit-code.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "native-neutral-r1/outputs.sha256": "d9f7c5e6f0a35ae8d01376c1f563b6a21fe2a9258df7db49e2c7498e53661072",
+    "native-neutral-r1/time.txt": "3af7c75b4fa9c48ff35d2778bbba8f77f6fbfe941cea17736765edbc4cfaeb2f",
+    "native-neutral-r1/response.substeps.f32": "c26ea1a822acd296b1d34e95f4af39cf02a3d3f6dbeae4644397e680f72f132c",
+    "native-neutral-r1/response.model.xml": "d8ed09d988aea0b7b1b7894b2f677b8f2c8457aac93cbf0d052cefe9cc058c10",
+    "native-neutral-r1/motion-inputs.sha256": "d533b8446a567d7f0a6961e8a4eab6a59d3987ec63fb651e025a8da36bc1661a",
+    "native-neutral-r1/run.sh": "fb5f42a3e2e7d8356ddc6fc0e7dbc343d3bc0853abb53722d4de2d755e060d74"
+  }
+}

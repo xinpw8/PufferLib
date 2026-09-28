@@ -1,0 +1,3 @@
+{"event":"header","schema":"rek.slerp_calls.v1","fixture_sha256":"synthetic-boundary-test","mode":"oracle_substitution","input_order":"a_wxyz,b_wxyz,t","bits_authoritative":true}
+{"event":"call","call":0,"trial":-1,"tick":-1,"phase":"setup","input_bits":["0x3f800000","0x00000000","0x00000000","0x00000000","0x00000000","0x00000000","0x00000000","0x3f800000","0x3e800000"],"output_bits":["0x3f666666","0x3dcccccd","0x3e4ccccd","0x3e99999a"]}
+{"event":"missing_tuple","call":1,"trial":-1,"tick":-1,"phase":"setup","input_bits":["0x3f800000","0x00000000","0x00000000","0x00000000","0x00000000","0x00000000","0x00000000","0x3f800000","0x3f000000"]}

@@ -1,0 +1,8 @@
+{
+  "utc": "2026-09-28T19:33:41.387206+00:00",
+  "files": 931,
+  "staged_blob_hashes_match_worktree_and_reviewed_manifest": true,
+  "frozen_sources_preserved_including_historical_whitespace": true,
+  "new_readme_wrapper_attributes_diff_check": "passed",
+  "all_files_diff_check": "Historical/generated files have existing whitespace warnings; bytes intentionally preserved."
+}

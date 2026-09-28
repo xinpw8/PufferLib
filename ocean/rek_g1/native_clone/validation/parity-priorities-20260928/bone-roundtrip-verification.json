@@ -1,0 +1,177 @@
+{
+  "schema": "rek.received_pose_kinematic_roundtrip.v1",
+  "frames": 124,
+  "named_bones_per_frame": 30,
+  "positions_compared": 3720,
+  "maximum_position_error_metres": 4.047427573984091e-07,
+  "position_rmse_metres": 8.516054782919637e-08,
+  "maximum_rotation_error_degrees": 5.7653432178786483e-05,
+  "maximum_hinge_off_axis_degrees": 6.121027133278795e-05,
+  "worst_position": {
+    "source_line": 7848,
+    "bone": "right_wrist_pitch_link"
+  },
+  "per_bone": [
+    {
+      "bone": "pelvis",
+      "max_position_error_metres": 0.0,
+      "max_rotation_error_degrees": 1.7075472925031877e-06
+    },
+    {
+      "bone": "left_hip_pitch_link",
+      "max_position_error_metres": 1.87891946056356e-07,
+      "max_rotation_error_degrees": 1.0386604689550568e-05
+    },
+    {
+      "bone": "left_hip_roll_link",
+      "max_position_error_metres": 1.5354390617755684e-07,
+      "max_rotation_error_degrees": 1.4183953086968139e-05
+    },
+    {
+      "bone": "left_hip_yaw_link",
+      "max_position_error_metres": 1.9408218377967718e-07,
+      "max_rotation_error_degrees": 2.2653174724081298e-05
+    },
+    {
+      "bone": "left_knee_link",
+      "max_position_error_metres": 1.905266784298093e-07,
+      "max_rotation_error_degrees": 5.7653432178786483e-05
+    },
+    {
+      "bone": "left_ankle_pitch_link",
+      "max_position_error_metres": 2.2536771332474875e-07,
+      "max_rotation_error_degrees": 4.02271469862694e-05
+    },
+    {
+      "bone": "left_ankle_roll_link",
+      "max_position_error_metres": 2.9504341179521233e-07,
+      "max_rotation_error_degrees": 3.7449435786149456e-05
+    },
+    {
+      "bone": "right_hip_pitch_link",
+      "max_position_error_metres": 9.913941610171614e-08,
+      "max_rotation_error_degrees": 1.355323646353531e-05
+    },
+    {
+      "bone": "right_hip_roll_link",
+      "max_position_error_metres": 1.206986802305793e-07,
+      "max_rotation_error_degrees": 1.5926940848252767e-05
+    },
+    {
+      "bone": "right_hip_yaw_link",
+      "max_position_error_metres": 1.2822643439247265e-07,
+      "max_rotation_error_degrees": 1.8070981951380422e-05
+    },
+    {
+      "bone": "right_knee_link",
+      "max_position_error_metres": 1.5970612187984248e-07,
+      "max_rotation_error_degrees": 3.752721247592475e-05
+    },
+    {
+      "bone": "right_ankle_pitch_link",
+      "max_position_error_metres": 3.2774802325815254e-07,
+      "max_rotation_error_degrees": 3.6182278431638483e-05
+    },
+    {
+      "bone": "right_ankle_roll_link",
+      "max_position_error_metres": 3.171192512963602e-07,
+      "max_rotation_error_degrees": 5.4721496101172777e-05
+    },
+    {
+      "bone": "waist_yaw_link",
+      "max_position_error_metres": 0.0,
+      "max_rotation_error_degrees": 2.166634622491137e-05
+    },
+    {
+      "bone": "waist_roll_link",
+      "max_position_error_metres": 1.3693016689975566e-07,
+      "max_rotation_error_degrees": 1.8390847172211968e-05
+    },
+    {
+      "bone": "torso_link",
+      "max_position_error_metres": 1.3878906984681274e-07,
+      "max_rotation_error_degrees": 2.146353664868225e-05
+    },
+    {
+      "bone": "left_shoulder_pitch_link",
+      "max_position_error_metres": 2.48167383414678e-07,
+      "max_rotation_error_degrees": 2.146353664868225e-05
+    },
+    {
+      "bone": "left_shoulder_roll_link",
+      "max_position_error_metres": 2.364474718981123e-07,
+      "max_rotation_error_degrees": 2.366046933553761e-05
+    },
+    {
+      "bone": "left_shoulder_yaw_link",
+      "max_position_error_metres": 2.5987846681937977e-07,
+      "max_rotation_error_degrees": 3.410823045392212e-05
+    },
+    {
+      "bone": "left_elbow_link",
+      "max_position_error_metres": 4.020728319574312e-07,
+      "max_rotation_error_degrees": 3.795213526971423e-05
+    },
+    {
+      "bone": "left_wrist_roll_link",
+      "max_position_error_metres": 3.298391796818938e-07,
+      "max_rotation_error_degrees": 3.7371497229689116e-05
+    },
+    {
+      "bone": "left_wrist_pitch_link",
+      "max_position_error_metres": 3.630978637886818e-07,
+      "max_rotation_error_degrees": 3.6383181022077855e-05
+    },
+    {
+      "bone": "left_wrist_yaw_link",
+      "max_position_error_metres": 3.561597283328216e-07,
+      "max_rotation_error_degrees": 5.257471286479839e-05
+    },
+    {
+      "bone": "right_shoulder_pitch_link",
+      "max_position_error_metres": 2.0771187413970405e-07,
+      "max_rotation_error_degrees": 4.083859150986011e-05
+    },
+    {
+      "bone": "right_shoulder_roll_link",
+      "max_position_error_metres": 1.8050755382056111e-07,
+      "max_rotation_error_degrees": 4.6887644301306027e-05
+    },
+    {
+      "bone": "right_shoulder_yaw_link",
+      "max_position_error_metres": 2.464449777905612e-07,
+      "max_rotation_error_degrees": 3.2036426925603224e-05
+    },
+    {
+      "bone": "right_elbow_link",
+      "max_position_error_metres": 2.5921461709820285e-07,
+      "max_rotation_error_degrees": 3.55727635440738e-05
+    },
+    {
+      "bone": "right_wrist_roll_link",
+      "max_position_error_metres": 3.9750687212838415e-07,
+      "max_rotation_error_degrees": 4.575462106612767e-05
+    },
+    {
+      "bone": "right_wrist_pitch_link",
+      "max_position_error_metres": 4.047427573984091e-07,
+      "max_rotation_error_degrees": 4.629311558708519e-05
+    },
+    {
+      "bone": "right_wrist_yaw_link",
+      "max_position_error_metres": 2.7138535722373644e-07,
+      "max_rotation_error_degrees": 5.074030723859699e-05
+    }
+  ],
+  "input_sha256": {
+    "model-description.json": "8bdef8b9293a09b3ff05542b25a4bdd540b9d71730d0c75e9f961057445a502b",
+    "reconstruction.json": "fd0e81ead87d82d39772a636e7a1b9eecfa13ffccd4d9f8948d8d954e8408fab",
+    "reconstructed-qpos.f64": "8760dcf2209c1e93c9bc8addcd7b0be988cedbf9feb4d2d01680505eb2d33646",
+    "received-poses-mj.f64": "5df353081f59cae9750d22373d25796253bbb790313d9e4ef18cf063286b9d98",
+    "reconstructed-body-poses.f64": "9ec6d9e0dafe87fbc6eb5219adfded4370879f3039e46ccc84bbd43015d8d070"
+  },
+  "interpretation": "Received orientations reconstruct29 hinge positions; compiled model kinematics reproduce named received bones. This tests hierarchy, axes, local frame offsets and length scale. It does not test mass, inertia, contact parameters, controller state or timing.",
+  "dynamics_steps": 0,
+  "fitted_parameters": [],
+  "environment_parity_established": false
+}

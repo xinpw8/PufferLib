@@ -1,0 +1,125 @@
+{
+  "schema": "rek.original_composer.fixture.v1",
+  "joint_config": {
+    "file": "sonic_config.json",
+    "bytes": 11880,
+    "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355",
+    "source_path": "C:\\rekagent\\work\\consistent-fighter-20260919-r1\\controller-tensor-comparison-r1\\extracted\\sonic_config"
+  },
+  "clips": [
+    {
+      "clip_id": 377,
+      "role": "idle",
+      "frames": 39,
+      "npz": {
+        "file": "idle_processed.npz",
+        "bytes": 2841,
+        "sha256": "2fd9ca753183566cceaff3ff10ae54b1a7167986297524a9d24d970d57aee969",
+        "source_path": "C:\\rekagent\\work\\l100-assets-validation-fixed-20260909T0731Z\\idle_processed.npz"
+      },
+      "foot_features": {
+        "file": "motion_377_foot_features.f32le",
+        "bytes": 936,
+        "sha256": "2dc4f59edae29fcd773652ed4ee07f55ca8de0000c48a55714f66572cb68e1f3",
+        "source_path": "C:\\rekagent\\work\\rek-residual-parity-20260927-r1\\motion-reset\\assets\\motion_377_foot_features.f32le"
+      },
+      "config": {
+        "blendInTime": 1.0,
+        "blendOutTime": 0.5139999985694885,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "mirror": 0,
+        "path_id": 2702,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 136,
+        "serialized_sha256": "a6da9b526f55f86e3c2ab5a460ac81d0f02e4eab15afb316dd3402de0ea5b76b",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      }
+    },
+    {
+      "clip_id": 370,
+      "role": "walk",
+      "frames": 36,
+      "npz": {
+        "file": "walking_processed.npz",
+        "bytes": 5351,
+        "sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974",
+        "source_path": "C:\\rekagent\\work\\l100-assets-validation-fixed-20260909T0731Z\\walking_processed.npz"
+      },
+      "foot_features": {
+        "file": "motion_370_foot_features.f32le",
+        "bytes": 864,
+        "sha256": "f914c3cc3d3943cacd4558e7611df1d5a923f22aa8a35548da80fa7abbd49f65",
+        "source_path": "C:\\rekagent\\work\\rek-residual-parity-20260927-r1\\motion-reset\\assets\\motion_370_foot_features.f32le"
+      },
+      "config": {
+        "blendInTime": 1.0,
+        "blendOutTime": 1.0,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "mirror": 0,
+        "path_id": 2720,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 140,
+        "serialized_sha256": "8507e4e6a6c42afa6ee795bfaa4711040ecfbf87ac328014335342ab84b01128",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      }
+    }
+  ],
+  "source_contract": {
+    "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek\\evidence\\g1_motion_clip_contract.v1.json",
+    "sha256": "36c1b33690fae9148b712e456946745942ff8baa35ca75901b256137e7e2af7b",
+    "unity_container": {
+      "bytes": 31315504,
+      "name": "sharedassets0.assets",
+      "sha256": "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355"
+    }
+  },
+  "scope": "Original compiled client functions with explicitly supplied historical assets/config and native-baked foot features; no authoritative server identity claim",
+  "protocol": {
+    "orders": [
+      "reset_then_idle",
+      "idle_then_reset"
+    ],
+    "repeats": 2,
+    "warmup_ticks": 17,
+    "ticks": 160,
+    "walk_tick": 50,
+    "release_tick": 110,
+    "offsets": [
+      0,
+      1,
+      5,
+      10,
+      15
+    ],
+    "controller_rate_hz": 50,
+    "locomotion_speed_scale": 1.0
+  }
+}

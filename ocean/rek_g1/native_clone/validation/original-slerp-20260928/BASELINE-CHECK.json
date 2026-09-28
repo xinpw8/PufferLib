@@ -1,0 +1,13 @@
+{
+  "new_trace_sha256": "1186bdf62696d307d8ef102e311fd6fd7227df6f8c85d31ea2a1288812308480",
+  "prior_trace_sha256": "1186bdf62696d307d8ef102e311fd6fd7227df6f8c85d31ea2a1288812308480",
+  "all_rows_deep_equal": true,
+  "rows": 640,
+  "all_records_deep_equal": true,
+  "fixture_cases": 314,
+  "captured_call_footer": {
+    "event": "end",
+    "complete": true,
+    "calls": 32800
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "remote_argv": [
+    "python3",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/isolation/prepare_runtime.py",
+    "--install-plugin",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/build-plugin-r1/RekSlerpOracle.dll",
+    "--plugin-sha256",
+    "501ea82250f8ab7c4712879cf9ecbc371f9f5340dfe0b0feef486394e42c3764"
+  ],
+  "started_utc": "2026-09-28T19:36:42.878996+00:00"
+}

@@ -1,0 +1,100 @@
+{
+  "remote_root": "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1",
+  "files": [
+    {
+      "path": "unity-slerp-r2/out/game.exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "unity-slerp-r2/out/game.finished.utc",
+      "bytes": 21,
+      "sha256": "ec96769b9c8805955ef55c19e3d086857d5d9ad0bf4e92aa5b55f43e1d1ee935"
+    },
+    {
+      "path": "unity-slerp-r2/out/game.stderr.log",
+      "bytes": 126294,
+      "sha256": "7e8c637da54dca62782c050ff1f8742f0376810c2a3363bd78b75e2e5401f4ff"
+    },
+    {
+      "path": "unity-slerp-r2/out/game.stdout.log",
+      "bytes": 1824,
+      "sha256": "bbdea4c79173e74741161e06331aab234362d29b36abbbc95841d8f5fd58ef93"
+    },
+    {
+      "path": "unity-slerp-r2/out/image-packages.txt",
+      "bytes": 152,
+      "sha256": "44fcfa5c1bebd7b7480b06ab77d38e5ece4b69353003b451339828d29eb1bea1"
+    },
+    {
+      "path": "unity-slerp-r2/out/oracle/oracle.jsonl",
+      "bytes": 201716,
+      "sha256": "f398d62e832add308cf1972ef15b68e2ed25b14703318cb682a6e839a1239878"
+    },
+    {
+      "path": "unity-slerp-r2/out/unity.log",
+      "bytes": 12400,
+      "sha256": "f9de9676adaa4a6e99a29c1b3f294d1c50d8e4e3a4c26a76cf1572164e4433ac"
+    },
+    {
+      "path": "unity-slerp-r2/out/x-display.txt",
+      "bytes": 26026,
+      "sha256": "783e1df6abc1a61169c12f174221e4c6ac2b2e251474a29bd6a9afa41ded1c54"
+    },
+    {
+      "path": "unity-slerp-r2/out/xvfb.stderr.log",
+      "bytes": 1255,
+      "sha256": "0bac115c5580e35921d81254a7da3faf4a2bcbffe9063af638a27e97a1471a01"
+    },
+    {
+      "path": "unity-slerp-r2/out/xvfb.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "unity-slerp-r2/STAGED.json",
+      "bytes": 106620,
+      "sha256": "0ba8b08ddfdb4929673c6c6424be7883f39fccf95106c05f9c8177b756bcb456"
+    },
+    {
+      "path": "unity-slerp-r2/PLUGIN.json",
+      "bytes": 154,
+      "sha256": "402dbe68e201a6bd88710334a32467e06ac4cf78ea104b2bd255e82f8301cc28"
+    },
+    {
+      "path": "unity-slerp-r2/INPUT.json",
+      "bytes": 331,
+      "sha256": "877dc00f5c8f5c54622054b35e07be1b9623a25131c43d738783df511b81c946"
+    },
+    {
+      "path": "unity-slerp-r2/input/fixtures.json",
+      "bytes": 178770,
+      "sha256": "dd7d350bcd8b01b10def845ff9c549e0afb1fbb3fc09f0e8faf1a720e1f695c1"
+    },
+    {
+      "path": "unity-slerp-r2/input/run-config.json",
+      "bytes": 320,
+      "sha256": "65a31acb64372b3286bb7ae1b15794a0c78c2c4762d2440ccbb5ef9c7c4898ef"
+    },
+    {
+      "path": "unity-slerp-r2/run.started",
+      "bytes": 21,
+      "sha256": "34c1ec0e93cc4e3991a69e1cf311660188c584e2011529caab56c3f655f1a336"
+    },
+    {
+      "path": "revision-r2/isolation/container-created-receipt.json",
+      "bytes": 2091,
+      "sha256": "31ee70580ebdf4759db3b1b8ea370af8b353e62daa592a728a9e4b823296d5a6"
+    },
+    {
+      "path": "revision-r2/isolation/container-prestart-receipt.json",
+      "bytes": 2091,
+      "sha256": "fa4cb7984cfe3dced79fe3d216476b09a8c52727810e8123d010a62cd68c9721"
+    },
+    {
+      "path": "revision-r2/isolation/container-finished-receipt.json",
+      "bytes": 411,
+      "sha256": "3b5e33c4425525ae1c1fbc670715d832a49c3946bb13e73b4c401e4e24180ac9"
+    }
+  ]
+}

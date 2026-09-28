@@ -1,0 +1,13 @@
+{
+  "remote_argv": [
+    "python3",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp_protocol.py",
+    "table",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/fixtures-capture-r1.json",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2/out/oracle/oracle.jsonl",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/oracle-table-r2.bin",
+    "--plugin-sha256",
+    "bc97e74788c408df77c41244fa4c0e1ac79260d0180194bc62c9170a25c01998"
+  ],
+  "started_utc": "2026-09-28T19:42:29.496812+00:00"
+}

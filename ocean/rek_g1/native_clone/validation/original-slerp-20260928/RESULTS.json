@@ -1,0 +1,88 @@
+{
+  "schema": "rek.slerp_boundary.final_result.v1",
+  "finished_utc": "2026-09-28T19:52:54.962896+00:00",
+  "verdict": "all_supported_fields_exact_under_measured_callback_substitution",
+  "baseline_byte_identical_to_prior": true,
+  "baseline_sha256": "1186bdf62696d307d8ef102e311fd6fd7227df6f8c85d31ea2a1288812308480",
+  "original_composer_trace_sha256": "e796304f4606002d3edaf755277831b4e84265a48c97a89639326d718fdb18df",
+  "final_oracle": {
+    "path": "oracle-readback-r3\\unity-slerp-r3\\out\\oracle\\oracle.jsonl",
+    "sha256": "42a0fa72fe1c40f53b7d9853cb04130cccf8098484374353207fd08c598c6733",
+    "success": true,
+    "rows": 1026,
+    "unique_inputs": 513,
+    "repeat_bit_exact": true,
+    "rek_unity_wrapper_bit_exact": true
+  },
+  "replay": {
+    "path": "replay-readback-r3/native-replay-r3.jsonl",
+    "sha256": "449e18f4d27ae66cb1b8384cdd75f860769027d029ddfde6f9fc51cdcf820df3",
+    "rows": 640,
+    "calls": 32800,
+    "used_unique_inputs": 308,
+    "used_added_inputs": 104,
+    "all_calls_exact_measured_lookup": true,
+    "missing_tuples": 0,
+    "fallbacks": 0
+  },
+  "comparison": {
+    "path": "COMPARISON.json",
+    "sha256": "b1a984b7eaa8a7fd5dd5a0bb5892924b4e0661dc7081bc330bc1449b4dc41707",
+    "float_values": 129280,
+    "different_float_bits": 0,
+    "integer_values": 38400,
+    "different_integer_values": 0,
+    "joint_reference_values": 92800,
+    "root_quaternion_values": 12800,
+    "baseline_root_quaternion_different_bits": 6150,
+    "final_root_quaternion_different_bits": 0,
+    "final_component_max_abs_error": 0,
+    "orientation_estimator_roundoff": 4.2146848510894035e-08,
+    "orientation_estimator_note": "Bit-identical inputs yield a nonzero double dot/norm/acos estimate from numerical roundoff; this is not a remaining quaternion difference."
+  },
+  "negative_evidence": [
+    {
+      "run": "unity-slerp-r1",
+      "oracle_success": false,
+      "rows": 0,
+      "reason": "AmbiguousMatchException before method execution",
+      "process_exit": 0,
+      "retained": true
+    },
+    {
+      "run": "native-replay-r2",
+      "complete": false,
+      "exit": 2,
+      "first_missing_call": 3002,
+      "trial": 0,
+      "tick": 50,
+      "fallbacks": 0,
+      "retained": true
+    }
+  ],
+  "owned_containers": {
+    "names": [
+      "rek-slerp-oracle-20260928-r1",
+      "rek-slerp-oracle-20260928-r2",
+      "rek-slerp-oracle-20260928-r3"
+    ],
+    "all_exited": true,
+    "all_running_false": true,
+    "all_oom_false": true
+  },
+  "scope": {
+    "general_slerp_implementation": false,
+    "production_changed": false,
+    "physics_tested": false,
+    "server_parity": false,
+    "root_position_api_implemented": false,
+    "velocity_api_implemented": false,
+    "has_clip_original_coverage": false,
+    "reset": "staged original-semantics extension, explicit two callback orders; no new runtime reset claim",
+    "live_identity_comparison": "No independent before/after snapshot taken by this subagent; parent owns preexisting viewer/worker checks."
+  },
+  "review": {
+    "path": "review/CLOSED-RESULT-REVIEW.json",
+    "sha256": "b11f18f677f58a0ad7681a112ff2a76f8cb7cd9ef100bc420f71ef77cd8ffeef"
+  }
+}

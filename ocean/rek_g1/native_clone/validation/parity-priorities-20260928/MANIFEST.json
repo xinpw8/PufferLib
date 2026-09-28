@@ -1,0 +1,82 @@
+{
+  "schema": "rek.parity_priority.package.v1",
+  "created_utc": "2026-09-28T19:41:20.045164+00:00",
+  "scope": "Read-only existing-evidence comparison and proposed next experiment; no new execution. Historical traces predate later clone integration.",
+  "files": [
+    {
+      "path": "bone-roundtrip-verification.json",
+      "bytes": 6502,
+      "sha256": "c916017664aa8362b56238e0aff3e80f99fe7ae67adf98eb5281b790102f856a"
+    },
+    {
+      "path": "CALLABLE-SOURCE-PINS.json",
+      "bytes": 9205,
+      "sha256": "9279107bedb013ee5573aacce823e949a2bf93c090217fb38f9c55de9c9de156"
+    },
+    {
+      "path": "mujoco-client-version.json",
+      "bytes": 758,
+      "sha256": "28f9f9cabfe5b57bd4636176a1f4c072d61b28be025d9c1607b2ad2aff09637a"
+    },
+    {
+      "path": "neutral-callback-comparison.json",
+      "bytes": 36674,
+      "sha256": "6f29185323b84f3c78e63c9f7326ee37aa6441639ba313998dceeeedcc63a907"
+    },
+    {
+      "path": "neutral-frame-comparison.json",
+      "bytes": 36710,
+      "sha256": "8c93108b1e8d8af3e40bd5565e32b6dc203751ed0eb4f22e7dbee8e0f9bb8548"
+    },
+    {
+      "path": "NEXT-EXPERIMENT.md",
+      "bytes": 9522,
+      "sha256": "21961a6ff217cf03fd80ba7221e11854b9c7a7e6cccf7d3c44ed0b58a47c024d"
+    },
+    {
+      "path": "physics-reference.json",
+      "bytes": 11951,
+      "sha256": "09b1e98cc3253e2bb2433eb1dcdb1b739e94e505799334e23e31321a674bfb0e"
+    }
+  ],
+  "receipt_sources": [
+    {
+      "path": "physics-reference.json",
+      "source_path": "C:\\rekagent\\work\\rek-residual-parity-20260927-r1\\physics-reference-download\\RESULT.json",
+      "bytes": 11951,
+      "sha256": "09b1e98cc3253e2bb2433eb1dcdb1b739e94e505799334e23e31321a674bfb0e",
+      "source_bytes_equal": true
+    },
+    {
+      "path": "neutral-frame-comparison.json",
+      "source_path": "C:\\rekagent\\work\\rek-residual-parity-20260927-r1\\velocity-frame\\neutral-frame-comparison.json",
+      "bytes": 36710,
+      "sha256": "8c93108b1e8d8af3e40bd5565e32b6dc203751ed0eb4f22e7dbee8e0f9bb8548",
+      "source_bytes_equal": true
+    },
+    {
+      "path": "neutral-callback-comparison.json",
+      "source_path": "C:\\rekagent\\work\\rek-residual-parity-20260927-r1\\motion-reset-idle-variant\\neutral-callback-comparison.json",
+      "bytes": 36674,
+      "sha256": "6f29185323b84f3c78e63c9f7326ee37aa6441639ba313998dceeeedcc63a907",
+      "source_bytes_equal": true
+    },
+    {
+      "path": "bone-roundtrip-verification.json",
+      "source_path": "C:\\rekagent\\work\\rek-residual-parity-20260927-r1\\bone-reconstruction\\roundtrip-verification.json",
+      "bytes": 6502,
+      "sha256": "c916017664aa8362b56238e0aff3e80f99fe7ae67adf98eb5281b790102f856a",
+      "source_bytes_equal": true
+    },
+    {
+      "path": "mujoco-client-version.json",
+      "source_path": "C:\\rekagent\\work\\rek-environment-match-20260927-r1\\mujoco-client-version.json",
+      "bytes": 758,
+      "sha256": "28f9f9cabfe5b57bd4636176a1f4c072d61b28be025d9c1607b2ad2aff09637a",
+      "source_bytes_equal": true
+    }
+  ],
+  "original_draft_sha256": "947a356faefc13cba8928b4566c4d84a4d4b3064633ebab72d7a00fd9c33b160",
+  "credential_shape_findings": 0,
+  "runtime_or_source_changes": false
+}

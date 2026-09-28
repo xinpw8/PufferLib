@@ -1,0 +1,10 @@
+{
+  "remote_argv": [
+    "python3",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp_protocol.py",
+    "requests",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp-capture.jsonl",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/fixtures-capture-r1.json"
+  ],
+  "started_utc": "2026-09-28T19:36:21.847711+00:00"
+}

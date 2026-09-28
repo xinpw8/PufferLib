@@ -1,0 +1,49 @@
+--- prior/entrypoint.sh
++++ new/entrypoint.sh
+@@ -9,10 +9,12 @@
+ test -f /session/PLUGIN.json
+ test -f /session/INPUT.json
+ test -f /session/input/run-config.json
+-test -f /session/game/REK_COMPOSER_ORACLE_ISOLATED.json
++test -f /session/game/REK_SLERP_ORACLE_ISOLATED.json
+ test ! -e /session/out/oracle
+ test ! -e /tmp/.X11-unix/X98
+ test ! -e /dev/nvidia0
++test ! -e /dev/nvidiactl
++test ! -e /dev/nvidia-uvm
+ test ! -e /dev/dri
+ test "$(find /session/game/BepInEx/plugins -maxdepth 1 -type f -name '*.dll' | wc -l)" -eq 1
+ test ! -e /session/game/BepInEx/plugins/RekUiBridgeAgent.dll
+@@ -26,7 +28,7 @@
+ inputs=json.loads((r/'INPUT.json').read_text())
+ config_bytes=(r/'input/run-config.json').read_bytes()
+ config=json.loads(config_bytes)
+-marker=json.loads((r/'game/REK_COMPOSER_ORACLE_ISOLATED.json').read_text())
++marker=json.loads((r/'game/REK_SLERP_ORACLE_ISOLATED.json').read_text())
+ if marker['run_id']!=config['run_id'] or marker['config_sha256']!=hashlib.sha256(config_bytes).hexdigest():
+     raise SystemExit('Isolated oracle marker/config mismatch')
+ if config['output_directory'].replace('\\','/')!='Z:/session/out/oracle':
+@@ -38,6 +40,7 @@
+ if not all(x['path'].startswith('game/') for x in receipt['files']):
+     raise SystemExit('Unexpected staged source path')
+ PY
++test "$(sha256sum /opt/codexrook/box64/bin/box64 | cut -d' ' -f1)" = 12a50a0f629f1ddeb08524c8f7399829e0b7101f79f4e20c094376c73a1af7ae
+ date -u +%FT%TZ > /session/run.started
+ cp /rek-harness-packages.txt /session/out/image-packages.txt
+ Xvfb :99 -screen 0 1280x720x24 -nolisten tcp -noreset -ac > /session/out/xvfb.stdout.log 2> /session/out/xvfb.stderr.log &
+@@ -57,12 +60,12 @@
+ export BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix
+ export REK_ORIGINAL_FUNCTIONS_OUTPUT=Z:/session/out
+ export REK_ORIGINAL_FUNCTIONS_INPUT=Z:/session/input/fixtures.json
+-export REK_COMPOSER_ORACLE_ENABLE=detached-v1
+-export REK_COMPOSER_ORACLE_CONFIG=Z:/session/input/run-config.json
++export REK_SLERP_ORACLE_ENABLE=detached-v1
++export REK_SLERP_ORACLE_CONFIG=Z:/session/input/run-config.json
+ cd /session/game
+ set +e
+ timeout --signal=TERM --kill-after=10s 180s /opt/codexrook/box64/bin/box64 /opt/codexrook/wine-11.13/bin/wine /session/game/REK.exe \
+-    -batchmode -nographics -job-worker-count 2 --rek-composer-oracle -screen-fullscreen 0 -screen-width 1280 -screen-height 720 -disable-audio -nosound \
++    -batchmode -nographics -job-worker-count 2 --rek-slerp-oracle -screen-fullscreen 0 -screen-width 1280 -screen-height 720 -disable-audio -nosound \
+     -logFile Z:/session/out/unity.log > /session/out/game.stdout.log 2> /session/out/game.stderr.log
+ rek_exit=$?
+ set -e

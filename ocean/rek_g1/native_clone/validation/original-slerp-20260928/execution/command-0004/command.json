@@ -1,0 +1,9 @@
+{
+  "remote_argv": [
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/native/build-r1/native-trace",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/native/assets",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/native-baseline.jsonl",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp-capture.jsonl"
+  ],
+  "started_utc": "2026-09-28T19:36:10.457888+00:00"
+}

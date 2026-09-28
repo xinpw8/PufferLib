@@ -1,0 +1,55 @@
+{
+  "files": [
+    {
+      "path": "Plugin.cs",
+      "sha256": "51e29b472a90c485863de5b0914ddfa56368331adba9c08ad62aa3e5d6607a8c"
+    },
+    {
+      "path": "RekSlerpOracle.csproj",
+      "sha256": "97226fc60de46b891e960a8a800507339513317d4639db6fc606be9c0522ab19"
+    },
+    {
+      "path": "plugin.diff",
+      "sha256": "09bb72113aca58e5a2cae78920070ce6da881e00a23d23e4af1f0ce6664ec37b"
+    },
+    {
+      "path": "build-plugin-r2\\RekSlerpOracle.dll",
+      "sha256": "bc97e74788c408df77c41244fa4c0e1ac79260d0180194bc62c9170a25c01998"
+    },
+    {
+      "path": "isolation\\entrypoint.sh",
+      "sha256": "d65c52ad4fc67464368d4736b723ca79c2761cd55daee805753c33a16d7ff5db"
+    },
+    {
+      "path": "isolation\\entrypoint.sh.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "isolation\\freeze_fixture.py",
+      "sha256": "1658e511bad49c940eb0174015cf0471365fc487e4711427c0cab5b52599996c"
+    },
+    {
+      "path": "isolation\\freeze_fixture.py.diff",
+      "sha256": "e03bec7b3b41fc9ce652925cf10e73c357fdec93f5a67b6777462aeb954b96df"
+    },
+    {
+      "path": "isolation\\orchestrate.py",
+      "sha256": "dafb2cd8702c7bc7dd25cf7fc470a9a75ccab51d595b5e8a486b9b0664ca5721"
+    },
+    {
+      "path": "isolation\\orchestrate.py.diff",
+      "sha256": "8f536cef3cbf10cad54fcd8ca7e4cc230a6ca6cb6be48db346dd1dc792875e89"
+    },
+    {
+      "path": "isolation\\prepare_runtime.py",
+      "sha256": "ffc95d217b406ea58de7497bbcc40a73777a11216a2b53c4cb69b6267cb47bf1"
+    },
+    {
+      "path": "isolation\\prepare_runtime.py.diff",
+      "sha256": "8085a83970f9be6a44ad26c32ef7f61c6a658031262ab9689e3ba4f4955f72ae"
+    }
+  ],
+  "r1_preserved": true,
+  "compile_exit": 0,
+  "changes": "exact parameter overload identity and logged parameter types; new private session/container only"
+}

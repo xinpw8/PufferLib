@@ -1,0 +1,9 @@
+{
+  "remote_argv": [
+    "python3",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/revision-r2/isolation/orchestrate.py",
+    "--freeze-input",
+    "--create"
+  ],
+  "started_utc": "2026-09-28T19:40:51.459894+00:00"
+}

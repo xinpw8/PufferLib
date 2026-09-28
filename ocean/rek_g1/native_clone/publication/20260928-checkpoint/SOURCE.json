@@ -1,0 +1,55 @@
+{
+  "source": "R:\\pufferlib\\rek-evidence\\2026-09-28\\github-checkpoint-r1\\published-r1",
+  "files": [
+    {
+      "path": "commit_existing.py",
+      "bytes": 864,
+      "sha256": "18902aca78ab9928a691f637d177b9bdad1997027ae6db67df8e6629775c4d9c"
+    },
+    {
+      "path": "COPIED.json",
+      "bytes": 191014,
+      "sha256": "62798a0e0c8f863cad7171686e7c2d375da6e965166e6efaaf2b05b2823543e0"
+    },
+    {
+      "path": "copy_payload.py",
+      "bytes": 1118,
+      "sha256": "0b1c4ba18ea6e4653177837ba83220c0eea8e56a2a5aaf052a2f0ad7b8d63eba"
+    },
+    {
+      "path": "finish_package.py",
+      "bytes": 2364,
+      "sha256": "e1e5295e73efe0ff8f802fb3185235a105b4e9c3b5d99729ce4866e86fd13fcf"
+    },
+    {
+      "path": "PUBLICATION.json",
+      "bytes": 1963,
+      "sha256": "bc585e30f856c7d0c9f0c24f52c89b7fe514dd433a0246a72105a5f0cf462485"
+    },
+    {
+      "path": "save_publication.py",
+      "bytes": 1884,
+      "sha256": "36aeeaedcfb56b10aaa42bfb7d49affff02460c261585cdfdf2e8aa5c9174e6f"
+    },
+    {
+      "path": "snapshot_worktree.py",
+      "bytes": 2155,
+      "sha256": "3c6611e9beda726f253705257c4eb0c6215212361809eb88886b689ce46ed560"
+    },
+    {
+      "path": "STAGE-MANIFEST.json",
+      "bytes": 216093,
+      "sha256": "4853f5811e1843e511ecf2e1711f09af61cdc236d5ef31a71922420a6203be42"
+    },
+    {
+      "path": "STAGED-VERIFIED.json",
+      "bytes": 385,
+      "sha256": "4902df2fd25c395d955192332896bb63daf0b842bc6cfe74db92caaeeb2dfe88"
+    },
+    {
+      "path": "verify_stage.py",
+      "bytes": 1774,
+      "sha256": "f4760263556273801455685fb847f27b7f608756577e7149fc326ecd861f8fdc"
+    }
+  ]
+}

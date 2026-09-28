@@ -1,0 +1,29 @@
+--- r2/prepare_runtime.py
++++ r3/prepare_runtime.py
+@@ -9,7 +9,7 @@
+ 
+ SOURCE = Path('/home/spark-advantage/codexrook-runtime/rek-core-referee-20260924-r1')
+ RUNTIME = SOURCE.parent
+-SESSION = Path('/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2')
++SESSION = Path('/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r3')
+ BASE_IMAGE_ID = 'sha256:4166bcf2f07dfc7c392ca8b2f8e8a69351700bf37f734b605f441a6d122b9f92'
+ FILES = ['REK.exe','GameAssembly.dll','UnityPlayer.dll','UnityCrashHandler64.exe','baselib.dll',
+          'winhttp.dll','doorstop_config.ini','.doorstop_version','DirectML.dll','dstorage.dll','dstoragecore.dll']
+@@ -29,7 +29,7 @@
+ def create_command():
+     session=SESSION.as_posix()
+     assert sha(RUNTIME/'box64-upstream-20260924-r1/bin/box64')=='12a50a0f629f1ddeb08524c8f7399829e0b7101f79f4e20c094376c73a1af7ae','Translator pin changed'
+-    args=['docker','create','--name','rek-slerp-oracle-20260928-r2','--runtime','runc',
++    args=['docker','create','--name','rek-slerp-oracle-20260928-r3','--runtime','runc',
+           '--network','none','--ipc','private','--cap-drop','ALL','--security-opt','no-new-privileges',
+           '--read-only','--user','1000:1000','--pids-limit','256','--cpus','4','--memory','8g','--memory-swap','8g',
+           '--tmpfs','/tmp:rw,nosuid,size=512m,mode=1777','--tmpfs','/run:rw,nosuid,size=16m,mode=755',
+@@ -44,7 +44,7 @@
+         args+=['--mount',f'type=bind,src={session}/game/BepInEx/{name},dst=/session/game/BepInEx/{name},readonly']
+     for name in ['box64','wine-11.13','x64root-ubuntu-24.04']:
+         args+=['--mount',f'type=bind,src={(RUNTIME/('box64-upstream-20260924-r1' if name=='box64' else name)).as_posix()},dst=/opt/codexrook/{name},readonly']
+-    args+=['--mount','type=bind,src=/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/revision-r2/isolation/entrypoint.sh,dst=/usr/local/bin/rek-original-functions-entrypoint,readonly']
++    args+=['--mount','type=bind,src=/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/revision-r3/isolation/entrypoint.sh,dst=/usr/local/bin/rek-original-functions-entrypoint,readonly']
+     args+=['sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879']
+     return args
+ def main():

@@ -1,0 +1,222 @@
+{
+  "schema": "rek.slerp_boundary.source_package.v1",
+  "created_utc": "2026-09-28T19:35:32.064062+00:00",
+  "review_sha256": "151b27946921ac9ec2b9c18f59cccd1243e45e203e868736e677ef3f5063b793",
+  "reviewed_production_pins_unchanged": true,
+  "test_only_compile_fix": "split fclose/free and mark boundary_close referenced; five synthetic lookup checks passed",
+  "plugin_compile_exit": 0,
+  "native_compile_exit": 0,
+  "gpu_or_unity_executed": false,
+  "files": [
+    {
+      "path": "build_native.sh",
+      "bytes": 877,
+      "sha256": "19c5d15f60a93224a75e168a40bd2e19947dc76bab9e719590b2efed2247e3bb"
+    },
+    {
+      "path": "Plugin.cs",
+      "bytes": 9404,
+      "sha256": "856aa4c096e806da43b3237e78491c5bb427950a240a790b7b372cbf074a442c"
+    },
+    {
+      "path": "prepare_native.py",
+      "bytes": 2877,
+      "sha256": "885cc659ec22baa2f4c23155a5aa66401a500a0fec0848545361e896f3c376fb"
+    },
+    {
+      "path": "RekSlerpOracle.csproj",
+      "bytes": 1524,
+      "sha256": "97226fc60de46b891e960a8a800507339513317d4639db6fc606be9c0522ab19"
+    },
+    {
+      "path": "remote_task.py",
+      "bytes": 849,
+      "sha256": "95565fd7e7950fab288a1cfdec074ad1e13b3ea91590f998cc7f0af8de3b0aca"
+    },
+    {
+      "path": "slerp_boundary.h",
+      "bytes": 3498,
+      "sha256": "9ff8710256d1d65d98f35eb18ae08c2022eb4434de86148fe0a9c861902469c6"
+    },
+    {
+      "path": "slerp_protocol.py",
+      "bytes": 7137,
+      "sha256": "e3907e1746f98ddd0af303e138fb988bd0bac72731cb7cb62d5bafa046044722"
+    },
+    {
+      "path": "test_boundary.c",
+      "bytes": 1625,
+      "sha256": "7b477e9af311ffbf37800671bd04d9d912544b2358b3eb66547f5e1952b3abe6"
+    },
+    {
+      "path": "test_protocol.py",
+      "bytes": 4446,
+      "sha256": "b33788917fae5227c77db1776e7c9451e3288509682c96a03398c0ee9dd80114"
+    },
+    {
+      "path": "native/fixture.json",
+      "bytes": 1818,
+      "sha256": "eaf9afc9f1628eee4ee16ef3dace054a77132112f495286ef316d5826ce2fc1c"
+    },
+    {
+      "path": "native/fixture_config.h",
+      "bytes": 335,
+      "sha256": "a90528ed0dfd709695e04b0fe1e1b62e8dda749db17d5112e9133ec663742f36"
+    },
+    {
+      "path": "native/instrumentation.diff",
+      "bytes": 4478,
+      "sha256": "af1f03c69f36cb1f738ece68f56dac75223914aba8e0ff6c5b8168324f319b8f"
+    },
+    {
+      "path": "native/native_trace.c",
+      "bytes": 8379,
+      "sha256": "dcc7c79121a85e4a6c1ea8bbcc0bd2cc281126272e3751fdb6f6be72b3e3eeb8"
+    },
+    {
+      "path": "native/native_trace.original.c",
+      "bytes": 7999,
+      "sha256": "e01f2615d3413815d6de96681def996dbd4cce9f2afc7e7b0bb84136e4babd1d"
+    },
+    {
+      "path": "native/slerp_boundary.h",
+      "bytes": 3498,
+      "sha256": "9ff8710256d1d65d98f35eb18ae08c2022eb4434de86148fe0a9c861902469c6"
+    },
+    {
+      "path": "native/SOURCE.json",
+      "bytes": 4300,
+      "sha256": "fd46d77b8f7e497aeff04d9f845338d5714accf66094b625807ce9db7d2910d7"
+    },
+    {
+      "path": "native/assets/foot_features_manifest.json",
+      "bytes": 6090,
+      "sha256": "3b69127f5004574057a6b99a976a31c0e3ed3489c22c193b94a0c4e5b4aa59bc"
+    },
+    {
+      "path": "native/assets/idle_processed.npz",
+      "bytes": 2841,
+      "sha256": "2fd9ca753183566cceaff3ff10ae54b1a7167986297524a9d24d970d57aee969"
+    },
+    {
+      "path": "native/assets/motion_370_dof_position.f32le",
+      "bytes": 4176,
+      "sha256": "9f183da41eac22ca3b723173c69a27ec078769064285df08fb4333c3db050f03"
+    },
+    {
+      "path": "native/assets/motion_370_foot_features.f32le",
+      "bytes": 864,
+      "sha256": "f914c3cc3d3943cacd4558e7611df1d5a923f22aa8a35548da80fa7abbd49f65"
+    },
+    {
+      "path": "native/assets/motion_370_root_rotation_wxyz.f32le",
+      "bytes": 576,
+      "sha256": "23678c4b27998ab443781e028d14c2a6eb669abdc81d973797783b176a7242cf"
+    },
+    {
+      "path": "native/assets/motion_377_dof_position.f32le",
+      "bytes": 4524,
+      "sha256": "e103e7c047741bd8ce718baed8f7b8a1f6a1e1d891f19f3766f8b8b8180d19e3"
+    },
+    {
+      "path": "native/assets/motion_377_foot_features.f32le",
+      "bytes": 936,
+      "sha256": "2dc4f59edae29fcd773652ed4ee07f55ca8de0000c48a55714f66572cb68e1f3"
+    },
+    {
+      "path": "native/assets/motion_377_root_rotation_wxyz.f32le",
+      "bytes": 624,
+      "sha256": "bf4bc5a1fbcf24a84174b8bd7c52c9c553bca01032514eae7ec3d47bd2485e60"
+    },
+    {
+      "path": "native/assets/semantic_duel_assets_manifest.json",
+      "bytes": 36015,
+      "sha256": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28"
+    },
+    {
+      "path": "native/assets/sonic_config",
+      "bytes": 11880,
+      "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355"
+    },
+    {
+      "path": "native/assets/walking_processed.npz",
+      "bytes": 5351,
+      "sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974"
+    },
+    {
+      "path": "native/source/g1_cuda_qualifiers.h",
+      "bytes": 581,
+      "sha256": "d6576fd9d12c7d1f8b96fed8a5842a804e8139de8755407d4a85d0bb307a9a35"
+    },
+    {
+      "path": "native/source/sonic_motion_composer_libm_candidate.c",
+      "bytes": 4000,
+      "sha256": "0dd47e311a93736a55945345e76043fd413d3acc795cb56511b3dbeff04e7b22"
+    },
+    {
+      "path": "native/source/sonic_motion_composer_libm_candidate.h",
+      "bytes": 970,
+      "sha256": "3441472ccca82dd89d5e080f64c578cf9ceb3e683caaeeeaec5bfae6599d8f0e"
+    },
+    {
+      "path": "native/source/sonic_motion_composer_native.c",
+      "bytes": 55417,
+      "sha256": "52fc10a2541e6bfa59c2a9571963fe1e78021580f760046204fbd768a8d0d0d2"
+    },
+    {
+      "path": "native/source/sonic_motion_composer_native.h",
+      "bytes": 9458,
+      "sha256": "b05c38f2b3add435eb2cf9b1ed0a604b64dfc76b1ef828addd7efbd266fd0f22"
+    },
+    {
+      "path": "native/source/sonic_motion_entry_matcher_native.c",
+      "bytes": 26279,
+      "sha256": "2ff11593aec7c2a41e196aed9c4b37c49e3417d0ff9446ffdefe195df065f360"
+    },
+    {
+      "path": "native/source/sonic_motion_entry_matcher_native.h",
+      "bytes": 6213,
+      "sha256": "a0d10bf32f103a436a7af3fd7365f2d8e16f5c1b9e2534fdc6b009309d420151"
+    },
+    {
+      "path": "isolation/entrypoint.sh",
+      "bytes": 3788,
+      "sha256": "d65c52ad4fc67464368d4736b723ca79c2761cd55daee805753c33a16d7ff5db"
+    },
+    {
+      "path": "isolation/entrypoint.sh.diff",
+      "bytes": 2831,
+      "sha256": "0ef582bab44c323496c9c63d3645541b5d5d87d6fcfd4727e21f6e480072c460"
+    },
+    {
+      "path": "isolation/freeze_fixture.py",
+      "bytes": 1656,
+      "sha256": "3f3dc040157e0606e3c9f1c4aae7896163a6cc29c0dd8f1ff5ed2b1630d59163"
+    },
+    {
+      "path": "isolation/orchestrate.py",
+      "bytes": 4658,
+      "sha256": "5025ce3732bd048a20ac4903fb521156e60d9d3be7a93d90eb6e7bc091b5c6b3"
+    },
+    {
+      "path": "isolation/orchestrate.py.diff",
+      "bytes": 2543,
+      "sha256": "d0fb1dde7c511319c82b970fadda3550e22d6b002534fa1e3ab6078966b64359"
+    },
+    {
+      "path": "isolation/prepare_runtime.py",
+      "bytes": 8382,
+      "sha256": "547704d4762cf9c94758876aefe1ce978d10e8f495c9b359f013517ecc2f383f"
+    },
+    {
+      "path": "isolation/prepare_runtime.py.diff",
+      "bytes": 3203,
+      "sha256": "86aed25d083c6c492151eed4df1b551a9749a580c2ccf7ff08e8690b6b32507b"
+    },
+    {
+      "path": "build-plugin-r1/RekSlerpOracle.dll",
+      "bytes": 29184,
+      "sha256": "501ea82250f8ab7c4712879cf9ecbc371f9f5340dfe0b0feef486394e42c3764"
+    }
+  ]
+}

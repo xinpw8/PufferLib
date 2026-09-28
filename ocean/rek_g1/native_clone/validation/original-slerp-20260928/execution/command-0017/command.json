@@ -1,0 +1,10 @@
+{
+  "remote_argv": [
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/native/build-r1/native-trace",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/native/assets",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/native-replay-r2.jsonl",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp-replay-r2.jsonl",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/oracle-table-r2.bin"
+  ],
+  "started_utc": "2026-09-28T19:42:30.780799+00:00"
+}

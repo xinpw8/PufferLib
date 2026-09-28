@@ -1,0 +1,25 @@
+{
+  "remote_root": "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1",
+  "files": [
+    {
+      "path": "native-replay-r2.jsonl",
+      "bytes": 554943,
+      "sha256": "96b144e86ab768c06021c2569382ebb3e4833d1cdeb0b96e7d1efbc5b8f33430"
+    },
+    {
+      "path": "slerp-replay-r2.jsonl",
+      "bytes": 809261,
+      "sha256": "d3fd8aac242a9707f6ea73369cfd8286c66fd64544257c04e3dbc83acf06f850"
+    },
+    {
+      "path": "oracle-table-r2.bin",
+      "bytes": 16340,
+      "sha256": "0f801d55f4c70c79e5947f51e52dd56c631398eb3db4f9a280d6f8686b7a7e08"
+    },
+    {
+      "path": "oracle-table-r2.json",
+      "bytes": 509,
+      "sha256": "3362bf5ea5749ed2a8eb8d0239442588f55d57104432126f2bbe09dbba3a6bd6"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "path": "input/fixtures.json",
+      "bytes": 178770,
+      "sha256": "dd7d350bcd8b01b10def845ff9c549e0afb1fbb3fc09f0e8faf1a720e1f695c1"
+    },
+    {
+      "path": "input/run-config.json",
+      "bytes": 320,
+      "sha256": "65a31acb64372b3286bb7ae1b15794a0c78c2c4762d2440ccbb5ef9c7c4898ef"
+    }
+  ]
+}

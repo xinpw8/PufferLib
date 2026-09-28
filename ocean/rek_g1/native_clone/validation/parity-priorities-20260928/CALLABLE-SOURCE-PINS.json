@@ -1,0 +1,205 @@
+{
+  "schema": "rek.parity_priority.callable_source_leads.v1",
+  "sources": [
+    {
+      "source_path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\Mujoco.Runtime\\Mujoco\\MjScene.txt",
+      "bytes": 396951,
+      "sha256": "8de5743ab7ec7f8c0283af5b574d008296cb88b4110862a497e2221ff4648545",
+      "locations": [
+        {
+          "line": 2316,
+          "text": "Method: System.Xml.XmlDocument CreateScene(System.Boolean skipCompile = False)"
+        },
+        {
+          "line": 4302,
+          "text": "\t1192 Call MjScene.GenerateSceneMjcf, v2231 @ rax_v146 (System.Xml.XmlDocument), this @ rcx (Mujoco.MjScene), this._orderedComponents (System.Collections.Generic.List`1<Mujoco.MjComponent>), 0"
+        },
+        {
+          "line": 4518,
+          "text": "\t1408 CallVoid MjScene.CompileScene, this @ rcx (Mujoco.MjScene), v2231 @ rax_v146 (System.Xml.XmlDocument), this._orderedComponents (System.Collections.Generic.List`1<Mujoco.MjComponent>), 0"
+        },
+        {
+          "line": 4519,
+          "text": "\t1409 Move v2564 @ rbx_v17 (System.EventHandler`1<Mujoco.MjStepArgs>), this.postInitEvent (System.EventHandler`1<Mujoco.MjStepArgs>)"
+        },
+        {
+          "line": 5009,
+          "text": "\t68 Call MjEngineTool.LoadModelFromString, v163 @ rax_v12 (mjModel_*), v51 @ rax_v9 (System.String), 0"
+        },
+        {
+          "line": 5051,
+          "text": "\t110 Move this.Data (mjData_*), v115 @ rax_v18 (mjData_*)"
+        },
+        {
+          "line": 5238,
+          "text": "\t297 IndirectCall [v629 @ rax_v47+1B8], v362 @ rax_v48, v569 @ rax_v33 (System.Collections.Generic.IEnumerable`1<Mujoco.MjComponent>), this.Model (mjModel_*), this.Data (mjData_*), [v629 @ rax_v47+1C0]"
+        }
+      ],
+      "source_claim": "Exact bytes inventoried; decompiler input-to-output chain remains unverified, use only as operation leads pending original-method attestation."
+    },
+    {
+      "source_path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\Mujoco.Runtime\\Mujoco\\MjEngineTool.txt",
+      "bytes": 181404,
+      "sha256": "2703a368e253aeb83464090c4b8f01d335d492cd68c873a7a92809dcd5e54ad4",
+      "locations": [
+        {
+          "line": 908,
+          "text": "\t285 Call MujocoLib.mj_loadXML, v312 @ rax_v29 (mjModel_*), \"filename\", v36._unmanagedVfs (System.IntPtr), v571 @ rax_v27 (System.Text.StringBuilder), v673 @ rax_v28 (System.Int32), v59 @ stack_-78"
+        }
+      ],
+      "source_claim": "Exact bytes inventoried; decompiler input-to-output chain remains unverified, use only as operation leads pending original-method attestation."
+    },
+    {
+      "source_path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\Mujoco.Runtime\\Mujoco\\MujocoLib.txt",
+      "bytes": 536596,
+      "sha256": "8590e4c6af7e8f81f607c1bc4b2c96e0ed37e25a8bab40f9ad134db498391f5f",
+      "locations": [
+        {
+          "line": 2234,
+          "text": "Method: System.Void mj_saveModel(Mujoco.MujocoLib+mjModel_* m, System.String filename, System.Void* buffer, System.Int32 buffer_sz)"
+        },
+        {
+          "line": 2563,
+          "text": "Method: System.UInt64 mj_sizeModel(Mujoco.MujocoLib+mjModel_* m)"
+        },
+        {
+          "line": 7971,
+          "text": "Method: System.Int32 mj_stateSize(Mujoco.MujocoLib+mjModel_* m, System.Int32 sig)"
+        },
+        {
+          "line": 8045,
+          "text": "Method: System.Void mj_getState(Mujoco.MujocoLib+mjModel_* m, Mujoco.MujocoLib+mjData_* d, System.Double* state, System.Int32 sig)"
+        },
+        {
+          "line": 12076,
+          "text": "Method: System.Int32 mj_version()"
+        }
+      ],
+      "source_claim": "Exact bytes inventoried; decompiler input-to-output chain remains unverified, use only as operation leads pending original-method attestation."
+    },
+    {
+      "source_path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\Robot_NestedType__DeferredJointReset_d__334.txt",
+      "bytes": 8023,
+      "sha256": "0847c987746cea8b15b2353f99eecdba53bea7fcc8569f4dac86ce52ed3c6308",
+      "locations": [
+        {
+          "line": 174,
+          "text": "\t39 CallVoid WaitForFixedUpdate..ctor, v38 @ rax_v5 (UnityEngine.WaitForFixedUpdate), 0, v18 @ r8, v19 @ r9, v55 @ stack_-58 (System.Boolean), v56 @ stack_-50"
+        },
+        {
+          "line": 223,
+          "text": "\t88 CallVoid Robot.RestoreMotorGains, this.<>4__this (REKApp.Robot), 0"
+        },
+        {
+          "line": 258,
+          "text": "\t123 CallVoid Robot.SetJointStateRadians, this.<>4__this (REKApp.Robot), v170 @ rdi_v5 (System.Int32), 0f, 0f, v55 @ stack_-58 (System.Boolean), v56 @ stack_-50"
+        },
+        {
+          "line": 272,
+          "text": "\t137 Call Robot.TrySetRootPose, v251 @ rax_v11 (System.Boolean), this.<>4__this (REKApp.Robot), v73 @ stack_-28 (UnityEngine.Vector3), v76 @ stack_-18 (UnityEngine.Quaternion), 0"
+        },
+        {
+          "line": 275,
+          "text": "\t140 CallVoid Robot.MeasureStandingHeight, this.<>4__this (REKApp.Robot), 0"
+        },
+        {
+          "line": 278,
+          "text": "\t143 Move v57.isResetting (System.Boolean), 0"
+        },
+        {
+          "line": 292,
+          "text": "\t157 CallVoid Action.Invoke, v57.OnResetComplete (System.Action), [v107 @ rax_v12 (System.Action)+28]"
+        }
+      ],
+      "source_claim": "Exact bytes inventoried; decompiler input-to-output chain remains unverified, use only as operation leads pending original-method attestation."
+    },
+    {
+      "source_path": "C:\\rekagent\\work\\rek-github-checkpoint-20260928-r1\\payload\\native_clone\\dependency_source\\rek-training\\native-mujoco-gpu-20260914\\native-source\\ocean\\rek_g1\\native5\\physics.cu",
+      "bytes": 42331,
+      "sha256": "4ab6b630f0bd7def77bc7bc4a7a02e7f1e27edc8bfb28d42def8bffb80284729",
+      "locations": [
+        {
+          "line": 324,
+          "text": "    model->opt.timestep=0.002;"
+        },
+        {
+          "line": 336,
+          "text": "        const auto gain=numbers(actuator,\"gainprm\",mjNGAIN), bias=numbers(actuator,\"biasprm\",mjNBIAS);"
+        },
+        {
+          "line": 338,
+          "text": "        std::copy(gain.begin(),gain.end(),model->actuator_gainprm+i*mjNGAIN);"
+        },
+        {
+          "line": 339,
+          "text": "        std::copy(bias.begin(),bias.end(),model->actuator_biasprm+i*mjNBIAS);"
+        },
+        {
+          "line": 340,
+          "text": "        std::copy(force.begin(),force.end(),model->actuator_forcerange+i*2);"
+        },
+        {
+          "line": 341,
+          "text": "        model->actuator_dyntype[i]=mjDYN_NONE; model->actuator_gaintype[i]=mjGAIN_FIXED;"
+        },
+        {
+          "line": 342,
+          "text": "        model->actuator_biastype[i]=mjBIAS_AFFINE; model->actuator_forcelimited[i]=1;"
+        },
+        {
+          "line": 343,
+          "text": "        model->actuator_ctrllimited[i]=0;"
+        },
+        {
+          "line": 525,
+          "text": "    output->model=mj_loadXML(xml_path,nullptr,error,sizeof(error));"
+        }
+      ],
+      "source_claim": "Exact preserved selected/historical native source."
+    },
+    {
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\source\\ocean\\rek_g1\\native5\\runtime.cu",
+      "bytes": 52661,
+      "sha256": "c7534b540018bf161fbc5c0763f4f4190fd5fc643c5ec32774960ebd028b2c5b",
+      "locations": [
+        {
+          "line": 559,
+          "text": "        if(!sonic_controller_encode(controller,robot->encoder_observations,tokens,controller_error,sizeof(controller_error)))throw std::runtime_error(controller_error);"
+        },
+        {
+          "line": 560,
+          "text": "        cuda_check(robot_state_decoder_input(robot,tokens));"
+        },
+        {
+          "line": 561,
+          "text": "        if(!sonic_controller_decode(controller,robot->decoder_observations,raw_actions,controller_error,sizeof(controller_error)))throw std::runtime_error(controller_error);"
+        },
+        {
+          "line": 562,
+          "text": "        cuda_check(robot_state_apply_actions(robot,raw_actions));"
+        },
+        {
+          "line": 563,
+          "text": "        for(int substep=0;substep<10;substep++){"
+        },
+        {
+          "line": 564,
+          "text": "            if(substep)gather<<<rows_grid(),128,0,stream>>>(view,false);"
+        },
+        {
+          "line": 565,
+          "text": "            cuda_check(robot_state_drive_prepare(robot,view.joints,view.velocities,substep));"
+        },
+        {
+          "line": 566,
+          "text": "            scatter_controls<<<rows_grid(),128,0,stream>>>(view,robot->controls,physics->ctrl);"
+        },
+        {
+          "line": 567,
+          "text": "            rek5::physics_step(physics,physics->ctrl);rek5::measurement_sample(m,substep,stream);"
+        }
+      ],
+      "source_claim": "Exact preserved selected/historical native source."
+    }
+  ]
+}

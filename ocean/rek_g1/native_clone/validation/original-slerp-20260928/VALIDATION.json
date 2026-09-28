@@ -1,0 +1,38 @@
+{
+  "schema": "rek.slerp_boundary.validation.v1",
+  "utc": "2026-09-28T19:41:26.467069+00:00",
+  "initial_plugin_compiled": true,
+  "r2_plugin_compiled": true,
+  "compiler_warning": "CS8604 owner.FileName possible null after checked module predicate; retained",
+  "local_native_compile_exit": 0,
+  "spark_native_compile_exit": 0,
+  "python_protocol_tests": 8,
+  "synthetic_boundary_checks": 5,
+  "synthetic_checks_execute_composer": false,
+  "synthetic_checks_execute_unity": false,
+  "prior_failed_compiles_retained": [
+    "native/build-r1 misleading-indentation (local)",
+    "boundary synthetic harness unused static function warning"
+  ],
+  "transport_dependency": {
+    "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\remote_task.py",
+    "sha256": "c664fc3559d5a3986a08dabbe9dda0f3f8669bbb265aa834b09e9c2e16500f85"
+  },
+  "prior_comparator_dependency": {
+    "directory": "C:\\rekagent\\work\\rek-original-functions-20260927-r1\\comparison",
+    "files": [
+      {
+        "path": "compare_traces.py",
+        "sha256": "568b729d2d64560c20949bed338e24b9927f8b183dc0b400afc6e2b7f1ad8ade"
+      },
+      {
+        "path": "original_trace.py",
+        "sha256": "05dbdc42eb4efeb2a8ab6c4ff997d753516d3334c6fae310f1ddd98842ab0d55"
+      },
+      {
+        "path": "fixture.json",
+        "sha256": "eaf9afc9f1628eee4ee16ef3dace054a77132112f495286ef316d5826ce2fc1c"
+      }
+    ]
+  }
+}

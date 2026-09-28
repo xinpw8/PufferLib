@@ -1,0 +1,1949 @@
+{
+  "schema": "rek.slerp_boundary.composer_replay_comparison.v1",
+  "native_trace_sha256": "449e18f4d27ae66cb1b8384cdd75f860769027d029ddfde6f9fc51cdcf820df3",
+  "calls_sha256": "ef1d586b7424f84e268880c13fbd433567406868c214868b546199082bf53922",
+  "original_trace_sha256": "e796304f4606002d3edaf755277831b4e84265a48c97a89639326d718fdb18df",
+  "actual_callback_calls": 32800,
+  "complete_exact_key_coverage": true,
+  "source_justified_joint_order_comparison": {
+    "rows_compared": 640,
+    "float_fields": {
+      "pre.current.cursor": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.current.speed": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.current.per_tick": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.current.prev_heading": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.current.last_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.from.cursor": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.from.speed": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.from.per_tick": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.from.prev_heading": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.from.last_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.pending_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "pre.heading_ownership": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.current.cursor": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.current.speed": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.current.per_tick": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.current.prev_heading": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.current.last_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.from.cursor": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.from.speed": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.from.per_tick": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.from.prev_heading": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.from.last_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.pending_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_advance.heading_ownership": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.current.cursor": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.current.speed": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.current.per_tick": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.current.prev_heading": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.current.last_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.from.cursor": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.from.speed": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.from.per_tick": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.from.prev_heading": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.from.last_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.pending_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "post_consume.heading_ownership": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "dof_position_mujoco": {
+        "values": 92800,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "root_quaternion_wxyz": {
+        "values": 12800,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      },
+      "consumed_heading_delta": {
+        "values": 640,
+        "different_bits": 0,
+        "maximum_absolute_error": 0.0,
+        "maximum_ulp_difference": 0,
+        "first_difference": null,
+        "rms_error": 0.0
+      }
+    },
+    "integer_fields": {
+      "pre.current.clip_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.current.has_config": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.current.active": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.current.heading_valid": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.current.heading_resync": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.current.start_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.current.end_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.from.clip_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.from.has_config": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.from.active": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.from.heading_valid": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.from.heading_resync": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.from.start_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.from.end_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.xt": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.w_in": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.w_out": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.w_total": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.action_playing": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "pre.action_move_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.current.clip_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.current.has_config": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.current.active": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.current.heading_valid": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.current.heading_resync": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.current.start_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.current.end_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.from.clip_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.from.has_config": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.from.active": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.from.heading_valid": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.from.heading_resync": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.from.start_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.from.end_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.xt": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.w_in": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.w_out": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.w_total": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.action_playing": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_advance.action_move_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.current.clip_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.current.has_config": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.current.active": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.current.heading_valid": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.current.heading_resync": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.current.start_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.current.end_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.from.clip_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.from.has_config": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.from.active": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.from.heading_valid": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.from.heading_resync": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.from.start_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.from.end_frame": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.xt": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.w_in": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.w_out": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.w_total": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.action_playing": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      },
+      "post_consume.action_move_id": {
+        "values": 640,
+        "different": 0,
+        "first_difference": null
+      }
+    },
+    "first_difference": null,
+    "all_supported_fields_bit_exact": true,
+    "quaternion_orientation_maximum_error_radians": 4.2146848510894035e-08,
+    "quaternion_orientation_note": "sign-equivalent rotations may have different components; raw bit results remain unchanged"
+  },
+  "native_repeatability": [
+    {
+      "order": "reset_then_idle",
+      "comparison": {
+        "rows_compared": 160,
+        "float_fields": {
+          "pre.current.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.current.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.current.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.current.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.current.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.pending_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.heading_ownership": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.pending_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.heading_ownership": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.pending_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.heading_ownership": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "dof_position_mujoco": {
+            "values": 23200,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "root_quaternion_wxyz": {
+            "values": 3200,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "consumed_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          }
+        },
+        "integer_fields": {
+          "pre.current.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.xt": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.w_in": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.w_out": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.w_total": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.action_playing": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.action_move_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.xt": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.w_in": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.w_out": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.w_total": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.action_playing": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.action_move_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.xt": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.w_in": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.w_out": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.w_total": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.action_playing": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.action_move_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          }
+        },
+        "first_difference": null,
+        "all_supported_fields_bit_exact": true,
+        "quaternion_orientation_maximum_error_radians": 4.2146848510894035e-08,
+        "quaternion_orientation_note": "sign-equivalent rotations may have different components; raw bit results remain unchanged"
+      }
+    },
+    {
+      "order": "idle_then_reset",
+      "comparison": {
+        "rows_compared": 160,
+        "float_fields": {
+          "pre.current.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.current.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.current.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.current.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.current.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.from.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.pending_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "pre.heading_ownership": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.current.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.from.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.pending_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_advance.heading_ownership": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.current.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.cursor": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.speed": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.per_tick": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.prev_heading": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.from.last_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.pending_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "post_consume.heading_ownership": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "dof_position_mujoco": {
+            "values": 23200,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "root_quaternion_wxyz": {
+            "values": 3200,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          },
+          "consumed_heading_delta": {
+            "values": 160,
+            "different_bits": 0,
+            "maximum_absolute_error": 0.0,
+            "maximum_ulp_difference": 0,
+            "first_difference": null,
+            "rms_error": 0.0
+          }
+        },
+        "integer_fields": {
+          "pre.current.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.current.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.from.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.xt": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.w_in": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.w_out": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.w_total": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.action_playing": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "pre.action_move_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.current.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.from.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.xt": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.w_in": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.w_out": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.w_total": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.action_playing": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_advance.action_move_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.current.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.clip_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.has_clip": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.has_config": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.active": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.heading_valid": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.heading_resync": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.start_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.from.end_frame": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.xt": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.w_in": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.w_out": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.w_total": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.action_playing": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          },
+          "post_consume.action_move_id": {
+            "values": 160,
+            "different": 0,
+            "first_difference": null
+          }
+        },
+        "first_difference": null,
+        "all_supported_fields_bit_exact": true,
+        "quaternion_orientation_maximum_error_radians": 4.2146848510894035e-08,
+        "quaternion_orientation_note": "sign-equivalent rotations may have different components; raw bit results remain unchanged"
+      }
+    }
+  ],
+  "general_slerp_implementation": false,
+  "production_code_changed": false,
+  "physics_or_server_parity_claim": false,
+  "scope": "Exact measured lookup outputs for this explicit fixture only. Native reset is the staged original-semantics extension. Original reference velocity and root-position APIs remain outside native implementation coverage."
+}

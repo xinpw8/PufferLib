@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp_protocol.py", line 92, in <module>
+    with args.output.open('x') as f:json.dump(make_fixture(args.calls),f,indent=2);f.write('\n')
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp_protocol.py", line 24, in make_fixture
+    rows=read_rows(path)
+         ^^^^^^^^^^^^^^^
+  File "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp_protocol.py", line 21, in read_rows
+    def read_rows(path):return [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
+                                                             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1015, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp-capture.jsonl'

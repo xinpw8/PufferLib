@@ -1,0 +1,95 @@
+{
+  "schema": "rek.original_slerp.independent_execution_review.v1",
+  "reviewed_utc": "2026-09-28T19:33:13.356184+00:00",
+  "verdict": "GO for one bounded isolated CPU-only original-function run after root verifies GitHub publication and exact final input/source bindings.",
+  "source_root": "C:\\rekagent\\work\\rek-parity-continuation-20260928-r1",
+  "source_pins": [
+    {
+      "path": "Plugin.cs",
+      "bytes": 9404,
+      "sha256": "856aa4c096e806da43b3237e78491c5bb427950a240a790b7b372cbf074a442c"
+    },
+    {
+      "path": "RekSlerpOracle.csproj",
+      "bytes": 1524,
+      "sha256": "97226fc60de46b891e960a8a800507339513317d4639db6fc606be9c0522ab19"
+    },
+    {
+      "path": "slerp_boundary.h",
+      "bytes": 3498,
+      "sha256": "9ff8710256d1d65d98f35eb18ae08c2022eb4434de86148fe0a9c861902469c6"
+    },
+    {
+      "path": "slerp_protocol.py",
+      "bytes": 7137,
+      "sha256": "e3907e1746f98ddd0af303e138fb988bd0bac72731cb7cb62d5bafa046044722"
+    },
+    {
+      "path": "prepare_native.py",
+      "bytes": 2877,
+      "sha256": "885cc659ec22baa2f4c23155a5aa66401a500a0fec0848545361e896f3c376fb"
+    },
+    {
+      "path": "build_native.sh",
+      "bytes": 877,
+      "sha256": "19c5d15f60a93224a75e168a40bd2e19947dc76bab9e719590b2efed2247e3bb"
+    },
+    {
+      "path": "test_protocol.py",
+      "bytes": 4446,
+      "sha256": "b33788917fae5227c77db1776e7c9451e3288509682c96a03398c0ee9dd80114"
+    },
+    {
+      "path": "test_boundary.c",
+      "bytes": 1593,
+      "sha256": "fc50af5a46739dfbd076bd5a6ee5f1c4d8bfe5a41b3143e9233bd4487e2f7fae"
+    },
+    {
+      "path": "isolation/entrypoint.sh",
+      "bytes": 3788,
+      "sha256": "d65c52ad4fc67464368d4736b723ca79c2761cd55daee805753c33a16d7ff5db"
+    },
+    {
+      "path": "isolation/orchestrate.py",
+      "bytes": 4658,
+      "sha256": "5025ce3732bd048a20ac4903fb521156e60d9d3be7a93d90eb6e7bc091b5c6b3"
+    },
+    {
+      "path": "isolation/prepare_runtime.py",
+      "bytes": 8382,
+      "sha256": "547704d4762cf9c94758876aefe1ce978d10e8f495c9b359f013517ecc2f383f"
+    },
+    {
+      "path": "isolation/freeze_fixture.py",
+      "bytes": 1656,
+      "sha256": "3f3dc040157e0606e3c9f1c4aae7896163a6cc29c0dd8f1ff5ed2b1630d59163"
+    },
+    {
+      "path": "build-plugin-r1/RekSlerpOracle.dll",
+      "bytes": 29184,
+      "sha256": "501ea82250f8ab7c4712879cf9ecbc371f9f5340dfe0b0feef486394e42c3764"
+    }
+  ],
+  "scope": [
+    "Entire plugin, native callback boundary, reducer, native instrumentation diff, fixture generator, and isolation deltas inspected.",
+    "Only original static SonicMotionComposer.SlerpWxyz and UnityEngine.Quaternion.Slerp calls; no Robot/composer instances or control, physics, network, model or GPU calls from the harness.",
+    "Four activation/identity opt-ins, exact GameAssembly/UnityPlayer/metadata/interop hashes, native wrapper MethodInfo/module/RVA evidence, canonical finite FP32 inputs and outputs.",
+    "Two repeats, at most100000 cases, 90-second plugin guard, fresh output, closed success/failure footer; external180-second timeout with10-second termination grace.",
+    "Fresh session/container and Wine prefix, no original profile, networknone, privatePID/IPC, UID1000, dropped capabilities, no-new-privileges, readonlyroot/input/game/runtime mounts, no hostX/GPU/ports.",
+    "Pinned derivative image5fb2c698 and upstream translator12a50a0f, translator also checked inside container.",
+    "Exact-key substitution only; missing tuples fail without libm fallback; no claim of a general replacement implementation."
+  ],
+  "independent_validation": {
+    "protocol_tests": 8,
+    "exit_code": 0,
+    "log_sha256": "3ea948a4b5f3febc22ca23e0ec1a6f1dd094d55f56660f50ee4c44ce9d1f7d47",
+    "found_and_resolved": "Synthetic duplicate-output negative initially aliased the same Python list in both rows; corrected fixture independently passes."
+  },
+  "limitations": [
+    "This receipt is code/containment review, not runtime success or physics/server parity.",
+    "Root must verify actual staged fixture/source hashes, created-container guards, terminal exit and complete repeated-output trace.",
+    "A private-process crash or rejected fixture remains possible and must be preserved as failure; no effect on the existing app/profile is authorized."
+  ],
+  "reviewer_executed_original_unity": false,
+  "reviewer_executed_gpu": false
+}

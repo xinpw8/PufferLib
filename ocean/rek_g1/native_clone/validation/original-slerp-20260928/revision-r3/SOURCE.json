@@ -1,0 +1,46 @@
+{
+  "files": [
+    {
+      "path": "fixtures-followup-r2.json",
+      "sha256": "853e74767f7ce35dd85bde528def10d54e3c179b12b0a8016aadc7c5407cb0c7"
+    },
+    {
+      "path": "followup_fixture.py",
+      "sha256": "3488c71d2f69669fabff732ff99fb1aa806a539f9cdc261f5afd44ddfff09d90"
+    },
+    {
+      "path": "isolation/entrypoint.sh",
+      "sha256": "d65c52ad4fc67464368d4736b723ca79c2761cd55daee805753c33a16d7ff5db"
+    },
+    {
+      "path": "isolation/entrypoint.sh.diff",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "isolation/freeze_fixture.py",
+      "sha256": "bd91f8d3bd84d275cb9a6a24e68b3e2522310694ef4aae8cd2b308fc0902886c"
+    },
+    {
+      "path": "isolation/freeze_fixture.py.diff",
+      "sha256": "81040c41c20976d7db4fc3d119f51f4aac59407e92e0644a4198ed442e930dad"
+    },
+    {
+      "path": "isolation/orchestrate.py",
+      "sha256": "2726358135e6a0b782ca9ec94f66bff0d980e0f51708ad0385492e7003933d0d"
+    },
+    {
+      "path": "isolation/orchestrate.py.diff",
+      "sha256": "f2697d4a299317fdc856615a522d7a91c927acaa1479cbf2e559699580e62e08"
+    },
+    {
+      "path": "isolation/prepare_runtime.py",
+      "sha256": "b64ce4b2023ee81168f71854a1585368bddb318fda8a90ab079d277fa70e4cbc"
+    },
+    {
+      "path": "isolation/prepare_runtime.py.diff",
+      "sha256": "2c7c17d609b8317b0df001c4543e962ef584da769833340b7187358c9bbd8feb"
+    }
+  ],
+  "plugin": "unchanged revision-r2/build-plugin-r2/RekSlerpOracle.dll",
+  "plugin_sha256": "bc97e74788c408df77c41244fa4c0e1ac79260d0180194bc62c9170a25c01998"
+}

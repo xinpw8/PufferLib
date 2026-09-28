@@ -1,0 +1,24 @@
+{
+  "schema": "rek.mujoco_pe_version_audit.v1",
+  "path": "C:\\rekagent\\rek-agent-build\\REK_Data\\Plugins\\x86_64\\mujoco.dll",
+  "bytes": 3556352,
+  "sha256": "a6f6b6fd6f0cc35923f57fdc43e18a5cfa43b451fc719bfa355c71c745b43eea",
+  "exports": {
+    "mj_version": {
+      "rva": "0xfa4f0",
+      "va": "0x1800fa4f0",
+      "first_16_bytes": "b818e22d00c3cccccccccccccccccccc",
+      "value": 3007000
+    },
+    "mj_versionString": {
+      "rva": "0xfa500",
+      "va": "0x1800fa500",
+      "first_16_bytes": "488d059d5b1a00c3cccccccccccccccc",
+      "string_rva": "0x2a00a4",
+      "value": "3.7.0"
+    }
+  },
+  "method": "static PE export and exact return-stub decoding",
+  "dll_executed": false,
+  "server_version_verified": false
+}

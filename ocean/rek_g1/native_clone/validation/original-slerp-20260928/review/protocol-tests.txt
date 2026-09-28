@@ -1,0 +1,13 @@
+test_changed_duplicate_output_rejected (test_protocol.Protocol.test_changed_duplicate_output_rejected) ... ok
+test_dedup_and_controls_labeled (test_protocol.Protocol.test_dedup_and_controls_labeled) ... ok
+test_finite_canonical_bit_contract (test_protocol.Protocol.test_finite_canonical_bit_contract) ... ok
+test_incomplete_capture_rejected (test_protocol.Protocol.test_incomplete_capture_rejected) ... ok
+test_partial_duplicate_and_changed_input_rejected (test_protocol.Protocol.test_partial_duplicate_and_changed_input_rejected) ... ok
+test_repeat_disagreement_rejected (test_protocol.Protocol.test_repeat_disagreement_rejected) ... ok
+test_synthetic_closed_table_layout (test_protocol.Protocol.test_synthetic_closed_table_layout) ... ok
+test_wrong_plugin_or_module_rejected (test_protocol.Protocol.test_wrong_plugin_or_module_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.178s
+
+OK

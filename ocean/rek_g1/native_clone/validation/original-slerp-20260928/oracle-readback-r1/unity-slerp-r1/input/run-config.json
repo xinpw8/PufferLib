@@ -1,0 +1,8 @@
+{
+  "schema": "rek.original_slerp.run.v1",
+  "run_id": "slerp-boundary-20260928-r1",
+  "expected_game_root": "Z:/session/game",
+  "output_directory": "Z:/session/out/oracle",
+  "fixture_manifest": "Z:/session/input/fixtures.json",
+  "fixture_sha256": "dd7d350bcd8b01b10def845ff9c549e0afb1fbb3fc09f0e8faf1a720e1f695c1"
+}

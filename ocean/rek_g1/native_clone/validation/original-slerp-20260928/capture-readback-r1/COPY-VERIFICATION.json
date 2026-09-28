@@ -1,0 +1,50 @@
+{
+  "remote_root": "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1",
+  "files": [
+    {
+      "path": "native-baseline.jsonl",
+      "bytes": 7471731,
+      "sha256": "1186bdf62696d307d8ef102e311fd6fd7227df6f8c85d31ea2a1288812308480"
+    },
+    {
+      "path": "slerp-capture.jsonl",
+      "bytes": 8889149,
+      "sha256": "5744b9ecda905d98e4fa7ea99308f036df5f37fefe54c8372af6e7af72fc57b3"
+    },
+    {
+      "path": "fixtures-capture-r1.json",
+      "bytes": 178770,
+      "sha256": "dd7d350bcd8b01b10def845ff9c549e0afb1fbb3fc09f0e8faf1a720e1f695c1"
+    },
+    {
+      "path": "native/build-r1/binary.sha256",
+      "bytes": 88,
+      "sha256": "bf43e57fc20dc362153163575aff09f570fbb0f0bba0c9062ad48cfdd0db2ddb"
+    },
+    {
+      "path": "native/build-r1/build.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native/build-r1/build.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "native/build-r1/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "native/build-r1/inputs.sha256",
+      "bytes": 2184,
+      "sha256": "b27dbb5e763428701289567ceb78e71cc2cd47f70e8a70e4b8f31c6f9e5fca70"
+    },
+    {
+      "path": "native/build-r1/native-trace",
+      "bytes": 75576,
+      "sha256": "57c48b558ee71e6f5f0ca3095b6bffd3d12dc068e1f4889ecb67b6a1a2af9f45"
+    }
+  ]
+}

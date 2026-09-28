@@ -1,0 +1,75 @@
+{
+  "schema": "rek.original_composer_explicit_fixture.v1",
+  "controller_rate_hz": 50,
+  "orders": [
+    "reset_then_idle",
+    "idle_then_reset"
+  ],
+  "repeats": 2,
+  "warmup_advances": 17,
+  "ticks": 160,
+  "forward_before_tick": 50,
+  "idle_before_tick": 110,
+  "locomotion_scale": 1,
+  "reference_offsets": [
+    0,
+    1,
+    5,
+    10,
+    15
+  ],
+  "initial_play": "PlayActionImmediate(idle)",
+  "warmup_order": [
+    "Advance",
+    "ConsumeHeadingDelta"
+  ],
+  "row_order": [
+    "optional_PlayAction",
+    "SetLocomotionSpeed(1)",
+    "capture_pre_and_references",
+    "Advance",
+    "capture_post_advance",
+    "ConsumeHeadingDelta",
+    "capture_post_consume"
+  ],
+  "clip_root_preprocessing": "native5/motion_assets.cu initial-heading normalization, binary32 operations and libm atan2f/sinf/cosf",
+  "reset_order_is_explicit_not_inferred_listener_order": true,
+  "clips": [
+    {
+      "clip_id": 377,
+      "name": "idle",
+      "config_path_id": 2702,
+      "npz_sha256": "2fd9ca753183566cceaff3ff10ae54b1a7167986297524a9d24d970d57aee969",
+      "frames": 39,
+      "fps": 50.0,
+      "config": {
+        "blend_in_seconds": 1.0,
+        "blend_out_seconds": 0.5139999985694885,
+        "end_frame": -1,
+        "loop": 1,
+        "mirror": 0,
+        "playback_speed": 1.0,
+        "start_frame": 0,
+        "yaw_blend": 0.0
+      }
+    },
+    {
+      "clip_id": 370,
+      "name": "forward",
+      "config_path_id": 2720,
+      "npz_sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974",
+      "frames": 36,
+      "fps": 50.0,
+      "config": {
+        "blend_in_seconds": 1.0,
+        "blend_out_seconds": 1.0,
+        "end_frame": -1,
+        "loop": 1,
+        "mirror": 0,
+        "playback_speed": 1.0,
+        "start_frame": 0,
+        "yaw_blend": 0.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "schema": "rek.slerp_boundary.direct_comparison.v1",
+  "fixture_sha256": "853e74767f7ce35dd85bde528def10d54e3c179b12b0a8016aadc7c5407cb0c7",
+  "oracle_sha256": "42a0fa72fe1c40f53b7d9853cb04130cccf8098484374353207fd08c598c6733",
+  "unique_tuples": 513,
+  "repeat_bit_equality": true,
+  "rek_unity_wrapper_bit_equality": true,
+  "differing_recorded_components": 411,
+  "max_abs_recorded_component_error": 2.7976930141448975e-06,
+  "component_replay_performed": false,
+  "physics_or_transfer_claim": false
+}

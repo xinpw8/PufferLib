@@ -1,0 +1,32 @@
+--- r1/Plugin.cs
++++ r2/Plugin.cs
+@@ -68,17 +68,17 @@
+             Active=this;AddComponent<OracleBehaviour>();
+         }catch(Exception ex){Log.LogError(ex);if(verifiedIsolation)Finish(false,ex);}
+     }
+-    unsafe object Attest(Type type,string name)
++    unsafe object Attest(Type type,string name,params Type[] parameterTypes)
+     {
+         RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+-        var method=type.GetMethod(name,BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.DeclaredOnly)??throw new MissingMethodException(type.FullName,name);
++        var method=type.GetMethod(name,BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.DeclaredOnly,null,parameterTypes,null)??throw new MissingMethodException(type.FullName,name);
+         var field=Il2CppInteropUtils.GetIl2CppMethodInfoPointerFieldForGeneratedMethod(method)??throw new InvalidDataException("not original wrapper");
+         var info=(IntPtr)field.GetValue(null)!;Require(info!=IntPtr.Zero,"native MethodInfo");
+         var pointer=(UnityVersionHandler.Wrap((Il2CppMethodInfo*)info)??throw new InvalidDataException("method wrapper")).MethodPointer;
+         var owner=Process.GetCurrentProcess().Modules.Cast<ProcessModule>().SingleOrDefault(m=>pointer.ToInt64()>=m.BaseAddress.ToInt64()&&pointer.ToInt64()<m.BaseAddress.ToInt64()+m.ModuleMemorySize);
+         Require(owner!=null&&Full(owner.FileName).Equals(Full(Path.Combine(Paths.GameRootPath,"GameAssembly.dll")),StringComparison.OrdinalIgnoreCase),"original module path");
+         byte[] first=new byte[32];System.Runtime.InteropServices.Marshal.Copy(pointer,first,0,32);
+-        return new{type=type.FullName,method=name,module=owner!.FileName,rva=$"0x{pointer.ToInt64()-owner.BaseAddress.ToInt64():x}",
++        return new{type=type.FullName,method=name,parameter_types=method.GetParameters().Select(p=>p.ParameterType.FullName).ToArray(),module=owner!.FileName,rva=$"0x{pointer.ToInt64()-owner.BaseAddress.ToInt64():x}",
+             first32_sha256=Convert.ToHexString(SHA256.HashData(first)).ToLowerInvariant()};
+     }
+     static string[] Bits(float[] values){Require(values.All(float.IsFinite),"finite output");return values.Select(v=>$"0x{BitConverter.SingleToInt32Bits(v):x8}").ToArray();}
+@@ -98,7 +98,7 @@
+     {
+         if(finished||executing||Time.frameCount<3)return;executing=true;unityThread=Environment.CurrentManagedThreadId;
+         try{
+-            Guard();Emit(new{@event="entrypoints",methods=new[]{Attest(typeof(SonicMotionComposer),"SlerpWxyz"),Attest(typeof(Quaternion),"Slerp")}});
++            Guard();Emit(new{@event="entrypoints",methods=new[]{Attest(typeof(SonicMotionComposer),"SlerpWxyz",typeof(Il2CppStructArray<float>),typeof(Il2CppStructArray<float>),typeof(float),typeof(Il2CppStructArray<float>)),Attest(typeof(Quaternion),"Slerp",typeof(Quaternion),typeof(Quaternion),typeof(float))}});
+             for(int repeat=0;repeat<2;repeat++){
+                 int index=0;
+                 foreach(var c in fixture!.RootElement.GetProperty("cases").EnumerateArray()){

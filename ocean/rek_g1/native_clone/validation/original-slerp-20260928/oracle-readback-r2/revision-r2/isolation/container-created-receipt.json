@@ -1,0 +1,59 @@
+{
+  "id": "646461fa1f382f421e1f5f1f05cab3c0957ca3cae8a4ab56605e3be2518cd1c1",
+  "image": "sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879",
+  "network": "none",
+  "ipc": "private",
+  "pid_namespace": "private",
+  "privileged": false,
+  "gpu_devices": false,
+  "host_X_mount": false,
+  "original_profile_mount": false,
+  "original_game_writable_mount": false,
+  "bind_mounts": {
+    "/session/game": [
+      "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2/game",
+      false
+    ],
+    "/session/game/BepInEx/core": [
+      "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2/game/BepInEx/core",
+      false
+    ],
+    "/session/game/BepInEx/interop": [
+      "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2/game/BepInEx/interop",
+      false
+    ],
+    "/session/game/BepInEx/unity-libs": [
+      "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2/game/BepInEx/unity-libs",
+      false
+    ],
+    "/usr/local/bin/rek-original-functions-entrypoint": [
+      "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/revision-r2/isolation/entrypoint.sh",
+      false
+    ],
+    "/session": [
+      "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2",
+      true
+    ],
+    "/session/input": [
+      "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2/input",
+      false
+    ],
+    "/session/game/BepInEx": [
+      "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/unity-slerp-r2/game/BepInEx",
+      true
+    ],
+    "/opt/codexrook/box64": [
+      "/home/spark-advantage/codexrook-runtime/box64-upstream-20260924-r1",
+      false
+    ],
+    "/opt/codexrook/wine-11.13": [
+      "/home/spark-advantage/codexrook-runtime/wine-11.13",
+      false
+    ],
+    "/opt/codexrook/x64root-ubuntu-24.04": [
+      "/home/spark-advantage/codexrook-runtime/x64root-ubuntu-24.04",
+      false
+    ]
+  },
+  "state": "created"
+}

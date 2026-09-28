@@ -1,0 +1,127 @@
+{
+  "schema": "rek.slerp_boundary.native_stage.v1",
+  "prior": "C:\\rekagent\\work\\rek-original-functions-20260927-r1\\comparison",
+  "execution_performed": false,
+  "files": [
+    {
+      "path": "assets/foot_features_manifest.json",
+      "bytes": 6090,
+      "sha256": "3b69127f5004574057a6b99a976a31c0e3ed3489c22c193b94a0c4e5b4aa59bc"
+    },
+    {
+      "path": "assets/idle_processed.npz",
+      "bytes": 2841,
+      "sha256": "2fd9ca753183566cceaff3ff10ae54b1a7167986297524a9d24d970d57aee969"
+    },
+    {
+      "path": "assets/motion_370_dof_position.f32le",
+      "bytes": 4176,
+      "sha256": "9f183da41eac22ca3b723173c69a27ec078769064285df08fb4333c3db050f03"
+    },
+    {
+      "path": "assets/motion_370_foot_features.f32le",
+      "bytes": 864,
+      "sha256": "f914c3cc3d3943cacd4558e7611df1d5a923f22aa8a35548da80fa7abbd49f65"
+    },
+    {
+      "path": "assets/motion_370_root_rotation_wxyz.f32le",
+      "bytes": 576,
+      "sha256": "23678c4b27998ab443781e028d14c2a6eb669abdc81d973797783b176a7242cf"
+    },
+    {
+      "path": "assets/motion_377_dof_position.f32le",
+      "bytes": 4524,
+      "sha256": "e103e7c047741bd8ce718baed8f7b8a1f6a1e1d891f19f3766f8b8b8180d19e3"
+    },
+    {
+      "path": "assets/motion_377_foot_features.f32le",
+      "bytes": 936,
+      "sha256": "2dc4f59edae29fcd773652ed4ee07f55ca8de0000c48a55714f66572cb68e1f3"
+    },
+    {
+      "path": "assets/motion_377_root_rotation_wxyz.f32le",
+      "bytes": 624,
+      "sha256": "bf4bc5a1fbcf24a84174b8bd7c52c9c553bca01032514eae7ec3d47bd2485e60"
+    },
+    {
+      "path": "assets/semantic_duel_assets_manifest.json",
+      "bytes": 36015,
+      "sha256": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28"
+    },
+    {
+      "path": "assets/sonic_config",
+      "bytes": 11880,
+      "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355"
+    },
+    {
+      "path": "assets/walking_processed.npz",
+      "bytes": 5351,
+      "sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974"
+    },
+    {
+      "path": "fixture.json",
+      "bytes": 1818,
+      "sha256": "eaf9afc9f1628eee4ee16ef3dace054a77132112f495286ef316d5826ce2fc1c"
+    },
+    {
+      "path": "fixture_config.h",
+      "bytes": 335,
+      "sha256": "a90528ed0dfd709695e04b0fe1e1b62e8dda749db17d5112e9133ec663742f36"
+    },
+    {
+      "path": "instrumentation.diff",
+      "bytes": 4478,
+      "sha256": "af1f03c69f36cb1f738ece68f56dac75223914aba8e0ff6c5b8168324f319b8f"
+    },
+    {
+      "path": "native_trace.c",
+      "bytes": 8379,
+      "sha256": "dcc7c79121a85e4a6c1ea8bbcc0bd2cc281126272e3751fdb6f6be72b3e3eeb8"
+    },
+    {
+      "path": "native_trace.original.c",
+      "bytes": 7999,
+      "sha256": "e01f2615d3413815d6de96681def996dbd4cce9f2afc7e7b0bb84136e4babd1d"
+    },
+    {
+      "path": "slerp_boundary.h",
+      "bytes": 3484,
+      "sha256": "bcf0b2705c5c4bfc55a868e8ccd19e5108d679e472542b658c703b586d32024e"
+    },
+    {
+      "path": "source/g1_cuda_qualifiers.h",
+      "bytes": 581,
+      "sha256": "d6576fd9d12c7d1f8b96fed8a5842a804e8139de8755407d4a85d0bb307a9a35"
+    },
+    {
+      "path": "source/sonic_motion_composer_libm_candidate.c",
+      "bytes": 4000,
+      "sha256": "0dd47e311a93736a55945345e76043fd413d3acc795cb56511b3dbeff04e7b22"
+    },
+    {
+      "path": "source/sonic_motion_composer_libm_candidate.h",
+      "bytes": 970,
+      "sha256": "3441472ccca82dd89d5e080f64c578cf9ceb3e683caaeeeaec5bfae6599d8f0e"
+    },
+    {
+      "path": "source/sonic_motion_composer_native.c",
+      "bytes": 55417,
+      "sha256": "52fc10a2541e6bfa59c2a9571963fe1e78021580f760046204fbd768a8d0d0d2"
+    },
+    {
+      "path": "source/sonic_motion_composer_native.h",
+      "bytes": 9458,
+      "sha256": "b05c38f2b3add435eb2cf9b1ed0a604b64dfc76b1ef828addd7efbd266fd0f22"
+    },
+    {
+      "path": "source/sonic_motion_entry_matcher_native.c",
+      "bytes": 26279,
+      "sha256": "2ff11593aec7c2a41e196aed9c4b37c49e3417d0ff9446ffdefe195df065f360"
+    },
+    {
+      "path": "source/sonic_motion_entry_matcher_native.h",
+      "bytes": 6213,
+      "sha256": "a0d10bf32f103a436a7af3fd7365f2d8e16f5c1b9e2534fdc6b009309d420151"
+    }
+  ]
+}

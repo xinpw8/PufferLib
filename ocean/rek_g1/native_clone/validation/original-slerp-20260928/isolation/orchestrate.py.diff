@@ -1,0 +1,43 @@
+--- prior/orchestrate.py
++++ new/orchestrate.py
+@@ -7,13 +7,14 @@
+ from prepare_runtime import BASE_IMAGE_ID, SESSION, create_command, sha
+ 
+ ROOT=Path(__file__).resolve().parent
+-IMAGE='rek-original-functions:20260927-r1'
+-NAME='rek-original-functions-20260927-r1'
++IMAGE='sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879'
++NAME='rek-slerp-oracle-20260928-r1'
+ def read_json_command(argv):return json.loads(subprocess.check_output(argv,text=True))
+ def write_new(name,value):
+     with (ROOT/name).open('x') as f:json.dump(value,f,indent=2);f.write('\n')
+ def verify_container(c):
+     h=c['HostConfig'];cfg=c['Config']
++    assert c['Image']==IMAGE,'Isolated derivative image changed'
+     assert c['Name']=='/'+NAME
+     assert h['NetworkMode']=='none' and h['IpcMode']=='private' and not h['PidMode']
+     assert not h['Privileged'] and h['Runtime']=='runc' and h['ReadonlyRootfs']
+@@ -39,23 +40,12 @@
+             'original_game_writable_mount':False,'bind_mounts':mounts,'state':c['State']['Status']}
+ def main():
+     p=argparse.ArgumentParser()
+-    p.add_argument('--build-image',action='store_true')
+     p.add_argument('--freeze-input',action='store_true')
+     p.add_argument('--create',action='store_true')
+     p.add_argument('--start',action='store_true')
+     args=p.parse_args()
+     if not any(vars(args).values()):
+         print(json.dumps({'create_argv':create_command(),'launch_performed':False},indent=2));return
+-    if args.build_image:
+-        base=read_json_command(['docker','image','inspect','codexrook-rek-runtime:gb10'])[0]
+-        assert base['Id']==BASE_IMAGE_ID,'Base image changed'
+-        existing=subprocess.run(['docker','image','inspect',IMAGE],capture_output=True)
+-        assert existing.returncode!=0,'Derivative image already exists; preserve it and review before reuse'
+-        source_pins={name:sha(ROOT/name) for name in ['Dockerfile','entrypoint.sh']}
+-        subprocess.run(['docker','build','--pull=false','--tag',IMAGE,str(ROOT)],check=True)
+-        image=read_json_command(['docker','image','inspect',IMAGE])[0]
+-        write_new('image-build-receipt.json',{'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+-          'base_image_id':BASE_IMAGE_ID,'image_id':image['Id'],'sources':source_pins,'started_game':False})
+     if args.freeze_input:
+         assert (SESSION/'STAGED.json').is_file() and not (SESSION/'run.started').exists()
+         assert (SESSION/'input/fixtures.json').is_file(),'The plugin fixture file must be input/fixtures.json'

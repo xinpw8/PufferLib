@@ -16,6 +16,8 @@ This package preserves the working C++/CUDA clone tested on DGX Spark. It includ
 
 Source and artifact hashes are preserved without Git newline conversion. Raw, growing human gameplay captures remain on the physical server and are not part of this Git snapshot. External motor weights, shared libraries, Warp PTX modules and reused build objects are inventoried in the release's `dependencies/DEPENDENCIES.json`; they remain at their existing Spark locations. This is a reproducible package against that host dependency closure, not a portable Windows executable or a clean-room build.
 
+Windows checkouts need Git's `core.longpaths=true` because the frozen generated kernel paths retain their original names. The Spark build runs on Linux.
+
 ## Build and prepare on Spark
 
 From this directory, after verifying the dependency manifest:
@@ -47,5 +49,6 @@ The selected binary SHA256 is `90a004a6aa89a72d13e1c44abe10f2adea70059c746075b06
 - Headless throughput: 512 ticks in 11.787818447 s, **43.43467 control steps/s per arena**, **173.73868 aggregate arena steps/s across four arenas**. One control tick is 20 ms with ten 2 ms physics substeps; rendering was excluded.
 - The app passed 28 CPU tests. Original history probes matched 27,832 outputs exactly. Match/deactivation and legacy-controller suites passed; their reports and reusable tests accompany the published evidence.
 - CUDA graph stepping remains disabled: its strict trajectory comparison failed and the measured speedup was only 1.11x.
+- The [original Slerp diagnostic](validation/original-slerp-20260928/RESULTS.md) reproduced all 640 composer fixture rows when the Slerp callback used measured original-function outputs. All 12,800 quaternion components, 92,800 joint references and other supported state fields matched exactly. The final replay covered every one of 32,800 calls without a fallback. This is an input-specific diagnostic; the deployed native math remains unchanged.
 
-Earlier original-composer quaternion differences at the Unity Slerp comparison boundary are still under investigation. Prior whole-trajectory yaw disagreement has no new matched official replay proving resolution. Lighting/materials differ from Unity; the renderer retains a documented setup warning despite successful decoded PNG verification. Current work continues with isolated original-function oracles before any new parity claim.
+The composer fixture's earlier quaternion residual is isolated to the Slerp callback boundary. A general native Slerp replacement remains to be implemented and verified. The next environment comparison is the [original compiled model and initialized/reset state](validation/parity-priorities-20260928/NEXT-EXPERIMENT.md). Prior whole-trajectory yaw disagreement has no new matched official replay proving resolution. Lighting/materials differ from Unity; the renderer retains a documented setup warning despite successful decoded PNG verification. Full environment parity remains unverified.

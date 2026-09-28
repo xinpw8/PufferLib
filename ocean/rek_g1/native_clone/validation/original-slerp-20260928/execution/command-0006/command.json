@@ -1,0 +1,8 @@
+{
+  "remote_argv": [
+    "python3",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/isolation/prepare_runtime.py",
+    "--prepare"
+  ],
+  "started_utc": "2026-09-28T19:36:23.407916+00:00"
+}

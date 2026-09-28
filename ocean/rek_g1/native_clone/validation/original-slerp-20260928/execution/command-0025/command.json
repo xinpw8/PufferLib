@@ -1,0 +1,12 @@
+{
+  "remote_argv": [
+    "docker",
+    "inspect",
+    "--format",
+    "{{.Name}} {{.State.Status}} {{.State.Running}} {{.State.ExitCode}} {{.State.OOMKilled}} {{.State.FinishedAt}}",
+    "rek-slerp-oracle-20260928-r1",
+    "rek-slerp-oracle-20260928-r2",
+    "rek-slerp-oracle-20260928-r3"
+  ],
+  "started_utc": "2026-09-28T19:51:13.850739+00:00"
+}

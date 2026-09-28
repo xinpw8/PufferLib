@@ -1,0 +1,8 @@
+{
+  "remote_argv": [
+    "python3",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/isolation/freeze_fixture.py",
+    "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/fixtures-capture-r1.json"
+  ],
+  "started_utc": "2026-09-28T19:36:44.171625+00:00"
+}

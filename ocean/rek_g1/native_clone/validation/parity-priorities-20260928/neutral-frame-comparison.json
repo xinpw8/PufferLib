@@ -1,0 +1,1017 @@
+{
+  "schema": "rek.reset_neutral_settling_comparison.v1",
+  "tool_sha256": "39137c9a1589ea2c3ab206e592869185d15107b58feacf5a532c88ad8abcd5ab",
+  "trace": {
+    "prefix": "C:\\rekagent\\work\\rek-residual-parity-20260927-r1\\velocity-frame\\frame-fixed-neutral-r1\\response",
+    "metadata_sha256": "2398c9e3a1226f4a6f5a73874de2cbddf0ca69da30581e554447f30736ac8c8a",
+    "binary_sha256": "7a560a4c033857170382554d4875ebef16b91b9202f22d308f3325f086065d94"
+  },
+  "settling_csv_sha256": "f908d52ce428fa63c1482eff6e5e0b74dc651da9b761de8746d50e7d7453af4e",
+  "windows": [
+    {
+      "window": 2,
+      "samples": [
+        {
+          "source_line": 7848,
+          "receipt_elapsed_seconds": 0.0,
+          "recorded_displacement_mj_axes_scale1": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "native_displacement_metres": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "position_residual_metres": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "residual_norm_metres": 0.0,
+          "recorded_height": 0.8029999732971191,
+          "native_height": 0.8029999732971191,
+          "recorded_yaw_degrees": -5.464150684632188e-05,
+          "native_yaw_degrees": -5.464150684632188e-05
+        },
+        {
+          "source_line": 7875,
+          "receipt_elapsed_seconds": 0.0343607999999449,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.005597233772277832,
+            -0.00042258817120455205,
+            -0.004803299903869629
+          ],
+          "native_displacement_metres": [
+            -0.00928939258108974,
+            -0.0010132209862610654,
+            -0.007341969593642195
+          ],
+          "position_residual_metres": [
+            -0.0036921588088119073,
+            -0.0005906328150565134,
+            -0.002538669689772566
+          ],
+          "residual_norm_metres": 0.0045194831104318645,
+          "recorded_height": 0.7981966733932495,
+          "native_height": 0.795658003703477,
+          "recorded_yaw_degrees": 0.2912727383151292,
+          "native_yaw_degrees": 0.744599104373938
+        },
+        {
+          "source_line": 7889,
+          "receipt_elapsed_seconds": 0.050583499999902415,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.021919965744018555,
+            -0.0033894749358296394,
+            -0.01862543821334839
+          ],
+          "native_displacement_metres": [
+            -0.016775369364500747,
+            -0.0023823382182330934,
+            -0.012887277967201571
+          ],
+          "position_residual_metres": [
+            0.005144596379517807,
+            0.001007136717596546,
+            0.005738160246146817
+          ],
+          "residual_norm_metres": 0.0077722377270988425,
+          "recorded_height": 0.7843745350837708,
+          "native_height": 0.7901126953299176,
+          "recorded_yaw_degrees": 2.396753414281368,
+          "native_yaw_degrees": 1.2795046038051336
+        },
+        {
+          "source_line": 7916,
+          "receipt_elapsed_seconds": 0.08747310000001107,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.03237617015838623,
+            -0.008601061999797821,
+            -0.0315818190574646
+          ],
+          "native_displacement_metres": [
+            -0.0333040684164474,
+            -0.0069877369579381815,
+            -0.025109105947942245
+          ],
+          "position_residual_metres": [
+            -0.0009278982580611661,
+            0.0016133250418596395,
+            0.0064727131095223545
+          ],
+          "residual_norm_metres": 0.006734970517098564,
+          "recorded_height": 0.7714181542396545,
+          "native_height": 0.7778908673491769,
+          "recorded_yaw_degrees": 3.2346551708584306,
+          "native_yaw_degrees": 1.4616951028085747
+        },
+        {
+          "source_line": 7940,
+          "receipt_elapsed_seconds": 0.11968300000000909,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.03503233194351196,
+            -0.015012236312031746,
+            -0.0386165976524353
+          ],
+          "native_displacement_metres": [
+            -0.039402393867631336,
+            -0.013669499739361476,
+            -0.03415701108930658
+          ],
+          "position_residual_metres": [
+            -0.004370061924119373,
+            0.0013427365726702695,
+            0.004459586563128726
+          ],
+          "residual_norm_metres": 0.006386571461924034,
+          "recorded_height": 0.7643833756446838,
+          "native_height": 0.7688429622078126,
+          "recorded_yaw_degrees": 3.556279851796712,
+          "native_yaw_degrees": 2.164926679954931
+        },
+        {
+          "source_line": 7966,
+          "receipt_elapsed_seconds": 0.15380579999998645,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.04030674695968628,
+            -0.023609360679984093,
+            -0.04555767774581909
+          ],
+          "native_displacement_metres": [
+            -0.04126169137895985,
+            -0.023993916289680672,
+            -0.043013558474086167
+          ],
+          "position_residual_metres": [
+            -0.0009549444192735734,
+            -0.00038455560969657965,
+            0.0025441192717329253
+          ],
+          "residual_norm_metres": 0.0027445117470423987,
+          "recorded_height": 0.7574422955513,
+          "native_height": 0.759986414823033,
+          "recorded_yaw_degrees": 3.425593345663325,
+          "native_yaw_degrees": 3.534314576293661
+        },
+        {
+          "source_line": 7993,
+          "receipt_elapsed_seconds": 0.1893809999999121,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.048647403717041016,
+            -0.034231118857860565,
+            -0.05598479509353638
+          ],
+          "native_displacement_metres": [
+            -0.04344082458322962,
+            -0.03660835437965801,
+            -0.05815810763392271
+          ],
+          "position_residual_metres": [
+            0.005206579133811395,
+            -0.002377235521797444,
+            -0.0021733125403863296
+          ],
+          "residual_norm_metres": 0.006122336351503098,
+          "recorded_height": 0.7470151782035828,
+          "native_height": 0.7448418656631964,
+          "recorded_yaw_degrees": 2.65438902787234,
+          "native_yaw_degrees": 5.1799796019716355
+        },
+        {
+          "source_line": 8016,
+          "receipt_elapsed_seconds": 0.22136469999998099,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.05861961841583252,
+            -0.04588984698057175,
+            -0.0694761872291565
+          ],
+          "native_displacement_metres": [
+            -0.044977602797454885,
+            -0.04664717617723517,
+            -0.07689528240326904
+          ],
+          "position_residual_metres": [
+            0.013642015618377634,
+            -0.0007573291966634227,
+            -0.007419095174112544
+          ],
+          "residual_norm_metres": 0.015547382765170419,
+          "recorded_height": 0.7335237860679626,
+          "native_height": 0.7261046908938501,
+          "recorded_yaw_degrees": 2.072924154842523,
+          "native_yaw_degrees": 6.8288823040837405
+        },
+        {
+          "source_line": 8041,
+          "receipt_elapsed_seconds": 0.255328899999995,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.07200896739959717,
+            -0.05625898018479347,
+            -0.08438229560852051
+          ],
+          "native_displacement_metres": [
+            -0.04950255484886634,
+            -0.05340466929623462,
+            -0.09660479419488344
+          ],
+          "position_residual_metres": [
+            0.022506412550730825,
+            0.0028543108885588503,
+            -0.012222498586362929
+          ],
+          "residual_norm_metres": 0.025769655959012792,
+          "recorded_height": 0.7186176776885986,
+          "native_height": 0.7063951791022357,
+          "recorded_yaw_degrees": 1.7145492697589664,
+          "native_yaw_degrees": 7.899381496228177
+        },
+        {
+          "source_line": 8069,
+          "receipt_elapsed_seconds": 0.2919511000000057,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.0860866904258728,
+            -0.06505294889211655,
+            -0.09595739841461182
+          ],
+          "native_displacement_metres": [
+            -0.056646553076690864,
+            -0.06098180700230784,
+            -0.10976769388365182
+          ],
+          "position_residual_metres": [
+            0.02944013734918194,
+            0.004071141889808706,
+            -0.013810295469040001
+          ],
+          "residual_norm_metres": 0.03277224655661921,
+          "recorded_height": 0.7070425748825073,
+          "native_height": 0.6932322794134673,
+          "recorded_yaw_degrees": 1.5900152337358675,
+          "native_yaw_degrees": 7.056091789463717
+        },
+        {
+          "source_line": 8093,
+          "receipt_elapsed_seconds": 0.32410159999994903,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.09814077615737915,
+            -0.07207653671503067,
+            -0.10486811399459839
+          ],
+          "native_displacement_metres": [
+            -0.06204321650961697,
+            -0.06903886693574314,
+            -0.11614672520036806
+          ],
+          "position_residual_metres": [
+            0.03609755964776218,
+            0.00303766977928753,
+            -0.011278611205769673
+          ],
+          "residual_norm_metres": 0.03794032578856774,
+          "recorded_height": 0.6981318593025208,
+          "native_height": 0.6868532480967511,
+          "recorded_yaw_degrees": 1.1242023645096717,
+          "native_yaw_degrees": 5.983478728157574
+        },
+        {
+          "source_line": 8118,
+          "receipt_elapsed_seconds": 0.35808449999990444,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.10918408632278442,
+            -0.07805920392274857,
+            -0.11349165439605713
+          ],
+          "native_displacement_metres": [
+            -0.06568350937964151,
+            -0.07810361892213555,
+            -0.11868166853073214
+          ],
+          "position_residual_metres": [
+            0.04350057694314291,
+            -4.441499938698246e-05,
+            -0.005190014134675014
+          ],
+          "residual_norm_metres": 0.043809113364648156,
+          "recorded_height": 0.689508318901062,
+          "native_height": 0.684318304766387,
+          "recorded_yaw_degrees": 0.43057398075166525,
+          "native_yaw_degrees": 4.781260398907521
+        },
+        {
+          "source_line": 8144,
+          "receipt_elapsed_seconds": 0.3933597999999847,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.11966222524642944,
+            -0.08298793435096741,
+            -0.12111276388168335
+          ],
+          "native_displacement_metres": [
+            -0.06908920650648298,
+            -0.08991335256561245,
+            -0.12121215323835899
+          ],
+          "position_residual_metres": [
+            0.05057301873994646,
+            -0.0069254182146450405,
+            -9.938935667563875e-05
+          ],
+          "residual_norm_metres": 0.05104509300768228,
+          "recorded_height": 0.6818872094154358,
+          "native_height": 0.6817878200587602,
+          "recorded_yaw_degrees": 0.20615836657122077,
+          "native_yaw_degrees": 2.8401991599846315
+        },
+        {
+          "source_line": 8169,
+          "receipt_elapsed_seconds": 0.42626639999991767,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.13269323110580444,
+            -0.08748447895050049,
+            -0.12467163801193237
+          ],
+          "native_displacement_metres": [
+            -0.071649777556273,
+            -0.10323945891003582,
+            -0.12639520668660464
+          ],
+          "position_residual_metres": [
+            0.061043453549531446,
+            -0.01575497995953533,
+            -0.0017235686746722712
+          ],
+          "residual_norm_metres": 0.06306737114987016,
+          "recorded_height": 0.6783283352851868,
+          "native_height": 0.6766047666105145,
+          "recorded_yaw_degrees": -0.03377276190267554,
+          "native_yaw_degrees": 1.0888612519141811
+        },
+        {
+          "source_line": 8194,
+          "receipt_elapsed_seconds": 0.46030309999991914,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.14334636926651,
+            -0.09146315604448318,
+            -0.12463855743408203
+          ],
+          "native_displacement_metres": [
+            -0.07172069833402928,
+            -0.11879000506243374,
+            -0.13496938461653507
+          ],
+          "position_residual_metres": [
+            0.07162567093248073,
+            -0.027326849017950558,
+            -0.01033082718245304
+          ],
+          "residual_norm_metres": 0.07735450474310847,
+          "recorded_height": 0.6783614158630371,
+          "native_height": 0.6680305886805841,
+          "recorded_yaw_degrees": -0.02365140086902218,
+          "native_yaw_degrees": 0.5187764368295223
+        },
+        {
+          "source_line": 8221,
+          "receipt_elapsed_seconds": 0.49510159999999814,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.13694661855697632,
+            -0.09487772732973099,
+            -0.12646663188934326
+          ],
+          "native_displacement_metres": [
+            -0.06746280138183369,
+            -0.13500458232011917,
+            -0.13885921054724837
+          ],
+          "position_residual_metres": [
+            0.06948381717514263,
+            -0.04012685499038818,
+            -0.012392578657905107
+          ],
+          "residual_norm_metres": 0.0811895396368316,
+          "recorded_height": 0.6765333414077759,
+          "native_height": 0.6641407627498708,
+          "recorded_yaw_degrees": 0.46993026752603895,
+          "native_yaw_degrees": 1.0015577683563417
+        },
+        {
+          "source_line": 8246,
+          "receipt_elapsed_seconds": 0.5284157999999479,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.1304531693458557,
+            -0.09694317728281021,
+            -0.12596017122268677
+          ],
+          "native_displacement_metres": [
+            -0.05965750238783851,
+            -0.14517737682942752,
+            -0.13143808981742489
+          ],
+          "position_residual_metres": [
+            0.0707956669580172,
+            -0.04823419954661731,
+            -0.005477918594738118
+          ],
+          "residual_norm_metres": 0.08584038710341399,
+          "recorded_height": 0.6770398020744324,
+          "native_height": 0.6715618834796943,
+          "recorded_yaw_degrees": 0.2981792007541913,
+          "native_yaw_degrees": 0.5929812827860629
+        },
+        {
+          "source_line": 8270,
+          "receipt_elapsed_seconds": 0.5627457999999024,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.12843459844589233,
+            -0.09616712480783463,
+            -0.11913710832595825
+          ],
+          "native_displacement_metres": [
+            -0.048926386099278574,
+            -0.15163577367818729,
+            -0.11770419549473954
+          ],
+          "position_residual_metres": [
+            0.07950821234661376,
+            -0.05546864887035266,
+            0.0014329128312187134
+          ],
+          "residual_norm_metres": 0.09695555722720886,
+          "recorded_height": 0.6838628649711609,
+          "native_height": 0.6852957778023796,
+          "recorded_yaw_degrees": 0.7469067960680871,
+          "native_yaw_degrees": -0.35296186660229534
+        },
+        {
+          "source_line": 8297,
+          "receipt_elapsed_seconds": 0.597775200000001,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.12876731157302856,
+            -0.09278770536184311,
+            -0.11019635200500488
+          ],
+          "native_displacement_metres": [
+            -0.036708558288669924,
+            -0.15518008311653003,
+            -0.10422782087842586
+          ],
+          "position_residual_metres": [
+            0.09205875328435864,
+            -0.06239237775468692,
+            0.005968531126579024
+          ],
+          "residual_norm_metres": 0.11136986226965942,
+          "recorded_height": 0.6928036212921143,
+          "native_height": 0.6987721524186933,
+          "recorded_yaw_degrees": 0.8802988067152595,
+          "native_yaw_degrees": -0.8293788650659784
+        }
+      ],
+      "root_position_rmse_metres": 0.05325276072249699,
+      "maximum_position_residual_metres": 0.11136986226965942,
+      "last_sample": {
+        "source_line": 8297,
+        "receipt_elapsed_seconds": 0.597775200000001,
+        "recorded_displacement_mj_axes_scale1": [
+          -0.12876731157302856,
+          -0.09278770536184311,
+          -0.11019635200500488
+        ],
+        "native_displacement_metres": [
+          -0.036708558288669924,
+          -0.15518008311653003,
+          -0.10422782087842586
+        ],
+        "position_residual_metres": [
+          0.09205875328435864,
+          -0.06239237775468692,
+          0.005968531126579024
+        ],
+        "residual_norm_metres": 0.11136986226965942,
+        "recorded_height": 0.6928036212921143,
+        "native_height": 0.6987721524186933,
+        "recorded_yaw_degrees": 0.8802988067152595,
+        "native_yaw_degrees": -0.8293788650659784
+      }
+    },
+    {
+      "window": 5,
+      "samples": [
+        {
+          "source_line": 25101,
+          "receipt_elapsed_seconds": 0.0,
+          "recorded_displacement_mj_axes_scale1": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "native_displacement_metres": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "position_residual_metres": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "residual_norm_metres": 0.0,
+          "recorded_height": 0.8018321990966797,
+          "native_height": 0.8029999732971191,
+          "recorded_yaw_degrees": -0.024840913494679557,
+          "native_yaw_degrees": -5.464150684632188e-05
+        },
+        {
+          "source_line": 25124,
+          "receipt_elapsed_seconds": 0.033399099999996906,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.01355963945388794,
+            -0.0018142889075534185,
+            -0.010071933269500732
+          ],
+          "native_displacement_metres": [
+            -0.008883347999987912,
+            -0.000949765587901254,
+            -0.007054515183020582
+          ],
+          "position_residual_metres": [
+            0.004676291453900028,
+            0.0008645233196521645,
+            0.0030174180864801503
+          ],
+          "residual_norm_metres": 0.005632043522617556,
+          "recorded_height": 0.791760265827179,
+          "native_height": 0.7959454581140986,
+          "recorded_yaw_degrees": 1.4022351193722957,
+          "native_yaw_degrees": 0.7061897081451906
+        },
+        {
+          "source_line": 25149,
+          "receipt_elapsed_seconds": 0.06769050000002608,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.02785050868988037,
+            -0.005972866323645576,
+            -0.02491295337677002
+          ],
+          "native_displacement_metres": [
+            -0.0250215470102928,
+            -0.004208798898516767,
+            -0.01881595530955671
+          ],
+          "position_residual_metres": [
+            0.0028289616795875716,
+            0.0017640674251288091,
+            0.006096998067213311
+          ],
+          "residual_norm_metres": 0.00694898147188337,
+          "recorded_height": 0.7769192457199097,
+          "native_height": 0.7841840179875624,
+          "recorded_yaw_degrees": 3.0010813267521974,
+          "native_yaw_degrees": 1.4816757422801377
+        },
+        {
+          "source_line": 25166,
+          "receipt_elapsed_seconds": 0.0870934000000716,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.03303658962249756,
+            -0.011560570337678655,
+            -0.03445601463317871
+          ],
+          "native_displacement_metres": [
+            -0.03318447681372927,
+            -0.006922936814256183,
+            -0.024992226781087035
+          ],
+          "position_residual_metres": [
+            -0.00014788719123171035,
+            0.004637633523422472,
+            0.009463787852091676
+          ],
+          "residual_norm_metres": 0.010540056727945078,
+          "recorded_height": 0.767376184463501,
+          "native_height": 0.7780077465160321,
+          "recorded_yaw_degrees": 3.4364205395140233,
+          "native_yaw_degrees": 1.4567440640753246
+        },
+        {
+          "source_line": 25193,
+          "receipt_elapsed_seconds": 0.12303659999997762,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.03636676073074341,
+            -0.01931088220408128,
+            -0.04077690839767456
+          ],
+          "native_displacement_metres": [
+            -0.039559593119247616,
+            -0.014606148090837417,
+            -0.034966027443324
+          ],
+          "position_residual_metres": [
+            -0.0031928323885042076,
+            0.004704734113243864,
+            0.005810880954350561
+          ],
+          "residual_norm_metres": 0.008129885559036862,
+          "recorded_height": 0.7610552906990051,
+          "native_height": 0.7680339458537951,
+          "recorded_yaw_degrees": 3.5284728446218003,
+          "native_yaw_degrees": 2.278951325076416
+        },
+        {
+          "source_line": 25218,
+          "receipt_elapsed_seconds": 0.15687509999997928,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.04377150535583496,
+            -0.02893404278984235,
+            -0.04944026470184326
+          ],
+          "native_displacement_metres": [
+            -0.041487920128666644,
+            -0.02500862551268585,
+            -0.043901770670997875
+          ],
+          "position_residual_metres": [
+            0.0022835852271683166,
+            0.0039254172771565,
+            0.005538494030845387
+          ],
+          "residual_norm_metres": 0.007162302591991635,
+          "recorded_height": 0.7523919343948364,
+          "native_height": 0.7590982026261213,
+          "recorded_yaw_degrees": 3.0965888140467928,
+          "native_yaw_degrees": 3.682593257147138
+        },
+        {
+          "source_line": 25244,
+          "receipt_elapsed_seconds": 0.19068419999996422,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.05233865976333618,
+            -0.03999826859762834,
+            -0.061100006103515625
+          ],
+          "native_displacement_metres": [
+            -0.043482723348733376,
+            -0.03708262278158871,
+            -0.058869322477878794
+          ],
+          "position_residual_metres": [
+            0.008855936414602805,
+            0.002915645816039626,
+            0.002230683625636831
+          ],
+          "residual_norm_metres": 0.009586686066715736,
+          "recorded_height": 0.7407321929931641,
+          "native_height": 0.7441306508192403,
+          "recorded_yaw_degrees": 2.268579356593206,
+          "native_yaw_degrees": 5.246683084582611
+        },
+        {
+          "source_line": 25269,
+          "receipt_elapsed_seconds": 0.22395740000001751,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.06468987464904785,
+            -0.051728872471358045,
+            -0.07652956247329712
+          ],
+          "native_displacement_metres": [
+            -0.045245198453168545,
+            -0.047192406575509244,
+            -0.07847130120405788
+          ],
+          "position_residual_metres": [
+            0.019444676195879307,
+            0.004536465895848801,
+            -0.0019417387307607559
+          ],
+          "residual_norm_metres": 0.020061039466720835,
+          "recorded_height": 0.7253026366233826,
+          "native_height": 0.7245286720930613,
+          "recorded_yaw_degrees": 1.8929570791261106,
+          "native_yaw_degrees": 6.931659822627101
+        },
+        {
+          "source_line": 25294,
+          "receipt_elapsed_seconds": 0.25804890000006253,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.07863503694534302,
+            -0.06098392035892175,
+            -0.08973157405853271
+          ],
+          "native_displacement_metres": [
+            -0.04996418760786314,
+            -0.05390835608785045,
+            -0.09809206586713615
+          ],
+          "position_residual_metres": [
+            0.028670849337479876,
+            0.007075564271071304,
+            -0.008360491808603432
+          ],
+          "residual_norm_metres": 0.030691676962464207,
+          "recorded_height": 0.712100625038147,
+          "native_height": 0.704907907429983,
+          "recorded_yaw_degrees": 1.6403666415595446,
+          "native_yaw_degrees": 7.958252127685179
+        },
+        {
+          "source_line": 25319,
+          "receipt_elapsed_seconds": 0.29125859999999193,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.09158289432525635,
+            -0.06877527933647798,
+            -0.09938383102416992
+          ],
+          "native_displacement_metres": [
+            -0.056520421466549564,
+            -0.060827000732919786,
+            -0.10958599427817295
+          ],
+          "position_residual_metres": [
+            0.035062472858706784,
+            0.007948278603558193,
+            -0.010202163254003027
+          ],
+          "residual_norm_metres": 0.03737159711316417,
+          "recorded_height": 0.7024483680725098,
+          "native_height": 0.6934139790189462,
+          "recorded_yaw_degrees": 1.4179716371586104,
+          "native_yaw_degrees": 7.085764571765341
+        },
+        {
+          "source_line": 25344,
+          "receipt_elapsed_seconds": 0.32481430000007094,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.10334146022796631,
+            -0.07537973474791215,
+            -0.10834342241287231
+          ],
+          "native_displacement_metres": [
+            -0.06212827875272264,
+            -0.06922190458964685,
+            -0.11622073835766089
+          ],
+          "position_residual_metres": [
+            0.041213181475243665,
+            0.006157830158265307,
+            -0.007877315944788577
+          ],
+          "residual_norm_metres": 0.04240869375568446,
+          "recorded_height": 0.6934887766838074,
+          "native_height": 0.6867792349394582,
+          "recorded_yaw_degrees": 0.7217697650473701,
+          "native_yaw_degrees": 5.964970228019227
+        },
+        {
+          "source_line": 25369,
+          "receipt_elapsed_seconds": 0.3582268999999769,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.1138296127319336,
+            -0.08073403488924669,
+            -0.11654245853424072
+          ],
+          "native_displacement_metres": [
+            -0.06569723226716606,
+            -0.078142845443461,
+            -0.11868862843162897
+          ],
+          "position_residual_metres": [
+            0.04813238046476753,
+            0.00259118944578568,
+            -0.0021461698973882504
+          ],
+          "residual_norm_metres": 0.04824983271657573,
+          "recorded_height": 0.685289740562439,
+          "native_height": 0.6843113448654902,
+          "recorded_yaw_degrees": 0.2539374193732481,
+          "native_yaw_degrees": 4.775044942682764
+        },
+        {
+          "source_line": 25395,
+          "receipt_elapsed_seconds": 0.39168050000000676,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.1245582103729248,
+            -0.08521018724968599,
+            -0.12254512310028076
+          ],
+          "native_displacement_metres": [
+            -0.06893842509351789,
+            -0.08931186532536557,
+            -0.12105008123631911
+          ],
+          "position_residual_metres": [
+            0.05561978527940692,
+            -0.004101678075679585,
+            0.0014950418639616547
+          ],
+          "residual_norm_metres": 0.05579085433777511,
+          "recorded_height": 0.6792870759963989,
+          "native_height": 0.6819498920608,
+          "recorded_yaw_degrees": 0.17089194974100982,
+          "native_yaw_degrees": 2.9406002971361467
+        },
+        {
+          "source_line": 25419,
+          "receipt_elapsed_seconds": 0.4253324999999677,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.1411341428756714,
+            -0.08991610806515382,
+            -0.12275093793869019
+          ],
+          "native_displacement_metres": [
+            -0.07160234012754696,
+            -0.10282473453141058,
+            -0.12617807273905346
+          ],
+          "position_residual_metres": [
+            0.06953180274812443,
+            -0.012908626466256762,
+            -0.003427134800363274
+          ],
+          "residual_norm_metres": 0.07080289177420149,
+          "recorded_height": 0.6790812611579895,
+          "native_height": 0.6768219005580657,
+          "recorded_yaw_degrees": -0.34967770155223404,
+          "native_yaw_degrees": 1.1263828397560443
+        },
+        {
+          "source_line": 25444,
+          "receipt_elapsed_seconds": 0.45842290000007324,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.1397554874420166,
+            -0.09321815323164628,
+            -0.12432485818862915
+          ],
+          "native_displacement_metres": [
+            -0.07180035090885584,
+            -0.11790408585773439,
+            -0.13448833682515204
+          ],
+          "position_residual_metres": [
+            0.06795513653316076,
+            -0.024685932626088106,
+            -0.010163478636522894
+          ],
+          "residual_norm_metres": 0.07301090431473466,
+          "recorded_height": 0.6775073409080505,
+          "native_height": 0.6685116364719671,
+          "recorded_yaw_degrees": 0.48875749547024017,
+          "native_yaw_degrees": 0.5147265467308105
+        },
+        {
+          "source_line": 25470,
+          "receipt_elapsed_seconds": 0.49160249999999905,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.1324864625930786,
+            -0.09616174351504014,
+            -0.12586629390716553
+          ],
+          "native_displacement_metres": [
+            -0.06795450758914523,
+            -0.13354622688380316,
+            -0.13888458213705135
+          ],
+          "position_residual_metres": [
+            0.06453195500393338,
+            -0.037384483368763016,
+            -0.013018288229885822
+          ],
+          "residual_norm_metres": 0.07570633158339786,
+          "recorded_height": 0.6759659051895142,
+          "native_height": 0.6641153911600678,
+          "recorded_yaw_degrees": 0.28418938632967966,
+          "native_yaw_degrees": 0.9796478201750187
+        },
+        {
+          "source_line": 25494,
+          "receipt_elapsed_seconds": 0.5252612000000454,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.127954363822937,
+            -0.09689278703262971,
+            -0.12173616886138916
+          ],
+          "native_displacement_metres": [
+            -0.060573966596054074,
+            -0.1444466028610198,
+            -0.1325759231910758
+          ],
+          "position_residual_metres": [
+            0.06738039722688294,
+            -0.04755381582839008,
+            -0.010839754329686646
+          ],
+          "residual_norm_metres": 0.08318042801176811,
+          "recorded_height": 0.6800960302352905,
+          "native_height": 0.6704240501060433,
+          "recorded_yaw_degrees": 0.5428821889364468,
+          "native_yaw_degrees": 0.6774942916608596
+        },
+        {
+          "source_line": 25519,
+          "receipt_elapsed_seconds": 0.5594677000000274,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.1277679204940796,
+            -0.09463495563795732,
+            -0.11324054002761841
+          ],
+          "native_displacement_metres": [
+            -0.05002952985183029,
+            -0.15121061846965217,
+            -0.11905804859375169
+          ],
+          "position_residual_metres": [
+            0.0777383906422493,
+            -0.05657566283169485,
+            -0.005817508566133278
+          ],
+          "residual_norm_metres": 0.09632188957038584,
+          "recorded_height": 0.6885916590690613,
+          "native_height": 0.6839419247033675,
+          "recorded_yaw_degrees": 0.8587913587952176,
+          "native_yaw_degrees": -0.2858985197024961
+        },
+        {
+          "source_line": 25545,
+          "receipt_elapsed_seconds": 0.5936824000000342,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.12784051895141602,
+            -0.09055225353768037,
+            -0.10500907897949219
+          ],
+          "native_displacement_metres": [
+            -0.03817339869541403,
+            -0.15484662675949148,
+            -0.10569641816194197
+          ],
+          "position_residual_metres": [
+            0.08966712025600199,
+            -0.06429437322181111,
+            -0.0006873391824497865
+          ],
+          "residual_norm_metres": 0.11033780547999672,
+          "recorded_height": 0.6968231201171875,
+          "native_height": 0.6973035551351772,
+          "recorded_yaw_degrees": 0.9060253359425031,
+          "native_yaw_degrees": -0.7942234791136442
+        },
+        {
+          "source_line": 25570,
+          "receipt_elapsed_seconds": 0.6269700999999941,
+          "recorded_displacement_mj_axes_scale1": [
+            -0.12656962871551514,
+            -0.08559892874291108,
+            -0.09761816263198853
+          ],
+          "native_displacement_metres": [
+            -0.02532862490528842,
+            -0.15636891537478048,
+            -0.0958727526071973
+          ],
+          "position_residual_metres": [
+            0.10124100381022672,
+            -0.0707699866318694,
+            0.0017454100247912274
+          ],
+          "residual_norm_metres": 0.12353614174213129,
+          "recorded_height": 0.7042140364646912,
+          "native_height": 0.7071272206899218,
+          "recorded_yaw_degrees": 1.0471467984474303,
+          "native_yaw_degrees": -1.0074234948309868
+        }
+      ],
+      "root_position_rmse_metres": 0.05919806282536438,
+      "maximum_position_residual_metres": 0.12353614174213129,
+      "last_sample": {
+        "source_line": 25570,
+        "receipt_elapsed_seconds": 0.6269700999999941,
+        "recorded_displacement_mj_axes_scale1": [
+          -0.12656962871551514,
+          -0.08559892874291108,
+          -0.09761816263198853
+        ],
+        "native_displacement_metres": [
+          -0.02532862490528842,
+          -0.15636891537478048,
+          -0.0958727526071973
+        ],
+        "position_residual_metres": [
+          0.10124100381022672,
+          -0.0707699866318694,
+          0.0017454100247912274
+        ],
+        "residual_norm_metres": 0.12353614174213129,
+        "recorded_height": 0.7042140364646912,
+        "native_height": 0.7071272206899218,
+        "recorded_yaw_degrees": 1.0471467984474303,
+        "native_yaw_degrees": -1.0074234948309868
+      }
+    }
+  ],
+  "method": "Use first received reposition as time zero; compare relative displacements under a scale1 axis permutation. Native starts at its synthetic reset with zero qvel. No fitted time shift, rotation, physical parameter or motor weights.",
+  "limits": [
+    "Receipt intervals contain network sampling and timing jitter.",
+    "Actual server reset execution and hidden motor state are unobserved.",
+    "Native fighter gap is4m; recorded gap differs. Opponents remain synthetic neutral.",
+    "This comparison alone cannot attribute a difference to a specific physical parameter."
+  ]
+}

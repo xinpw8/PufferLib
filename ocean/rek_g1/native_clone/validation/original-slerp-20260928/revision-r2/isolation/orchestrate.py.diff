@@ -1,0 +1,11 @@
+--- r1/orchestrate.py
++++ r2/orchestrate.py
+@@ -8,7 +8,7 @@
+ 
+ ROOT=Path(__file__).resolve().parent
+ IMAGE='sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879'
+-NAME='rek-slerp-oracle-20260928-r1'
++NAME='rek-slerp-oracle-20260928-r2'
+ def read_json_command(argv):return json.loads(subprocess.check_output(argv,text=True))
+ def write_new(name,value):
+     with (ROOT/name).open('x') as f:json.dump(value,f,indent=2);f.write('\n')

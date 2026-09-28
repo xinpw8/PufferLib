@@ -1,0 +1,8734 @@
+{
+  "schema": "rek.original_slerp.fixture.v1",
+  "source_capture": {
+    "path": "/home/spark-advantage/rek-training/rek-parity-continuation-20260928-r1/slerp-capture.jsonl",
+    "sha256": "5744b9ecda905d98e4fa7ea99308f036df5f37fefe54c8372af6e7af72fc57b3",
+    "calls": 32800
+  },
+  "composer_fixture_sha256": "eaf9afc9f1628eee4ee16ef3dace054a77132112f495286ef316d5826ce2fc1c",
+  "repeat_count": 2,
+  "input_order": "a_wxyz,b_wxyz,t",
+  "normalization_by_harness": false,
+  "cases": [
+    {
+      "id": 0,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000"
+      ],
+      "first_call": 0,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 84
+    },
+    {
+      "id": 1,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 1,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 216
+    },
+    {
+      "id": 2,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 2,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 4
+    },
+    {
+      "id": 3,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 3,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 92
+    },
+    {
+      "id": 4,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 4,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 224
+    },
+    {
+      "id": 5,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3ca6ebf0"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 5,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 12
+    },
+    {
+      "id": 6,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525191",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 9,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 96
+    },
+    {
+      "id": 7,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 10,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 464
+    },
+    {
+      "id": 8,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525191",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3d2a1f14"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 11,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 9,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525189",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 12,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 100
+    },
+    {
+      "id": 10,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 13,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 736
+    },
+    {
+      "id": 11,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525189",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3de1a08b"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 14,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 20
+    },
+    {
+      "id": 12,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 15,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 312
+    },
+    {
+      "id": 13,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3e0a2fd5"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 17,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 14,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525171",
+        "0xbd98b407",
+        "0xb97b98d8"
+      ],
+      "first_call": 18,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 108
+    },
+    {
+      "id": 15,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800"
+      ],
+      "first_call": 19,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 256
+    },
+    {
+      "id": 16,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525171",
+        "0xbd98b407",
+        "0xb97b98d8",
+        "0x3e7b2b7a"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9835"
+      ],
+      "first_call": 20,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 28
+    },
+    {
+      "id": 17,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800"
+      ],
+      "first_call": 21,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 112
+    },
+    {
+      "id": 18,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800"
+      ],
+      "first_call": 22,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 260
+    },
+    {
+      "id": 19,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0x3e8d57f8"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800"
+      ],
+      "first_call": 23,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 20,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525161",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 24,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 116
+    },
+    {
+      "id": 21,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 25,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 868
+    },
+    {
+      "id": 22,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525161",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3ed46cf0"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 26,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 36
+    },
+    {
+      "id": 23,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 27,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 360
+    },
+    {
+      "id": 24,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3ee88626"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 29,
+      "first_context": {
+        "trial": 0,
+        "tick": 0,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 25,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 69,
+      "first_context": {
+        "trial": 0,
+        "tick": 1,
+        "phase": "references"
+      },
+      "occurrences": 192
+    },
+    {
+      "id": 26,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3d8215ae"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 71,
+      "first_context": {
+        "trial": 0,
+        "tick": 1,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 27,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3e24a2d4"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 77,
+      "first_context": {
+        "trial": 0,
+        "tick": 1,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 28,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525169",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 81,
+      "first_context": {
+        "trial": 0,
+        "tick": 1,
+        "phase": "references"
+      },
+      "occurrences": 112
+    },
+    {
+      "id": 29,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 82,
+      "first_context": {
+        "trial": 0,
+        "tick": 1,
+        "phase": "references"
+      },
+      "occurrences": 508
+    },
+    {
+      "id": 30,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525169",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3e9dd98c"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 83,
+      "first_context": {
+        "trial": 0,
+        "tick": 1,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 31,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3efdb43b"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 89,
+      "first_context": {
+        "trial": 0,
+        "tick": 1,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 32,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 130,
+      "first_context": {
+        "trial": 0,
+        "tick": 2,
+        "phase": "references"
+      },
+      "occurrences": 232
+    },
+    {
+      "id": 33,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3db0e756"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 131,
+      "first_context": {
+        "trial": 0,
+        "tick": 2,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 34,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 136,
+      "first_context": {
+        "trial": 0,
+        "tick": 2,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 35,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3e403b26"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 137,
+      "first_context": {
+        "trial": 0,
+        "tick": 2,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 36,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 141,
+      "first_context": {
+        "trial": 0,
+        "tick": 2,
+        "phase": "references"
+      },
+      "occurrences": 224
+    },
+    {
+      "id": 37,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3eaf286c"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 143,
+      "first_context": {
+        "trial": 0,
+        "tick": 2,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 38,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 148,
+      "first_context": {
+        "trial": 0,
+        "tick": 2,
+        "phase": "references"
+      },
+      "occurrences": 296
+    },
+    {
+      "id": 39,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f0a0714"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 149,
+      "first_context": {
+        "trial": 0,
+        "tick": 2,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 40,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b52517a",
+        "0xbd98b407",
+        "0xb97ba000"
+      ],
+      "first_call": 195,
+      "first_context": {
+        "trial": 0,
+        "tick": 3,
+        "phase": "references"
+      },
+      "occurrences": 104
+    },
+    {
+      "id": 41,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000"
+      ],
+      "first_call": 196,
+      "first_context": {
+        "trial": 0,
+        "tick": 3,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 42,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b52517a",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0x3e5d0c48"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000"
+      ],
+      "first_call": 197,
+      "first_context": {
+        "trial": 0,
+        "tick": 3,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 43,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 202,
+      "first_context": {
+        "trial": 0,
+        "tick": 3,
+        "phase": "references"
+      },
+      "occurrences": 272
+    },
+    {
+      "id": 44,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3ec153ec"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 203,
+      "first_context": {
+        "trial": 0,
+        "tick": 3,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 45,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525152",
+        "0xbd98b405",
+        "0xb97b9800"
+      ],
+      "first_call": 207,
+      "first_context": {
+        "trial": 0,
+        "tick": 3,
+        "phase": "references"
+      },
+      "occurrences": 120
+    },
+    {
+      "id": 46,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800"
+      ],
+      "first_call": 208,
+      "first_context": {
+        "trial": 0,
+        "tick": 3,
+        "phase": "references"
+      },
+      "occurrences": 304
+    },
+    {
+      "id": 47,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525152",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3f15d6bf"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525151",
+        "0xbd98b405",
+        "0xb97b9800"
+      ],
+      "first_call": 209,
+      "first_context": {
+        "trial": 0,
+        "tick": 3,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 48,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800"
+      ],
+      "first_call": 267,
+      "first_context": {
+        "trial": 0,
+        "tick": 4,
+        "phase": "references"
+      },
+      "occurrences": 120
+    },
+    {
+      "id": 49,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800"
+      ],
+      "first_call": 268,
+      "first_context": {
+        "trial": 0,
+        "tick": 4,
+        "phase": "references"
+      },
+      "occurrences": 304
+    },
+    {
+      "id": 50,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3f22576a"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800"
+      ],
+      "first_call": 269,
+      "first_context": {
+        "trial": 0,
+        "tick": 4,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 51,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800"
+      ],
+      "first_call": 327,
+      "first_context": {
+        "trial": 0,
+        "tick": 5,
+        "phase": "references"
+      },
+      "occurrences": 120
+    },
+    {
+      "id": 52,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800"
+      ],
+      "first_call": 328,
+      "first_context": {
+        "trial": 0,
+        "tick": 5,
+        "phase": "references"
+      },
+      "occurrences": 300
+    },
+    {
+      "id": 53,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f2f9916"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800"
+      ],
+      "first_call": 329,
+      "first_context": {
+        "trial": 0,
+        "tick": 5,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 54,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb52515e",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 387,
+      "first_context": {
+        "trial": 0,
+        "tick": 6,
+        "phase": "references"
+      },
+      "occurrences": 116
+    },
+    {
+      "id": 55,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 388,
+      "first_context": {
+        "trial": 0,
+        "tick": 6,
+        "phase": "references"
+      },
+      "occurrences": 584
+    },
+    {
+      "id": 56,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb52515e",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f3dadc3"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb52515f",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 389,
+      "first_context": {
+        "trial": 0,
+        "tick": 6,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 57,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 447,
+      "first_context": {
+        "trial": 0,
+        "tick": 7,
+        "phase": "references"
+      },
+      "occurrences": 212
+    },
+    {
+      "id": 58,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f4ca9c1"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 449,
+      "first_context": {
+        "trial": 0,
+        "tick": 7,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 59,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 508,
+      "first_context": {
+        "trial": 0,
+        "tick": 8,
+        "phase": "references"
+      },
+      "occurrences": 288
+    },
+    {
+      "id": 60,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f5ca412"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 509,
+      "first_context": {
+        "trial": 0,
+        "tick": 8,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 61,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525167",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 567,
+      "first_context": {
+        "trial": 0,
+        "tick": 9,
+        "phase": "references"
+      },
+      "occurrences": 104
+    },
+    {
+      "id": 62,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 568,
+      "first_context": {
+        "trial": 0,
+        "tick": 9,
+        "phase": "references"
+      },
+      "occurrences": 532
+    },
+    {
+      "id": 63,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525167",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f6db6db"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525167",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 569,
+      "first_context": {
+        "trial": 0,
+        "tick": 9,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 64,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 627,
+      "first_context": {
+        "trial": 0,
+        "tick": 10,
+        "phase": "references"
+      },
+      "occurrences": 204
+    },
+    {
+      "id": 65,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 629,
+      "first_context": {
+        "trial": 0,
+        "tick": 10,
+        "phase": "references"
+      },
+      "occurrences": 84
+    },
+    {
+      "id": 66,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 688,
+      "first_context": {
+        "trial": 0,
+        "tick": 11,
+        "phase": "references"
+      },
+      "occurrences": 252
+    },
+    {
+      "id": 67,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb52516f",
+        "0x3d98b407",
+        "0x397b9800"
+      ],
+      "first_call": 747,
+      "first_context": {
+        "trial": 0,
+        "tick": 12,
+        "phase": "references"
+      },
+      "occurrences": 96
+    },
+    {
+      "id": 68,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800"
+      ],
+      "first_call": 748,
+      "first_context": {
+        "trial": 0,
+        "tick": 12,
+        "phase": "references"
+      },
+      "occurrences": 256
+    },
+    {
+      "id": 69,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb52516f",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb52516f",
+        "0x3d98b407",
+        "0x397b9800"
+      ],
+      "first_call": 749,
+      "first_context": {
+        "trial": 0,
+        "tick": 12,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 70,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800"
+      ],
+      "first_call": 807,
+      "first_context": {
+        "trial": 0,
+        "tick": 13,
+        "phase": "references"
+      },
+      "occurrences": 96
+    },
+    {
+      "id": 71,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800"
+      ],
+      "first_call": 808,
+      "first_context": {
+        "trial": 0,
+        "tick": 13,
+        "phase": "references"
+      },
+      "occurrences": 256
+    },
+    {
+      "id": 72,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800"
+      ],
+      "first_call": 809,
+      "first_context": {
+        "trial": 0,
+        "tick": 13,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 73,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525177",
+        "0x3d98b407",
+        "0x397b9f28"
+      ],
+      "first_call": 867,
+      "first_context": {
+        "trial": 0,
+        "tick": 14,
+        "phase": "references"
+      },
+      "occurrences": 96
+    },
+    {
+      "id": 74,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000"
+      ],
+      "first_call": 868,
+      "first_context": {
+        "trial": 0,
+        "tick": 14,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 75,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525177",
+        "0x3d98b407",
+        "0x397b9f28",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525177",
+        "0x3d98b407",
+        "0x397b9f28"
+      ],
+      "first_call": 869,
+      "first_context": {
+        "trial": 0,
+        "tick": 14,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 76,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525186",
+        "0x3d98b408",
+        "0x397ba000"
+      ],
+      "first_call": 927,
+      "first_context": {
+        "trial": 0,
+        "tick": 15,
+        "phase": "references"
+      },
+      "occurrences": 96
+    },
+    {
+      "id": 77,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000"
+      ],
+      "first_call": 928,
+      "first_context": {
+        "trial": 0,
+        "tick": 15,
+        "phase": "references"
+      },
+      "occurrences": 492
+    },
+    {
+      "id": 78,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525186",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525186",
+        "0x3d98b408",
+        "0x397ba000"
+      ],
+      "first_call": 929,
+      "first_context": {
+        "trial": 0,
+        "tick": 15,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 79,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000"
+      ],
+      "first_call": 987,
+      "first_context": {
+        "trial": 0,
+        "tick": 16,
+        "phase": "references"
+      },
+      "occurrences": 180
+    },
+    {
+      "id": 80,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000"
+      ],
+      "first_call": 989,
+      "first_context": {
+        "trial": 0,
+        "tick": 16,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 81,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000"
+      ],
+      "first_call": 1048,
+      "first_context": {
+        "trial": 0,
+        "tick": 17,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 82,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb52518f",
+        "0x3d98b409",
+        "0x397ba000"
+      ],
+      "first_call": 1107,
+      "first_context": {
+        "trial": 0,
+        "tick": 18,
+        "phase": "references"
+      },
+      "occurrences": 88
+    },
+    {
+      "id": 83,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000"
+      ],
+      "first_call": 1108,
+      "first_context": {
+        "trial": 0,
+        "tick": 18,
+        "phase": "references"
+      },
+      "occurrences": 456
+    },
+    {
+      "id": 84,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb52518f",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb52518f",
+        "0x3d98b409",
+        "0x397ba000"
+      ],
+      "first_call": 1109,
+      "first_context": {
+        "trial": 0,
+        "tick": 18,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 85,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000"
+      ],
+      "first_call": 1167,
+      "first_context": {
+        "trial": 0,
+        "tick": 19,
+        "phase": "references"
+      },
+      "occurrences": 176
+    },
+    {
+      "id": 86,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000"
+      ],
+      "first_call": 1169,
+      "first_context": {
+        "trial": 0,
+        "tick": 19,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 87,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000"
+      ],
+      "first_call": 1228,
+      "first_context": {
+        "trial": 0,
+        "tick": 20,
+        "phase": "references"
+      },
+      "occurrences": 224
+    },
+    {
+      "id": 88,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525197",
+        "0x3d98b40a",
+        "0x397ba000"
+      ],
+      "first_call": 1287,
+      "first_context": {
+        "trial": 0,
+        "tick": 21,
+        "phase": "references"
+      },
+      "occurrences": 84
+    },
+    {
+      "id": 89,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000"
+      ],
+      "first_call": 1288,
+      "first_context": {
+        "trial": 0,
+        "tick": 21,
+        "phase": "references"
+      },
+      "occurrences": 220
+    },
+    {
+      "id": 90,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525197",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525197",
+        "0x3d98b40a",
+        "0x397ba000"
+      ],
+      "first_call": 1289,
+      "first_context": {
+        "trial": 0,
+        "tick": 21,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 91,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000"
+      ],
+      "first_call": 1347,
+      "first_context": {
+        "trial": 0,
+        "tick": 22,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 92,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000"
+      ],
+      "first_call": 1348,
+      "first_context": {
+        "trial": 0,
+        "tick": 22,
+        "phase": "references"
+      },
+      "occurrences": 216
+    },
+    {
+      "id": 93,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000"
+      ],
+      "first_call": 1349,
+      "first_context": {
+        "trial": 0,
+        "tick": 22,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 94,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 1409,
+      "first_context": {
+        "trial": 0,
+        "tick": 23,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 95,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 1469,
+      "first_context": {
+        "trial": 0,
+        "tick": 24,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 96,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525191",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525191",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 1529,
+      "first_context": {
+        "trial": 0,
+        "tick": 25,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 97,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 1589,
+      "first_context": {
+        "trial": 0,
+        "tick": 26,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 98,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525189",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525189",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 1709,
+      "first_context": {
+        "trial": 0,
+        "tick": 28,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 99,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 1769,
+      "first_context": {
+        "trial": 0,
+        "tick": 29,
+        "phase": "references"
+      },
+      "occurrences": 120
+    },
+    {
+      "id": 100,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0xbf7f493c",
+        "0x3b52517a",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b52517a",
+        "0xbd98b407",
+        "0xb97ba000"
+      ],
+      "first_call": 1949,
+      "first_context": {
+        "trial": 0,
+        "tick": 32,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 101,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525171",
+        "0xbd98b407",
+        "0xb97b98d8",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525171",
+        "0xbd98b407",
+        "0xb97b98d8"
+      ],
+      "first_call": 2009,
+      "first_context": {
+        "trial": 0,
+        "tick": 33,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 102,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800"
+      ],
+      "first_call": 2069,
+      "first_context": {
+        "trial": 0,
+        "tick": 34,
+        "phase": "references"
+      },
+      "occurrences": 36
+    },
+    {
+      "id": 103,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525169",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525169",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 2129,
+      "first_context": {
+        "trial": 0,
+        "tick": 35,
+        "phase": "references"
+      },
+      "occurrences": 28
+    },
+    {
+      "id": 104,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 2189,
+      "first_context": {
+        "trial": 0,
+        "tick": 36,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 105,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525161",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525161",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 2309,
+      "first_context": {
+        "trial": 0,
+        "tick": 38,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 106,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 2369,
+      "first_context": {
+        "trial": 0,
+        "tick": 39,
+        "phase": "references"
+      },
+      "occurrences": 52
+    },
+    {
+      "id": 107,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0xbf7f493c",
+        "0x3b525152",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525152",
+        "0xbd98b405",
+        "0xb97b9800"
+      ],
+      "first_call": 2549,
+      "first_context": {
+        "trial": 0,
+        "tick": 42,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 108,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800"
+      ],
+      "first_call": 2609,
+      "first_context": {
+        "trial": 0,
+        "tick": 43,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 109,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800"
+      ],
+      "first_call": 2669,
+      "first_context": {
+        "trial": 0,
+        "tick": 44,
+        "phase": "references"
+      },
+      "occurrences": 12
+    },
+    {
+      "id": 110,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb52515e",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb52515e",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 2729,
+      "first_context": {
+        "trial": 0,
+        "tick": 45,
+        "phase": "references"
+      },
+      "occurrences": 8
+    },
+    {
+      "id": 111,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 2789,
+      "first_context": {
+        "trial": 0,
+        "tick": 46,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 112,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7f493c",
+        "0xbb525167",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7f493c",
+        "0xbb525167",
+        "0x3d98b406",
+        "0x397b9800"
+      ],
+      "first_call": 2909,
+      "first_context": {
+        "trial": 0,
+        "tick": 48,
+        "phase": "references"
+      },
+      "occurrences": 8
+    },
+    {
+      "id": 113,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd3aa",
+        "0x3bfee092",
+        "0xbd0d3ef7",
+        "0x3c264ca0",
+        "0xbf7fde1d",
+        "0x3c4bd43c",
+        "0xbceacc21",
+        "0x3bf8cbc0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fdd35",
+        "0x3c43c9de",
+        "0xbcefd18d",
+        "0x3c00cf19"
+      ],
+      "first_call": 3000,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 114,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7fdd35",
+        "0x3c43c9de",
+        "0xbcefd18d",
+        "0x3c00cf19",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800"
+      ],
+      "first_call": 3002,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 8
+    },
+    {
+      "id": 115,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fde1d",
+        "0x3c4bd43c",
+        "0xbceacc21",
+        "0x3bf8cbc0",
+        "0xbf7fe47f",
+        "0x3c8c18a8",
+        "0xbcbb18da",
+        "0x3ba4fe40",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2"
+      ],
+      "first_call": 3003,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 264
+    },
+    {
+      "id": 116,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525169",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2",
+        "0x3ca6ebf0"
+      ],
+      "native_bits": [
+        "0xbf7f4e3c",
+        "0x3b643a95",
+        "0xbd9692dd",
+        "0xb90515a8"
+      ],
+      "first_call": 3005,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 12
+    },
+    {
+      "id": 117,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe47f",
+        "0x3c8c18a8",
+        "0xbcbb18da",
+        "0x3ba4fe40",
+        "0xbf7fe428",
+        "0x3c788a3c",
+        "0xbcc25d9d",
+        "0x3bf65d00",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fe439",
+        "0x3c7bdf38",
+        "0xbcc199c4",
+        "0x3bedcc53"
+      ],
+      "first_call": 3009,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 264
+    },
+    {
+      "id": 118,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fe439",
+        "0x3c7bdf38",
+        "0xbcc199c4",
+        "0x3bedcc53",
+        "0x3d2a1f14"
+      ],
+      "native_bits": [
+        "0xbf7f5353",
+        "0x3b737458",
+        "0xbd9460ad",
+        "0x38961736"
+      ],
+      "first_call": 3011,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 119,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe165",
+        "0x3c393981",
+        "0xbcd0e5ab",
+        "0x3c4c8d00",
+        "0xbf7fdef6",
+        "0x3c199066",
+        "0xbcd828d8",
+        "0x3c753b40",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fdf3f",
+        "0x3c1ce595",
+        "0xbcd7652b",
+        "0x3c70f30c"
+      ],
+      "first_call": 3012,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 120,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fdf3f",
+        "0x3c1ce595",
+        "0xbcd7652b",
+        "0x3c70f30c",
+        "0x3de1a08b"
+      ],
+      "native_bits": [
+        "0xbf7f6219",
+        "0x3b802ad8",
+        "0xbd8dd3c8",
+        "0x3ab87754"
+      ],
+      "first_call": 3014,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 121,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdef6",
+        "0x3c199066",
+        "0xbcd828d8",
+        "0x3c753b40",
+        "0xbf7fdbd4",
+        "0x3bf3ce3a",
+        "0xbcdf6b5e",
+        "0x3c8ef450",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fdc30",
+        "0x3bfa78a0",
+        "0xbcdea7c3",
+        "0x3c8cd042"
+      ],
+      "first_call": 3015,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 256
+    },
+    {
+      "id": 122,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fdc30",
+        "0x3bfa78a0",
+        "0xbcdea7c3",
+        "0x3c8cd042",
+        "0x3e0a2fd5"
+      ],
+      "native_bits": [
+        "0xbf7f66e5",
+        "0x3b7995d0",
+        "0xbd8ba018",
+        "0x3b0a7ae6"
+      ],
+      "first_call": 3017,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 123,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fcfe2",
+        "0x3b290d20",
+        "0xbd157aa4",
+        "0x3c3a6f20",
+        "0xbf7fc9c8",
+        "0x3a7b6c60",
+        "0xbd22107d",
+        "0x3c1944c0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fca7a",
+        "0x3a941192",
+        "0xbd20bd62",
+        "0x3c1cc280"
+      ],
+      "first_call": 3018,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 124,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0xbf7fca7a",
+        "0x3a941192",
+        "0xbd20bd62",
+        "0x3c1cc280",
+        "0x3e7b2b7a"
+      ],
+      "native_bits": [
+        "0x3f7f711f",
+        "0xbb30e8ac",
+        "0x3d86f9f6",
+        "0xbb0df743"
+      ],
+      "first_call": 3020,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 56
+    },
+    {
+      "id": 125,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc9c8",
+        "0x3a7b6c60",
+        "0xbd22107d",
+        "0x3c1944c0",
+        "0xbf7fc2a1",
+        "0xba2d57d0",
+        "0xbd2ea585",
+        "0x3bf034c0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d"
+      ],
+      "first_call": 3021,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 256
+    },
+    {
+      "id": 126,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb52515e",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d",
+        "0x3e8d57f8"
+      ],
+      "native_bits": [
+        "0x3f7f7246",
+        "0xbb0f643f",
+        "0x3d867c46",
+        "0xbafa3c18"
+      ],
+      "first_call": 3023,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 127,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd70e",
+        "0xbb6b9f94",
+        "0xbd0f7c0a",
+        "0x3b46b600",
+        "0xbf7fdca1",
+        "0xbb95dba2",
+        "0xbd051823",
+        "0x3ad19e00",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fdc13",
+        "0xbb927c18",
+        "0xbd063024",
+        "0x3ae562da"
+      ],
+      "first_call": 3024,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 128,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fdc13",
+        "0xbb927c18",
+        "0xbd063024",
+        "0x3ae562da",
+        "0x3ed46cf0"
+      ],
+      "native_bits": [
+        "0x3f7f9494",
+        "0xb7c029c0",
+        "0x3d6a6b25",
+        "0xba19946c"
+      ],
+      "first_call": 3026,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 72
+    },
+    {
+      "id": 129,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdca1",
+        "0xbb95dba2",
+        "0xbd051823",
+        "0x3ad19e00",
+        "0xbf7fe194",
+        "0xbbb5e6e8",
+        "0xbcf567fa",
+        "0x392e7800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fe115",
+        "0xbbb2876c",
+        "0xbcf79808",
+        "0x39a64fbc"
+      ],
+      "first_call": 3027,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 256
+    },
+    {
+      "id": 130,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fe115",
+        "0xbbb2876c",
+        "0xbcf79808",
+        "0x39a64fbc",
+        "0x3ee88626"
+      ],
+      "native_bits": [
+        "0x3f7f9ecc",
+        "0x3a3d7c3d",
+        "0x3d5efbe1",
+        "0xb75bc3ee"
+      ],
+      "first_call": 3029,
+      "first_context": {
+        "trial": 0,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 131,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe428",
+        "0x3c788a3c",
+        "0xbcc25d9d",
+        "0x3bf65d00",
+        "0xbf7fe320",
+        "0x3c58e238",
+        "0xbcc9a1e9",
+        "0x3c23dde0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fe344",
+        "0x3c5c374c",
+        "0xbcc8de1d",
+        "0x3c1f958b"
+      ],
+      "first_call": 3069,
+      "first_context": {
+        "trial": 0,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 132,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fe344",
+        "0x3c5c374c",
+        "0xbcc8de1d",
+        "0x3c1f958b",
+        "0x3d8215ae"
+      ],
+      "native_bits": [
+        "0xbf7f584c",
+        "0x3b7cf224",
+        "0xbd9233f2",
+        "0x39ceb318"
+      ],
+      "first_call": 3071,
+      "first_context": {
+        "trial": 0,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 133,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdbd4",
+        "0x3bf3ce3a",
+        "0xbcdf6b5e",
+        "0x3c8ef450",
+        "0xbf7fd8e8",
+        "0x3bbeb795",
+        "0xbcf89a27",
+        "0x3c7cc160",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fd943",
+        "0x3bc44e35",
+        "0xbcf5f398",
+        "0x3c801f68"
+      ],
+      "first_call": 3075,
+      "first_context": {
+        "trial": 0,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 134,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fd943",
+        "0x3bc44e35",
+        "0xbcf5f398",
+        "0x3c801f68",
+        "0x3e24a2d4"
+      ],
+      "native_bits": [
+        "0xbf7f6a52",
+        "0x3b6fab4c",
+        "0xbd8a0e40",
+        "0x3b17a7f8"
+      ],
+      "first_call": 3077,
+      "first_context": {
+        "trial": 0,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 135,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc2a1",
+        "0xba2d57d0",
+        "0xbd2ea585",
+        "0x3bf034c0",
+        "0xbf7fca0e",
+        "0xbad6dce0",
+        "0xbd2442cf",
+        "0x3bc14240",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fc94c",
+        "0xbac95e7d",
+        "0xbd255ab0",
+        "0x3bc6335f"
+      ],
+      "first_call": 3081,
+      "first_context": {
+        "trial": 0,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 136,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fc94c",
+        "0xbac95e7d",
+        "0xbd255ab0",
+        "0x3bc6335f",
+        "0x3e9dd98c"
+      ],
+      "native_bits": [
+        "0x3f7f7955",
+        "0xbae4e41f",
+        "0x3d832157",
+        "0xbadeb60f"
+      ],
+      "first_call": 3083,
+      "first_context": {
+        "trial": 0,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 64
+    },
+    {
+      "id": 137,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe194",
+        "0xbbb5e6e8",
+        "0xbcf567fa",
+        "0x392e7800",
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e8000",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e7f28"
+      ],
+      "first_call": 3087,
+      "first_context": {
+        "trial": 0,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 248
+    },
+    {
+      "id": 138,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb52516f",
+        "0x3d98b407",
+        "0x397b9800",
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e7f28",
+        "0x3efdb43b"
+      ],
+      "native_bits": [
+        "0x3f7fa5ac",
+        "0x3a94604b",
+        "0x3d56edfa",
+        "0x3821e0aa"
+      ],
+      "first_call": 3089,
+      "first_context": {
+        "trial": 0,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 139,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe320",
+        "0x3c58e238",
+        "0xbcc9a1e9",
+        "0x3c23dde0",
+        "0xbf7fe165",
+        "0x3c393981",
+        "0xbcd0e5ab",
+        "0x3c4c8d00",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3"
+      ],
+      "first_call": 3129,
+      "first_context": {
+        "trial": 0,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 140,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525161",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3",
+        "0x3db0e756"
+      ],
+      "native_bits": [
+        "0xbf7f5d39",
+        "0x3b80abe0",
+        "0xbd900504",
+        "0x3a5b6f3c"
+      ],
+      "first_call": 3131,
+      "first_context": {
+        "trial": 0,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 141,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd8e8",
+        "0x3bbeb795",
+        "0xbcf89a27",
+        "0x3c7cc160",
+        "0xbf7fd4ec",
+        "0x3b899f72",
+        "0xbd08e41e",
+        "0x3c5b98c0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fd565",
+        "0x3b8f3639",
+        "0xbd0790e1",
+        "0x3c5f1655"
+      ],
+      "first_call": 3135,
+      "first_context": {
+        "trial": 0,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 142,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525152",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0xbf7fd565",
+        "0x3b8f3639",
+        "0xbd0790e1",
+        "0x3c5f1655",
+        "0x3e403b26"
+      ],
+      "native_bits": [
+        "0xbf7f6d1c",
+        "0x3b60a3ce",
+        "0xbd88c766",
+        "0x3b1acb5a"
+      ],
+      "first_call": 3137,
+      "first_context": {
+        "trial": 0,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 143,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fca0e",
+        "0xbad6dce0",
+        "0xbd2442cf",
+        "0x3bc14240",
+        "0xbf7fd0dc",
+        "0xbb2b8718",
+        "0xbd19dfa1",
+        "0x3b924f40",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fd02e",
+        "0xbb24c7e5",
+        "0xbd1af791",
+        "0x3b97406d"
+      ],
+      "first_call": 3141,
+      "first_context": {
+        "trial": 0,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 144,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fd02e",
+        "0xbb24c7e5",
+        "0xbd1af791",
+        "0x3b97406d",
+        "0x3eaf286c"
+      ],
+      "native_bits": [
+        "0x3f7f81c8",
+        "0xbaa400b4",
+        "0x3d7dfa67",
+        "0xbaba536c"
+      ],
+      "first_call": 3143,
+      "first_context": {
+        "trial": 0,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 64
+    },
+    {
+      "id": 145,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e8000",
+        "0xbf7fdf47",
+        "0xbc3e53af",
+        "0xbcf068ee",
+        "0xbabba800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fdfa5",
+        "0xbc33dddd",
+        "0xbcf0efaf",
+        "0xbaa59b78"
+      ],
+      "first_call": 3147,
+      "first_context": {
+        "trial": 0,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 146,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0xbf7fdfa5",
+        "0xbc33dddd",
+        "0xbcf0efaf",
+        "0xbaa59b78",
+        "0x3f0a0714"
+      ],
+      "native_bits": [
+        "0x3f7fac9a",
+        "0x3b9188d0",
+        "0x3d4dc080",
+        "0x3a4f9f62"
+      ],
+      "first_call": 3149,
+      "first_context": {
+        "trial": 0,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 147,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd4ec",
+        "0x3b899f72",
+        "0xbd08e41e",
+        "0x3c5b98c0",
+        "0xbf7fcfe2",
+        "0x3b290d20",
+        "0xbd157aa4",
+        "0x3c3a6f20",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fd076",
+        "0x3b343ace",
+        "0xbd142775",
+        "0x3c3deccd"
+      ],
+      "first_call": 3195,
+      "first_context": {
+        "trial": 0,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 148,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0xbf7fd076",
+        "0x3b343ace",
+        "0xbd142775",
+        "0x3c3deccd",
+        "0x3e5d0c48"
+      ],
+      "native_bits": [
+        "0xbf7f6f64",
+        "0x3b4bd98c",
+        "0xbd87bf39",
+        "0x3b17b47d"
+      ],
+      "first_call": 3197,
+      "first_context": {
+        "trial": 0,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 149,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd0dc",
+        "0xbb2b8718",
+        "0xbd19dfa1",
+        "0x3b924f40",
+        "0xbf7fd70e",
+        "0xbb6b9f94",
+        "0xbd0f7c0a",
+        "0x3b46b600",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fd66f",
+        "0xbb64e067",
+        "0xbd109404",
+        "0x3b509899"
+      ],
+      "first_call": 3201,
+      "first_context": {
+        "trial": 0,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 150,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525167",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fd66f",
+        "0xbb64e067",
+        "0xbd109404",
+        "0x3b509899",
+        "0x3ec153ec"
+      ],
+      "native_bits": [
+        "0x3f7f8ae0",
+        "0xba31ee3a",
+        "0x3d74b8ee",
+        "0xba89fcda"
+      ],
+      "first_call": 3203,
+      "first_context": {
+        "trial": 0,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 151,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdf47",
+        "0xbc3e53af",
+        "0xbcf068ee",
+        "0xbabba800",
+        "0xbf7fda64",
+        "0xbc90da83",
+        "0xbceb674a",
+        "0xbb469280",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fdb06",
+        "0xbc8b9f90",
+        "0xbcebee4e",
+        "0xbb3b8c04"
+      ],
+      "first_call": 3207,
+      "first_context": {
+        "trial": 0,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 152,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525177",
+        "0x3d98b407",
+        "0x397b9f28",
+        "0xbf7fdb06",
+        "0xbc8b9f90",
+        "0xbcebee4e",
+        "0xbb3b8c04",
+        "0x3f15d6bf"
+      ],
+      "native_bits": [
+        "0x3f7fb28e",
+        "0x3c0dadae",
+        "0x3d43c240",
+        "0x3ae8a759"
+      ],
+      "first_call": 3209,
+      "first_context": {
+        "trial": 0,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 153,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fda64",
+        "0xbc90da83",
+        "0xbceb674a",
+        "0xbb469280",
+        "0xbf7fd2e3",
+        "0xbcc28a36",
+        "0xbce66334",
+        "0xbb97a800",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fd3cd",
+        "0xbcbd4f65",
+        "0xbce6ea7b",
+        "0xbb9224d7"
+      ],
+      "first_call": 3267,
+      "first_context": {
+        "trial": 0,
+        "tick": 54,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 154,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525186",
+        "0x3d98b408",
+        "0x397ba000",
+        "0xbf7fd3cd",
+        "0xbcbd4f65",
+        "0xbce6ea7b",
+        "0xbb9224d7",
+        "0x3f22576a"
+      ],
+      "native_bits": [
+        "0x3f7fb6de",
+        "0x3c5cecc2",
+        "0x3d3904bc",
+        "0x3b3f2985"
+      ],
+      "first_call": 3269,
+      "first_context": {
+        "trial": 0,
+        "tick": 54,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 155,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd2e3",
+        "0xbcc28a36",
+        "0xbce66334",
+        "0xbb97a800",
+        "0xbf7fc8ca",
+        "0xbcf4376c",
+        "0xbce15cd3",
+        "0xbbcc0440",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fc9fa",
+        "0xbceefce4",
+        "0xbce1e457",
+        "0xbbc68161"
+      ],
+      "first_call": 3327,
+      "first_context": {
+        "trial": 0,
+        "tick": 55,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 156,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0xbf7fc9fa",
+        "0xbceefce4",
+        "0xbce1e457",
+        "0xbbc68161",
+        "0x3f2f9916"
+      ],
+      "native_bits": [
+        "0x3f7fb8c5",
+        "0x3c9bb730",
+        "0x3d2d7650",
+        "0x3b8aabd1"
+      ],
+      "first_call": 3329,
+      "first_context": {
+        "trial": 0,
+        "tick": 55,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 157,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc8ca",
+        "0xbcf4376c",
+        "0xbce15cd3",
+        "0xbbcc0440",
+        "0xbf7fbc17",
+        "0xbd12f053",
+        "0xbcdc544e",
+        "0xbc002ea0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fbd8d",
+        "0xbd105348",
+        "0xbcdcdc0c",
+        "0xbbfadabf"
+      ],
+      "first_call": 3387,
+      "first_context": {
+        "trial": 0,
+        "tick": 56,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 158,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0xbf7fbd8d",
+        "0xbd105348",
+        "0xbcdcdc0c",
+        "0xbbfadabf",
+        "0x3f3dadc3"
+      ],
+      "native_bits": [
+        "0x3f7fb74e",
+        "0x3ccf1df3",
+        "0x3d210318",
+        "0x3bbbf52f"
+      ],
+      "first_call": 3389,
+      "first_context": {
+        "trial": 0,
+        "tick": 56,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 159,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fbc17",
+        "0xbd12f053",
+        "0xbcdc544e",
+        "0xbc002ea0",
+        "0xbf7fc0b4",
+        "0xbd05bb35",
+        "0xbcef7244",
+        "0xbb553680",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fc054",
+        "0xbd071f2c",
+        "0xbced6f37",
+        "0xbb74bdbb"
+      ],
+      "first_call": 3447,
+      "first_context": {
+        "trial": 0,
+        "tick": 57,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 160,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb52518f",
+        "0x3d98b409",
+        "0x397ba000",
+        "0xbf7fc054",
+        "0xbd071f2c",
+        "0xbced6f37",
+        "0xbb74bdbb",
+        "0x3f4ca9c1"
+      ],
+      "native_bits": [
+        "0x3f7fba4f",
+        "0x3cd2d1d6",
+        "0x3d1c352d",
+        "0x3b46db89"
+      ],
+      "first_call": 3449,
+      "first_context": {
+        "trial": 0,
+        "tick": 57,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 161,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc0b4",
+        "0xbd05bb35",
+        "0xbcef7244",
+        "0xbb553680",
+        "0xbf7fc2e8",
+        "0xbcf108f0",
+        "0xbd014742",
+        "0x3aacb100",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fc2ca",
+        "0xbcf3d134",
+        "0xbd0045d5",
+        "0x3a5b40fa"
+      ],
+      "first_call": 3507,
+      "first_context": {
+        "trial": 0,
+        "tick": 58,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 162,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0xbf7fc2ca",
+        "0xbcf3d134",
+        "0xbd0045d5",
+        "0x3a5b40fa",
+        "0x3f5ca412"
+      ],
+      "native_bits": [
+        "0x3f7fbd8a",
+        "0x3cce88d7",
+        "0x3d18c5f3",
+        "0xba344d1d"
+      ],
+      "first_call": 3509,
+      "first_context": {
+        "trial": 0,
+        "tick": 58,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 163,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc2e8",
+        "0xbcf108f0",
+        "0xbd014742",
+        "0x3aacb100",
+        "0xbf7fc2b4",
+        "0xbcd698f2",
+        "0xbd0ad442",
+        "0x3bc0f440",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fc2d7",
+        "0xbcd96176",
+        "0xbd09d2f4",
+        "0x3bb13023"
+      ],
+      "first_call": 3567,
+      "first_context": {
+        "trial": 0,
+        "tick": 59,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 164,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0xbf7fc2d7",
+        "0xbcd96176",
+        "0xbd09d2f4",
+        "0x3bb13023",
+        "0x3f6db6db"
+      ],
+      "native_bits": [
+        "0x3f7fbfc9",
+        "0x3cc7fca5",
+        "0x3d15cfac",
+        "0xbba3faca"
+      ],
+      "first_call": 3569,
+      "first_context": {
+        "trial": 0,
+        "tick": 59,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 165,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc2b4",
+        "0xbcd698f2",
+        "0xbd0ad442",
+        "0x3bc0f440",
+        "0xbf7fc01a",
+        "0xbcbc272b",
+        "0xbd145fdd",
+        "0x3c2b5cc0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fc07e",
+        "0xbcbeefdc",
+        "0xbd135eb5",
+        "0x3c237adf"
+      ],
+      "first_call": 3627,
+      "first_context": {
+        "trial": 0,
+        "tick": 60,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 166,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525197",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0xbf7fc07e",
+        "0xbcbeefdc",
+        "0xbd135eb5",
+        "0x3c237adf",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc07e",
+        "0x3cbeefdc",
+        "0x3d135eb5",
+        "0xbc237adf"
+      ],
+      "first_call": 3629,
+      "first_context": {
+        "trial": 0,
+        "tick": 60,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 167,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc01a",
+        "0xbcbc272b",
+        "0xbd145fdd",
+        "0x3c2b5cc0",
+        "0xbf7fbb18",
+        "0xbca1b462",
+        "0xbd1de9ce",
+        "0x3c763b60",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fbbbd",
+        "0xbca47d2b",
+        "0xbd1ce8d4",
+        "0x3c6e59f4"
+      ],
+      "first_call": 3687,
+      "first_context": {
+        "trial": 0,
+        "tick": 61,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 168,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0xbf7fbbbd",
+        "0xbca47d2b",
+        "0xbd1ce8d4",
+        "0x3c6e59f4",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fbbbb",
+        "0x3ca47d2a",
+        "0x3d1ce8d3",
+        "0xbc6e59f2"
+      ],
+      "first_call": 3689,
+      "first_context": {
+        "trial": 0,
+        "tick": 61,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 169,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fbb18",
+        "0xbca1b462",
+        "0xbd1de9ce",
+        "0x3c763b60",
+        "0xbf7fb6c9",
+        "0xbc8b8b04",
+        "0xbd28e182",
+        "0x3c7f6100",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fb749",
+        "0xbc8de03d",
+        "0xbd27b9fe",
+        "0x3c7e6a90"
+      ],
+      "first_call": 3747,
+      "first_context": {
+        "trial": 0,
+        "tick": 62,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 170,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0xbf7fb749",
+        "0xbc8de03d",
+        "0xbd27b9fe",
+        "0x3c7e6a90",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fb749",
+        "0x3c8de03d",
+        "0x3d27b9fe",
+        "0xbc7e6a90"
+      ],
+      "first_call": 3749,
+      "first_context": {
+        "trial": 0,
+        "tick": 62,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 171,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb6c9",
+        "0xbc8b8b04",
+        "0xbd28e182",
+        "0x3c7f6100",
+        "0xbf7fb183",
+        "0xbc6ac1bb",
+        "0xbd33d8b2",
+        "0x3c8442d0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fb21d",
+        "0xbc6f6c54",
+        "0xbd32b13c",
+        "0x3c83c7a5"
+      ],
+      "first_call": 3807,
+      "first_context": {
+        "trial": 0,
+        "tick": 63,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 172,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0xbf7fb21d",
+        "0xbc6f6c54",
+        "0xbd32b13c",
+        "0x3c83c7a5",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fb21d",
+        "0xbc6f6c54",
+        "0xbd32b13c",
+        "0x3c83c7a5"
+      ],
+      "first_call": 3809,
+      "first_context": {
+        "trial": 0,
+        "tick": 63,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 173,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb183",
+        "0xbc6ac1bb",
+        "0xbd33d8b2",
+        "0x3c8442d0",
+        "0xbf7fab46",
+        "0xbc3e6c60",
+        "0xbd3ecf3e",
+        "0x3c88d490",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fabf8",
+        "0xbc431712",
+        "0xbd3da7d8",
+        "0x3c885973"
+      ],
+      "first_call": 3867,
+      "first_context": {
+        "trial": 0,
+        "tick": 64,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 174,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525191",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7fabf8",
+        "0xbc431712",
+        "0xbd3da7d8",
+        "0x3c885973",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fabf8",
+        "0xbc431712",
+        "0xbd3da7d8",
+        "0x3c885973"
+      ],
+      "first_call": 3869,
+      "first_context": {
+        "trial": 0,
+        "tick": 64,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 175,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fab46",
+        "0xbc3e6c60",
+        "0xbd3ecf3e",
+        "0x3c88d490",
+        "0xbf7fa40e",
+        "0xbc121676",
+        "0xbd49c506",
+        "0x3c8d65f0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fa4dd",
+        "0xbc16c136",
+        "0xbd489db7",
+        "0x3c8ceae0"
+      ],
+      "first_call": 3927,
+      "first_context": {
+        "trial": 0,
+        "tick": 65,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 176,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7fa4dd",
+        "0xbc16c136",
+        "0xbd489db7",
+        "0x3c8ceae0",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fa4dd",
+        "0xbc16c136",
+        "0xbd489db7",
+        "0x3c8ceae0"
+      ],
+      "first_call": 3929,
+      "first_context": {
+        "trial": 0,
+        "tick": 65,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 177,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fa40e",
+        "0xbc121676",
+        "0xbd49c506",
+        "0x3c8d65f0",
+        "0xbf7f9be0",
+        "0xbbcb80fc",
+        "0xbd54b9ea",
+        "0x3c91f6a0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7f9cc8",
+        "0xbbd4d67b",
+        "0xbd5392b4",
+        "0x3c917ba2"
+      ],
+      "first_call": 3987,
+      "first_context": {
+        "trial": 0,
+        "tick": 66,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 178,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7f9cc8",
+        "0xbbd4d67b",
+        "0xbd5392b4",
+        "0x3c917ba2",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f9cc8",
+        "0xbbd4d67c",
+        "0xbd5392b4",
+        "0x3c917ba2"
+      ],
+      "first_call": 3989,
+      "first_context": {
+        "trial": 0,
+        "tick": 66,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 179,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f9be0",
+        "0xbbcb80fc",
+        "0xbd54b9ea",
+        "0x3c91f6a0",
+        "0xbf7fb28b",
+        "0xbacaee10",
+        "0xbd3cea0a",
+        "0x3c7a1280",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fb058",
+        "0xbb05a0ab",
+        "0xbd3f6bd9",
+        "0x3c7e7a8d"
+      ],
+      "first_call": 4047,
+      "first_context": {
+        "trial": 0,
+        "tick": 67,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 180,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525189",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7fb058",
+        "0xbb05a0ab",
+        "0xbd3f6bd9",
+        "0x3c7e7a8d",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fb058",
+        "0xbb05a0ab",
+        "0xbd3f6bd9",
+        "0x3c7e7a8d"
+      ],
+      "first_call": 4049,
+      "first_context": {
+        "trial": 0,
+        "tick": 67,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 181,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb28b",
+        "0xbacaee10",
+        "0xbd3cea0a",
+        "0x3c7a1280",
+        "0xbf7fc524",
+        "0x3b4c2440",
+        "0xbd251602",
+        "0x3c503180",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fc35f",
+        "0x3b2bf91e",
+        "0xbd27983d",
+        "0x3c549a2e"
+      ],
+      "first_call": 4107,
+      "first_context": {
+        "trial": 0,
+        "tick": 68,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 182,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7fc35f",
+        "0x3b2bf91e",
+        "0xbd27983d",
+        "0x3c549a2e",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fc35f",
+        "0x3b2bf91e",
+        "0xbd27983d",
+        "0x3c549a2e"
+      ],
+      "first_call": 4109,
+      "first_context": {
+        "trial": 0,
+        "tick": 68,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 183,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc524",
+        "0x3b4c2440",
+        "0xbd251602",
+        "0x3c503180",
+        "0xbf7fd3aa",
+        "0x3bfee092",
+        "0xbd0d3ef7",
+        "0x3c264ca0",
+        "0x3f650d80"
+      ],
+      "native_bits": [
+        "0xbf7fd254",
+        "0x3beecb0a",
+        "0xbd0fc17f",
+        "0x3c2ab5af"
+      ],
+      "first_call": 4167,
+      "first_context": {
+        "trial": 0,
+        "tick": 69,
+        "phase": "references"
+      },
+      "occurrences": 240
+    },
+    {
+      "id": 184,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7fd254",
+        "0x3beecb0a",
+        "0xbd0fc17f",
+        "0x3c2ab5af",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fd254",
+        "0x3beecb0a",
+        "0xbd0fc17f",
+        "0x3c2ab5af"
+      ],
+      "first_call": 4169,
+      "first_context": {
+        "trial": 0,
+        "tick": 69,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 185,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7fdd35",
+        "0x3c43c9de",
+        "0xbcefd18d",
+        "0x3c00cf19",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fdd35",
+        "0x3c43c9de",
+        "0xbcefd18d",
+        "0x3c00cf19"
+      ],
+      "first_call": 4229,
+      "first_context": {
+        "trial": 0,
+        "tick": 70,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 186,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b52517a",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2"
+      ],
+      "first_call": 4289,
+      "first_context": {
+        "trial": 0,
+        "tick": 71,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 187,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525171",
+        "0xbd98b407",
+        "0xb97b98d8",
+        "0xbf7fe439",
+        "0x3c7bdf38",
+        "0xbcc199c4",
+        "0x3bedcc53",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fe439",
+        "0x3c7bdf38",
+        "0xbcc199c4",
+        "0x3bedcc53"
+      ],
+      "first_call": 4349,
+      "first_context": {
+        "trial": 0,
+        "tick": 72,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 188,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7fe344",
+        "0x3c5c374c",
+        "0xbcc8de1d",
+        "0x3c1f958b",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fe344",
+        "0x3c5c374c",
+        "0xbcc8de1d",
+        "0x3c1f958b"
+      ],
+      "first_call": 4409,
+      "first_context": {
+        "trial": 0,
+        "tick": 73,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 189,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525169",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3"
+      ],
+      "first_call": 4469,
+      "first_context": {
+        "trial": 0,
+        "tick": 74,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 190,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fdf3f",
+        "0x3c1ce595",
+        "0xbcd7652b",
+        "0x3c70f30c",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fdf3f",
+        "0x3c1ce595",
+        "0xbcd7652b",
+        "0x3c70f30c"
+      ],
+      "first_call": 4529,
+      "first_context": {
+        "trial": 0,
+        "tick": 75,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 191,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fdc30",
+        "0x3bfa78a0",
+        "0xbcdea7c3",
+        "0x3c8cd042",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fdc30",
+        "0x3bfa78a0",
+        "0xbcdea7c3",
+        "0x3c8cd042"
+      ],
+      "first_call": 4589,
+      "first_context": {
+        "trial": 0,
+        "tick": 76,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 192,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525161",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fd943",
+        "0x3bc44e35",
+        "0xbcf5f398",
+        "0x3c801f68",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fd943",
+        "0x3bc44e35",
+        "0xbcf5f398",
+        "0x3c801f68"
+      ],
+      "first_call": 4649,
+      "first_context": {
+        "trial": 0,
+        "tick": 77,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 193,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fd565",
+        "0x3b8f3639",
+        "0xbd0790e1",
+        "0x3c5f1655",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fd565",
+        "0x3b8f3639",
+        "0xbd0790e1",
+        "0x3c5f1655"
+      ],
+      "first_call": 4709,
+      "first_context": {
+        "trial": 0,
+        "tick": 78,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 194,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fd076",
+        "0x3b343ace",
+        "0xbd142775",
+        "0x3c3deccd",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fd076",
+        "0x3b343ace",
+        "0xbd142775",
+        "0x3c3deccd"
+      ],
+      "first_call": 4769,
+      "first_context": {
+        "trial": 0,
+        "tick": 79,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 195,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fca7a",
+        "0x3a941192",
+        "0xbd20bd62",
+        "0x3c1cc280",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fca7a",
+        "0x3a941192",
+        "0xbd20bd62",
+        "0x3c1cc280"
+      ],
+      "first_call": 4829,
+      "first_context": {
+        "trial": 0,
+        "tick": 80,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 196,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525152",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d"
+      ],
+      "first_call": 4889,
+      "first_context": {
+        "trial": 0,
+        "tick": 81,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 197,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0xbf7fc94c",
+        "0xbac95e7d",
+        "0xbd255ab0",
+        "0x3bc6335f",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fc94c",
+        "0xbac95e7d",
+        "0xbd255ab0",
+        "0x3bc6335f"
+      ],
+      "first_call": 4949,
+      "first_context": {
+        "trial": 0,
+        "tick": 82,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 198,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0xbf7fd02e",
+        "0xbb24c7e5",
+        "0xbd1af791",
+        "0x3b97406d",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fd02e",
+        "0x3b24c7e5",
+        "0x3d1af791",
+        "0xbb97406d"
+      ],
+      "first_call": 5009,
+      "first_context": {
+        "trial": 0,
+        "tick": 83,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 199,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb52515e",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fd66f",
+        "0xbb64e067",
+        "0xbd109404",
+        "0x3b509899",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fd66f",
+        "0x3b64e067",
+        "0x3d109404",
+        "0xbb509899"
+      ],
+      "first_call": 5069,
+      "first_context": {
+        "trial": 0,
+        "tick": 84,
+        "phase": "references"
+      },
+      "occurrences": 36
+    },
+    {
+      "id": 200,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fdc13",
+        "0xbb927c18",
+        "0xbd063024",
+        "0x3ae562da",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fdc13",
+        "0x3b927c18",
+        "0x3d063024",
+        "0xbae562da"
+      ],
+      "first_call": 5129,
+      "first_context": {
+        "trial": 0,
+        "tick": 85,
+        "phase": "references"
+      },
+      "occurrences": 56
+    },
+    {
+      "id": 201,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fe115",
+        "0xbbb2876c",
+        "0xbcf79808",
+        "0x39a64fbc",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fe115",
+        "0x3bb2876c",
+        "0x3cf79808",
+        "0xb9a64fbc"
+      ],
+      "first_call": 5189,
+      "first_context": {
+        "trial": 0,
+        "tick": 86,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 202,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525167",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e7f28",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fe194",
+        "0x3bb5e6ea",
+        "0x3cf567fc",
+        "0xb92e7f28"
+      ],
+      "first_call": 5249,
+      "first_context": {
+        "trial": 0,
+        "tick": 87,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 203,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fdfa5",
+        "0xbc33dddd",
+        "0xbcf0efaf",
+        "0xbaa59b78",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fdfa5",
+        "0x3c33dddd",
+        "0x3cf0efaf",
+        "0x3aa59b78"
+      ],
+      "first_call": 5309,
+      "first_context": {
+        "trial": 0,
+        "tick": 88,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 204,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fdb06",
+        "0xbc8b9f90",
+        "0xbcebee4e",
+        "0xbb3b8c04",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fdb06",
+        "0x3c8b9f90",
+        "0x3cebee4e",
+        "0x3b3b8c04"
+      ],
+      "first_call": 5369,
+      "first_context": {
+        "trial": 0,
+        "tick": 89,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 205,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb52516f",
+        "0x3d98b407",
+        "0x397b9800",
+        "0xbf7fd3cd",
+        "0xbcbd4f65",
+        "0xbce6ea7b",
+        "0xbb9224d7",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fd3cd",
+        "0x3cbd4f65",
+        "0x3ce6ea7b",
+        "0x3b9224d7"
+      ],
+      "first_call": 5429,
+      "first_context": {
+        "trial": 0,
+        "tick": 90,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 206,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0xbf7fc9fa",
+        "0xbceefce4",
+        "0xbce1e457",
+        "0xbbc68161",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc9fa",
+        "0x3ceefce4",
+        "0x3ce1e457",
+        "0x3bc68161"
+      ],
+      "first_call": 5489,
+      "first_context": {
+        "trial": 0,
+        "tick": 91,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 207,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525177",
+        "0x3d98b407",
+        "0x397b9f28",
+        "0xbf7fbd8d",
+        "0xbd105348",
+        "0xbcdcdc0c",
+        "0xbbfadabf",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fbd8d",
+        "0x3d105348",
+        "0x3cdcdc0c",
+        "0x3bfadabf"
+      ],
+      "first_call": 5549,
+      "first_context": {
+        "trial": 0,
+        "tick": 92,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 208,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525186",
+        "0x3d98b408",
+        "0x397ba000",
+        "0xbf7fc054",
+        "0xbd071f2c",
+        "0xbced6f37",
+        "0xbb74bdbb",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc054",
+        "0x3d071f2c",
+        "0x3ced6f37",
+        "0x3b74bdbb"
+      ],
+      "first_call": 5609,
+      "first_context": {
+        "trial": 0,
+        "tick": 93,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 209,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0xbf7fc2ca",
+        "0xbcf3d134",
+        "0xbd0045d5",
+        "0x3a5b40fa",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc2ca",
+        "0x3cf3d134",
+        "0x3d0045d5",
+        "0xba5b40fa"
+      ],
+      "first_call": 5669,
+      "first_context": {
+        "trial": 0,
+        "tick": 94,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 210,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0xbf7fc2d7",
+        "0xbcd96176",
+        "0xbd09d2f4",
+        "0x3bb13023",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc2d7",
+        "0x3cd96176",
+        "0x3d09d2f4",
+        "0xbbb13023"
+      ],
+      "first_call": 5729,
+      "first_context": {
+        "trial": 0,
+        "tick": 95,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 211,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb52518f",
+        "0x3d98b409",
+        "0x397ba000",
+        "0xbf7fc07e",
+        "0xbcbeefdc",
+        "0xbd135eb5",
+        "0x3c237adf",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc07e",
+        "0x3cbeefdc",
+        "0x3d135eb5",
+        "0xbc237adf"
+      ],
+      "first_call": 5789,
+      "first_context": {
+        "trial": 0,
+        "tick": 96,
+        "phase": "references"
+      },
+      "occurrences": 8
+    },
+    {
+      "id": 212,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0xbf7fbbbd",
+        "0xbca47d2b",
+        "0xbd1ce8d4",
+        "0x3c6e59f4",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fbbbb",
+        "0x3ca47d2a",
+        "0x3d1ce8d3",
+        "0xbc6e59f2"
+      ],
+      "first_call": 5849,
+      "first_context": {
+        "trial": 0,
+        "tick": 97,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 213,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0xbf7fb749",
+        "0xbc8de03d",
+        "0xbd27b9fe",
+        "0x3c7e6a90",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fb749",
+        "0x3c8de03d",
+        "0x3d27b9fe",
+        "0xbc7e6a90"
+      ],
+      "first_call": 5909,
+      "first_context": {
+        "trial": 0,
+        "tick": 98,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 214,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525197",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0xbf7fb21d",
+        "0xbc6f6c54",
+        "0xbd32b13c",
+        "0x3c83c7a5",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fb21d",
+        "0x3c6f6c54",
+        "0x3d32b13c",
+        "0xbc83c7a5"
+      ],
+      "first_call": 5969,
+      "first_context": {
+        "trial": 0,
+        "tick": 99,
+        "phase": "references"
+      },
+      "occurrences": 4
+    },
+    {
+      "id": 215,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc2ca",
+        "0xbcf3d134",
+        "0xbd0045d5",
+        "0x3a5b40fa",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x00000000"
+      ],
+      "native_bits": [
+        "0xbf7fc2ca",
+        "0xbcf3d134",
+        "0xbd0045d5",
+        "0x3a5b40fa"
+      ],
+      "first_call": 6202,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 8
+    },
+    {
+      "id": 216,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc2d7",
+        "0xbcd96176",
+        "0xbd09d2f4",
+        "0x3bb13023",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3ca3d70a"
+      ],
+      "native_bits": [
+        "0xbf7fc214",
+        "0xbcd482c1",
+        "0xbd0d2e3f",
+        "0x3bad7d6d"
+      ],
+      "first_call": 6205,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 217,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc07e",
+        "0xbcbeefdc",
+        "0xbd135eb5",
+        "0x3c237adf",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3d23d70a"
+      ],
+      "native_bits": [
+        "0xbf7fbe9c",
+        "0xbcb640c4",
+        "0xbd19b349",
+        "0x3c1cc9c6"
+      ],
+      "first_call": 6211,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 218,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb21d",
+        "0xbc6f6c54",
+        "0xbd32b13c",
+        "0x3c83c7a5",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3dcccccd"
+      ],
+      "native_bits": [
+        "0xbf7fac2d",
+        "0xbc523b6b",
+        "0xbd3f6120",
+        "0x3c6cd278"
+      ],
+      "first_call": 6214,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 219,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fabf8",
+        "0xbc431712",
+        "0xbd3da7d8",
+        "0x3c885973",
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3df5c28f"
+      ],
+      "native_bits": [
+        "0xbf7fa4aa",
+        "0xbc25607c",
+        "0xbd4b8fd8",
+        "0x3c6f83d6"
+      ],
+      "first_call": 6217,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 220,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc35f",
+        "0x3b2bf91e",
+        "0xbd27983d",
+        "0x3c549a2e",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3e4ccccd"
+      ],
+      "native_bits": [
+        "0xbf7fb1ce",
+        "0x3b33a966",
+        "0xbd432e2e",
+        "0x3c294f0d"
+      ],
+      "first_call": 6220,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 56
+    },
+    {
+      "id": 221,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd254",
+        "0x3beecb0a",
+        "0xbd0fc17f",
+        "0x3c2ab5af",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3e6147ae"
+      ],
+      "native_bits": [
+        "0xbf7fbdab",
+        "0x3bd16b9e",
+        "0xbd335972",
+        "0x3c044d9e"
+      ],
+      "first_call": 6223,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 64
+    },
+    {
+      "id": 222,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe344",
+        "0x3c5c374c",
+        "0xbcc8de1d",
+        "0x3c1f958b",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3e99999a"
+      ],
+      "native_bits": [
+        "0xbf7fc7b8",
+        "0x3c29f796",
+        "0xbd21fac5",
+        "0x3bdd1c16"
+      ],
+      "first_call": 6226,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 72
+    },
+    {
+      "id": 223,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3ea3d70a"
+      ],
+      "native_bits": [
+        "0xbf7fc3b2",
+        "0x3c1114d9",
+        "0xbd288cf4",
+        "0x3c06f4d1"
+      ],
+      "first_call": 6229,
+      "first_context": {
+        "trial": 0,
+        "tick": 110,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 224,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fbbbd",
+        "0xbca47d2b",
+        "0xbd1ce8d4",
+        "0x3c6e59f4",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3d75c28f"
+      ],
+      "native_bits": [
+        "0xbf7fb8b4",
+        "0xbc990c44",
+        "0xbd25d4e3",
+        "0x3c5fd2c9"
+      ],
+      "first_call": 6271,
+      "first_context": {
+        "trial": 0,
+        "tick": 111,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 225,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fa4dd",
+        "0xbc16c136",
+        "0xbd489db7",
+        "0x3c8ceae0",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3e0f5c29"
+      ],
+      "native_bits": [
+        "0xbf7f9c6c",
+        "0xbbf495f6",
+        "0xbd574d88",
+        "0x3c71d6df"
+      ],
+      "first_call": 6277,
+      "first_context": {
+        "trial": 0,
+        "tick": 111,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 226,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdd35",
+        "0x3c43c9de",
+        "0xbcefd18d",
+        "0x3c00cf19",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3e75c28f"
+      ],
+      "native_bits": [
+        "0xbf7fc6d1",
+        "0x3c21721e",
+        "0xbd2477d0",
+        "0x3bc1eeae"
+      ],
+      "first_call": 6283,
+      "first_context": {
+        "trial": 0,
+        "tick": 111,
+        "phase": "references"
+      },
+      "occurrences": 64
+    },
+    {
+      "id": 227,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdf3f",
+        "0x3c1ce595",
+        "0xbcd7652b",
+        "0x3c70f30c",
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0x3eae147b"
+      ],
+      "native_bits": [
+        "0xbf7fbf55",
+        "0x3bf2ec17",
+        "0xbd2ef9ce",
+        "0x3c1dba6d"
+      ],
+      "first_call": 6289,
+      "first_context": {
+        "trial": 0,
+        "tick": 111,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 228,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb749",
+        "0xbc8de03d",
+        "0xbd27b9fe",
+        "0x3c7e6a90",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3da3d70a"
+      ],
+      "native_bits": [
+        "0xbf7fb2d4",
+        "0xbc806d97",
+        "0xbd32c15f",
+        "0x3c69c25b"
+      ],
+      "first_call": 6331,
+      "first_context": {
+        "trial": 0,
+        "tick": 112,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 229,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f9cc8",
+        "0xbbd4d67b",
+        "0xbd5392b4",
+        "0x3c917ba2",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3e23d70a"
+      ],
+      "native_bits": [
+        "0xbf7f9392",
+        "0xbba1f7f8",
+        "0xbd6299ce",
+        "0x3c73cc3f"
+      ],
+      "first_call": 6337,
+      "first_context": {
+        "trial": 0,
+        "tick": 112,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 230,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3e851eb8"
+      ],
+      "native_bits": [
+        "0xbf7fcd95",
+        "0x3c571d4e",
+        "0xbd168a28",
+        "0x3b7d35f9"
+      ],
+      "first_call": 6343,
+      "first_context": {
+        "trial": 0,
+        "tick": 112,
+        "phase": "references"
+      },
+      "occurrences": 64
+    },
+    {
+      "id": 231,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdc30",
+        "0x3bfa78a0",
+        "0xbcdea7c3",
+        "0x3c8cd042",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3eb851ec"
+      ],
+      "native_bits": [
+        "0xbf7fbab2",
+        "0x3bc636b1",
+        "0xbd354152",
+        "0x3c32defb"
+      ],
+      "first_call": 6349,
+      "first_context": {
+        "trial": 0,
+        "tick": 112,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 232,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb058",
+        "0xbb05a0ab",
+        "0xbd3f6bd9",
+        "0x3c7e7a8d",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3e3851ec"
+      ],
+      "native_bits": [
+        "0xbf7fa2df",
+        "0xba8f6f41",
+        "0xbd53f4fc",
+        "0x3c4ffa10"
+      ],
+      "first_call": 6397,
+      "first_context": {
+        "trial": 0,
+        "tick": 113,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 233,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe439",
+        "0x3c7bdf38",
+        "0xbcc199c4",
+        "0x3bedcc53",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3e8f5c29"
+      ],
+      "native_bits": [
+        "0xbf7fcb54",
+        "0x3c441e03",
+        "0xbd1b4338",
+        "0x3ba90d02"
+      ],
+      "first_call": 6403,
+      "first_context": {
+        "trial": 0,
+        "tick": 113,
+        "phase": "references"
+      },
+      "occurrences": 64
+    },
+    {
+      "id": 234,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd943",
+        "0x3bc44e35",
+        "0xbcf5f398",
+        "0x3c801f68",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3ec28f5c"
+      ],
+      "native_bits": [
+        "0xbf7fb3de",
+        "0x3ba1b5f8",
+        "0xbd405ab0",
+        "0x3c1d6a0e"
+      ],
+      "first_call": 6409,
+      "first_context": {
+        "trial": 0,
+        "tick": 113,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 235,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd565",
+        "0x3b8f3639",
+        "0xbd0790e1",
+        "0x3c5f1655",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3ecccccd"
+      ],
+      "native_bits": [
+        "0xbf7fac64",
+        "0x3b800508",
+        "0xbd4b8d36",
+        "0x3c044e81"
+      ],
+      "first_call": 6469,
+      "first_context": {
+        "trial": 0,
+        "tick": 114,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 236,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd076",
+        "0x3b343ace",
+        "0xbd142775",
+        "0x3c3deccd",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3ed70a3d"
+      ],
+      "native_bits": [
+        "0xbf7fa492",
+        "0x3b40e7ca",
+        "0xbd563e7a",
+        "0x3bd90c97"
+      ],
+      "first_call": 6529,
+      "first_context": {
+        "trial": 0,
+        "tick": 115,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 237,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fca7a",
+        "0x3a941192",
+        "0xbd20bd62",
+        "0x3c1cc280",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3ee147ae"
+      ],
+      "native_bits": [
+        "0xbf7f9c82",
+        "0x3b0605cb",
+        "0xbd606e76",
+        "0x3bac233a"
+      ],
+      "first_call": 6589,
+      "first_context": {
+        "trial": 0,
+        "tick": 116,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 238,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3eeb851f"
+      ],
+      "native_bits": [
+        "0xbf7f944d",
+        "0x3a9ec95c",
+        "0xbd6a1d2e",
+        "0x3b81e1b8"
+      ],
+      "first_call": 6649,
+      "first_context": {
+        "trial": 0,
+        "tick": 117,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 239,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc94c",
+        "0xbac95e7d",
+        "0xbd255ab0",
+        "0x3bc6335f",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3ef5c28f"
+      ],
+      "native_bits": [
+        "0xbf7f95ea",
+        "0x3a426bac",
+        "0xbd689d92",
+        "0x3b469c17"
+      ],
+      "first_call": 6709,
+      "first_context": {
+        "trial": 0,
+        "tick": 118,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 240,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd02e",
+        "0xbb24c7e5",
+        "0xbd1af791",
+        "0x3b97406d",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f000000"
+      ],
+      "native_bits": [
+        "0xbf7f983c",
+        "0x39b62f0c",
+        "0xbd663a34",
+        "0x3b0f69e3"
+      ],
+      "first_call": 6769,
+      "first_context": {
+        "trial": 0,
+        "tick": 119,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 241,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd66f",
+        "0xbb64e067",
+        "0xbd109404",
+        "0x3b509899",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3f051eb8"
+      ],
+      "native_bits": [
+        "0xbf7f9a1a",
+        "0xb6fe1a00",
+        "0xbd644111",
+        "0x3ab7ef43"
+      ],
+      "first_call": 6829,
+      "first_context": {
+        "trial": 0,
+        "tick": 120,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 242,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdc13",
+        "0xbb927c18",
+        "0xbd063024",
+        "0x3ae562da",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3f0a3d71"
+      ],
+      "native_bits": [
+        "0xbf7f9b88",
+        "0xb9a99cf4",
+        "0xbd62b234",
+        "0x3a311be1"
+      ],
+      "first_call": 6889,
+      "first_context": {
+        "trial": 0,
+        "tick": 121,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 243,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe115",
+        "0xbbb2876c",
+        "0xbcf79808",
+        "0x39a64fbc",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3f0f5c29"
+      ],
+      "native_bits": [
+        "0xbf7f9c8c",
+        "0xba1d5efb",
+        "0xbd618da6",
+        "0x36ae71bf"
+      ],
+      "first_call": 6949,
+      "first_context": {
+        "trial": 0,
+        "tick": 122,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 244,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e7f28",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3f147ae1"
+      ],
+      "native_bits": [
+        "0xbf7f99bd",
+        "0xb9f6a098",
+        "0xbd64b9f2",
+        "0xb891553d"
+      ],
+      "first_call": 7009,
+      "first_context": {
+        "trial": 0,
+        "tick": 123,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 245,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdfa5",
+        "0xbc33dddd",
+        "0xbcf0efaf",
+        "0xbaa59b78",
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0x3f19999a"
+      ],
+      "native_bits": [
+        "0xbf7f970a",
+        "0xbb21a7e0",
+        "0xbd677d81",
+        "0xba2a47c2"
+      ],
+      "first_call": 7069,
+      "first_context": {
+        "trial": 0,
+        "tick": 124,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 246,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdb06",
+        "0xbc8b9f90",
+        "0xbcebee4e",
+        "0xbb3b8c04",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3f1eb852"
+      ],
+      "native_bits": [
+        "0xbf7f9408",
+        "0xbb931686",
+        "0xbd6a3e70",
+        "0xbaa217c2"
+      ],
+      "first_call": 7129,
+      "first_context": {
+        "trial": 0,
+        "tick": 125,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 247,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd3cd",
+        "0xbcbd4f65",
+        "0xbce6ea7b",
+        "0xbb9224d7",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3f23d70a"
+      ],
+      "native_bits": [
+        "0xbf7f90b9",
+        "0xbbcd662a",
+        "0xbd6d18f2",
+        "0xbae6aba2"
+      ],
+      "first_call": 7189,
+      "first_context": {
+        "trial": 0,
+        "tick": 126,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 248,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc9fa",
+        "0xbceefce4",
+        "0xbce1e457",
+        "0xbbc68161",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3f28f5c3"
+      ],
+      "native_bits": [
+        "0xbf7f8d32",
+        "0xbbffc139",
+        "0xbd700d13",
+        "0xbb116e98"
+      ],
+      "first_call": 7249,
+      "first_context": {
+        "trial": 0,
+        "tick": 127,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 249,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fbd8d",
+        "0xbd105348",
+        "0xbcdcdc0c",
+        "0xbbfadabf",
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0x3f2e147b"
+      ],
+      "native_bits": [
+        "0xbf7f8988",
+        "0xbc15133f",
+        "0xbd731ada",
+        "0xbb2b55ff"
+      ],
+      "first_call": 7309,
+      "first_context": {
+        "trial": 0,
+        "tick": 128,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 250,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc054",
+        "0xbd071f2c",
+        "0xbced6f37",
+        "0xbb74bdbb",
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0x3f333333"
+      ],
+      "native_bits": [
+        "0xbf7f845a",
+        "0xbbfad3b8",
+        "0xbd797ae0",
+        "0xbaa8f1af"
+      ],
+      "first_call": 7369,
+      "first_context": {
+        "trial": 0,
+        "tick": 129,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 251,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc2ca",
+        "0xbcf3d134",
+        "0xbd0045d5",
+        "0x3a5b40fa",
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0x3f3851ec"
+      ],
+      "native_bits": [
+        "0xbf7f7ed0",
+        "0xbbc5778f",
+        "0xbd7fe0b2",
+        "0x3880f889"
+      ],
+      "first_call": 7429,
+      "first_context": {
+        "trial": 0,
+        "tick": 130,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 252,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc2d7",
+        "0xbcd96176",
+        "0xbd09d2f4",
+        "0x3bb13023",
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0x3f3d70a4"
+      ],
+      "native_bits": [
+        "0xbf7f792e",
+        "0xbb94558f",
+        "0xbd82f265",
+        "0x3aa112ab"
+      ],
+      "first_call": 7489,
+      "first_context": {
+        "trial": 0,
+        "tick": 131,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 253,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc07e",
+        "0xbcbeefdc",
+        "0xbd135eb5",
+        "0x3c237adf",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f428f5c"
+      ],
+      "native_bits": [
+        "0xbf7f7395",
+        "0xbb4edd24",
+        "0xbd85c398",
+        "0x3b110b7a"
+      ],
+      "first_call": 7549,
+      "first_context": {
+        "trial": 0,
+        "tick": 132,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 254,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fbbbd",
+        "0xbca47d2b",
+        "0xbd1ce8d4",
+        "0x3c6e59f4",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f47ae14"
+      ],
+      "native_bits": [
+        "0xbf7f6e17",
+        "0xbafb0d1c",
+        "0xbd8863f2",
+        "0x3b458d2c"
+      ],
+      "first_call": 7609,
+      "first_context": {
+        "trial": 0,
+        "tick": 133,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 255,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb749",
+        "0xbc8de03d",
+        "0xbd27b9fe",
+        "0x3c7e6a90",
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f4ccccd"
+      ],
+      "native_bits": [
+        "0xbf7f68ae",
+        "0xba6b2d6c",
+        "0xbd8af40a",
+        "0x3b3f02ba"
+      ],
+      "first_call": 7669,
+      "first_context": {
+        "trial": 0,
+        "tick": 134,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 256,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb21d",
+        "0xbc6f6c54",
+        "0xbd32b13c",
+        "0x3c83c7a5",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f51eb85"
+      ],
+      "native_bits": [
+        "0xbf7f6391",
+        "0x3542e000",
+        "0xbd8d5042",
+        "0x3b30ea3d"
+      ],
+      "first_call": 7729,
+      "first_context": {
+        "trial": 0,
+        "tick": 135,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 257,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fabf8",
+        "0xbc431712",
+        "0xbd3da7d8",
+        "0x3c885973",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f570a3d"
+      ],
+      "native_bits": [
+        "0xbf7f5ecf",
+        "0x3a4f2d1e",
+        "0xbd8f7465",
+        "0x3b215ae2"
+      ],
+      "first_call": 7789,
+      "first_context": {
+        "trial": 0,
+        "tick": 136,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 258,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fa4dd",
+        "0xbc16c136",
+        "0xbd489db7",
+        "0x3c8ceae0",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f5c28f6"
+      ],
+      "native_bits": [
+        "0xbf7f5a73",
+        "0x3ac0e361",
+        "0xbd916076",
+        "0x3b10551f"
+      ],
+      "first_call": 7849,
+      "first_context": {
+        "trial": 0,
+        "tick": 137,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 259,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f9cc8",
+        "0xbbd4d67b",
+        "0xbd5392b4",
+        "0x3c917ba2",
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0x3f6147ae"
+      ],
+      "native_bits": [
+        "0xbf7f5685",
+        "0x3b060160",
+        "0xbd93149e",
+        "0x3afbaa16"
+      ],
+      "first_call": 7909,
+      "first_context": {
+        "trial": 0,
+        "tick": 138,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 260,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fb058",
+        "0xbb05a0ab",
+        "0xbd3f6bd9",
+        "0x3c7e7a8d",
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0x3f666666"
+      ],
+      "native_bits": [
+        "0xbf7f56a4",
+        "0x3b2fed53",
+        "0xbd93029b",
+        "0x3aaf5036"
+      ],
+      "first_call": 7969,
+      "first_context": {
+        "trial": 0,
+        "tick": 139,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 261,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc35f",
+        "0x3b2bf91e",
+        "0xbd27983d",
+        "0x3c549a2e",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f6b851f"
+      ],
+      "native_bits": [
+        "0xbf7f5629",
+        "0x3b4f4272",
+        "0xbd933269",
+        "0x3a565244"
+      ],
+      "first_call": 8029,
+      "first_context": {
+        "trial": 0,
+        "tick": 140,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 262,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd254",
+        "0x3beecb0a",
+        "0xbd0fc17f",
+        "0x3c2ab5af",
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0x3f70a3d7"
+      ],
+      "native_bits": [
+        "0xbf7f5495",
+        "0x3b625e48",
+        "0xbd93dc10",
+        "0x39d19a13"
+      ],
+      "first_call": 8089,
+      "first_context": {
+        "trial": 0,
+        "tick": 141,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 263,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdd35",
+        "0x3c43c9de",
+        "0xbcefd18d",
+        "0x3c00cf19",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f75c28f"
+      ],
+      "native_bits": [
+        "0xbf7f51ea",
+        "0x3b693fa5",
+        "0xbd94ff94",
+        "0x38b0ab94"
+      ],
+      "first_call": 8149,
+      "first_context": {
+        "trial": 0,
+        "tick": 142,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 264,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f7ae148"
+      ],
+      "native_bits": [
+        "0xbf7f4e25",
+        "0x3b63e5e4",
+        "0xbd969ced",
+        "0xb90745cb"
+      ],
+      "first_call": 8209,
+      "first_context": {
+        "trial": 0,
+        "tick": 143,
+        "phase": "references"
+      },
+      "occurrences": 80
+    },
+    {
+      "id": 265,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe439",
+        "0x3c7bdf38",
+        "0xbcc199c4",
+        "0x3bedcc53",
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 8269,
+      "first_context": {
+        "trial": 0,
+        "tick": 144,
+        "phase": "references"
+      },
+      "occurrences": 72
+    },
+    {
+      "id": 266,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe344",
+        "0x3c5c374c",
+        "0xbcc8de1d",
+        "0x3c1f958b",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 8329,
+      "first_context": {
+        "trial": 0,
+        "tick": 145,
+        "phase": "references"
+      },
+      "occurrences": 56
+    },
+    {
+      "id": 267,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 8389,
+      "first_context": {
+        "trial": 0,
+        "tick": 146,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 268,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdf3f",
+        "0x3c1ce595",
+        "0xbcd7652b",
+        "0x3c70f30c",
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800"
+      ],
+      "first_call": 8449,
+      "first_context": {
+        "trial": 0,
+        "tick": 147,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 269,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdc30",
+        "0x3bfa78a0",
+        "0xbcdea7c3",
+        "0x3c8cd042",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800"
+      ],
+      "first_call": 8509,
+      "first_context": {
+        "trial": 0,
+        "tick": 148,
+        "phase": "references"
+      },
+      "occurrences": 48
+    },
+    {
+      "id": 270,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd943",
+        "0x3bc44e35",
+        "0xbcf5f398",
+        "0x3c801f68",
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800"
+      ],
+      "first_call": 8569,
+      "first_context": {
+        "trial": 0,
+        "tick": 149,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 271,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd565",
+        "0x3b8f3639",
+        "0xbd0790e1",
+        "0x3c5f1655",
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000"
+      ],
+      "first_call": 8629,
+      "first_context": {
+        "trial": 0,
+        "tick": 150,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 272,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd076",
+        "0x3b343ace",
+        "0xbd142775",
+        "0x3c3deccd",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 8689,
+      "first_context": {
+        "trial": 0,
+        "tick": 151,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 273,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fca7a",
+        "0x3a941192",
+        "0xbd20bd62",
+        "0x3c1cc280",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 8749,
+      "first_context": {
+        "trial": 0,
+        "tick": 152,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 274,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d",
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000"
+      ],
+      "first_call": 8809,
+      "first_context": {
+        "trial": 0,
+        "tick": 153,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 275,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fc94c",
+        "0xbac95e7d",
+        "0xbd255ab0",
+        "0x3bc6335f",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 8869,
+      "first_context": {
+        "trial": 0,
+        "tick": 154,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 276,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd02e",
+        "0xbb24c7e5",
+        "0xbd1af791",
+        "0x3b97406d",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 8929,
+      "first_context": {
+        "trial": 0,
+        "tick": 155,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 277,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fd66f",
+        "0xbb64e067",
+        "0xbd109404",
+        "0x3b509899",
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000"
+      ],
+      "first_call": 8989,
+      "first_context": {
+        "trial": 0,
+        "tick": 156,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 278,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fdc13",
+        "0xbb927c18",
+        "0xbd063024",
+        "0x3ae562da",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 9049,
+      "first_context": {
+        "trial": 0,
+        "tick": 157,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 279,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe115",
+        "0xbbb2876c",
+        "0xbcf79808",
+        "0x39a64fbc",
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 9109,
+      "first_context": {
+        "trial": 0,
+        "tick": 158,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 280,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e7f28",
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000"
+      ],
+      "first_call": 9169,
+      "first_context": {
+        "trial": 0,
+        "tick": 159,
+        "phase": "references"
+      },
+      "occurrences": 8
+    },
+    {
+      "id": 281,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2",
+        "0x3ca6ebf0"
+      ],
+      "native_bits": [
+        "0xbf7f4e3c",
+        "0x3b643a94",
+        "0xbd9692dd",
+        "0xb90515a8"
+      ],
+      "first_call": 19405,
+      "first_context": {
+        "trial": 2,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 12
+    },
+    {
+      "id": 282,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d",
+        "0x3e8d57f8"
+      ],
+      "native_bits": [
+        "0x3f7f7246",
+        "0xbb0f6440",
+        "0x3d867c46",
+        "0xbafa3c18"
+      ],
+      "first_call": 19423,
+      "first_context": {
+        "trial": 2,
+        "tick": 50,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 283,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e7f28",
+        "0x3efdb43b"
+      ],
+      "native_bits": [
+        "0x3f7fa5ac",
+        "0x3a94604a",
+        "0x3d56edfa",
+        "0x3821e0aa"
+      ],
+      "first_call": 19489,
+      "first_context": {
+        "trial": 2,
+        "tick": 51,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 284,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3",
+        "0x3db0e756"
+      ],
+      "native_bits": [
+        "0xbf7f5d39",
+        "0x3b80abdf",
+        "0xbd900504",
+        "0x3a5b6f3c"
+      ],
+      "first_call": 19531,
+      "first_context": {
+        "trial": 2,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 285,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0xbf7fd565",
+        "0x3b8f3639",
+        "0xbd0790e1",
+        "0x3c5f1655",
+        "0x3e403b26"
+      ],
+      "native_bits": [
+        "0xbf7f6d1c",
+        "0x3b60a3cc",
+        "0xbd88c766",
+        "0x3b1acb5a"
+      ],
+      "first_call": 19537,
+      "first_context": {
+        "trial": 2,
+        "tick": 52,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 286,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0xbf7fd076",
+        "0x3b343ace",
+        "0xbd142775",
+        "0x3c3deccd",
+        "0x3e5d0c48"
+      ],
+      "native_bits": [
+        "0x3f7f6f64",
+        "0xbb4bd98c",
+        "0x3d87bf39",
+        "0xbb17b47d"
+      ],
+      "first_call": 19597,
+      "first_context": {
+        "trial": 2,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 287,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fd66f",
+        "0xbb64e067",
+        "0xbd109404",
+        "0x3b509899",
+        "0x3ec153ec"
+      ],
+      "native_bits": [
+        "0x3f7f8ae0",
+        "0xba31ee3e",
+        "0x3d74b8ee",
+        "0xba89fcda"
+      ],
+      "first_call": 19603,
+      "first_context": {
+        "trial": 2,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 32
+    },
+    {
+      "id": 288,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0xbf7fdb06",
+        "0xbc8b9f90",
+        "0xbcebee4e",
+        "0xbb3b8c04",
+        "0x3f15d6bf"
+      ],
+      "native_bits": [
+        "0x3f7fb28e",
+        "0x3c0dadae",
+        "0x3d43c240",
+        "0x3ae8a765"
+      ],
+      "first_call": 19609,
+      "first_context": {
+        "trial": 2,
+        "tick": 53,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 289,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0xbf7fd3cd",
+        "0xbcbd4f65",
+        "0xbce6ea7b",
+        "0xbb9224d7",
+        "0x3f22576a"
+      ],
+      "native_bits": [
+        "0x3f7fb6de",
+        "0x3c5cecc2",
+        "0x3d3904bc",
+        "0x3b3f2985"
+      ],
+      "first_call": 19669,
+      "first_context": {
+        "trial": 2,
+        "tick": 54,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 290,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0xbf7fc054",
+        "0xbd071f2c",
+        "0xbced6f37",
+        "0xbb74bdbb",
+        "0x3f4ca9c1"
+      ],
+      "native_bits": [
+        "0x3f7fba4f",
+        "0x3cd2d1d6",
+        "0x3d1c352d",
+        "0x3b46db89"
+      ],
+      "first_call": 19849,
+      "first_context": {
+        "trial": 2,
+        "tick": 57,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 291,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0xbf7fc07e",
+        "0xbcbeefdc",
+        "0xbd135eb5",
+        "0x3c237adf",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc07e",
+        "0x3cbeefdc",
+        "0x3d135eb5",
+        "0xbc237adf"
+      ],
+      "first_call": 20029,
+      "first_context": {
+        "trial": 2,
+        "tick": 60,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 292,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525198",
+        "0xbd98b40a",
+        "0xb97ba000",
+        "0xbf7fb749",
+        "0xbc8de03d",
+        "0xbd27b9fe",
+        "0x3c7e6a90",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fb749",
+        "0xbc8de03d",
+        "0xbd27b9fe",
+        "0x3c7e6a90"
+      ],
+      "first_call": 20149,
+      "first_context": {
+        "trial": 2,
+        "tick": 62,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 293,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525190",
+        "0xbd98b409",
+        "0xb97ba000",
+        "0xbf7fabf8",
+        "0xbc431712",
+        "0xbd3da7d8",
+        "0x3c885973",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fabf8",
+        "0xbc431712",
+        "0xbd3da7d8",
+        "0x3c885973"
+      ],
+      "first_call": 20269,
+      "first_context": {
+        "trial": 2,
+        "tick": 64,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 294,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525188",
+        "0xbd98b408",
+        "0xb97ba000",
+        "0xbf7fb058",
+        "0xbb05a0ab",
+        "0xbd3f6bd9",
+        "0x3c7e7a8d",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fb058",
+        "0xbb05a0ab",
+        "0xbd3f6bd9",
+        "0x3c7e7a8d"
+      ],
+      "first_call": 20449,
+      "first_context": {
+        "trial": 2,
+        "tick": 67,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 295,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525178",
+        "0xbd98b407",
+        "0xb97ba000",
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fe403",
+        "0x3c8813dd",
+        "0xbcc01e64",
+        "0x3badd0a2"
+      ],
+      "first_call": 20689,
+      "first_context": {
+        "trial": 2,
+        "tick": 71,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 296,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525170",
+        "0xbd98b407",
+        "0xb97b9800",
+        "0xbf7fe439",
+        "0x3c7bdf38",
+        "0xbcc199c4",
+        "0x3bedcc53",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fe439",
+        "0x3c7bdf38",
+        "0xbcc199c4",
+        "0x3bedcc53"
+      ],
+      "first_call": 20749,
+      "first_context": {
+        "trial": 2,
+        "tick": 72,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 297,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525168",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fe19c",
+        "0x3c3c8ea7",
+        "0xbcd021ee",
+        "0x3c4844b3"
+      ],
+      "first_call": 20869,
+      "first_context": {
+        "trial": 2,
+        "tick": 74,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 298,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525160",
+        "0xbd98b406",
+        "0xb97b9800",
+        "0xbf7fd943",
+        "0x3bc44e35",
+        "0xbcf5f398",
+        "0x3c801f68",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fd943",
+        "0x3bc44e35",
+        "0xbcf5f398",
+        "0x3c801f68"
+      ],
+      "first_call": 21049,
+      "first_context": {
+        "trial": 2,
+        "tick": 77,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 299,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0xbf7f493c",
+        "0x3b525150",
+        "0xbd98b405",
+        "0xb97b9800",
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0xbf7fc36e",
+        "0xba00a18c",
+        "0xbd2d527f",
+        "0x3bf7303d"
+      ],
+      "first_call": 21289,
+      "first_context": {
+        "trial": 2,
+        "tick": 81,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 300,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525150",
+        "0x3d98b405",
+        "0x397b9800",
+        "0xbf7fc94c",
+        "0xbac95e7d",
+        "0xbd255ab0",
+        "0x3bc6335f",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc94c",
+        "0x3ac95e7d",
+        "0x3d255ab0",
+        "0xbbc6335f"
+      ],
+      "first_call": 21349,
+      "first_context": {
+        "trial": 2,
+        "tick": 82,
+        "phase": "references"
+      },
+      "occurrences": 40
+    },
+    {
+      "id": 301,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525160",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fd66f",
+        "0xbb64e067",
+        "0xbd109404",
+        "0x3b509899",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fd66f",
+        "0x3b64e067",
+        "0x3d109404",
+        "0xbb509899"
+      ],
+      "first_call": 21469,
+      "first_context": {
+        "trial": 2,
+        "tick": 84,
+        "phase": "references"
+      },
+      "occurrences": 36
+    },
+    {
+      "id": 302,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525168",
+        "0x3d98b406",
+        "0x397b9800",
+        "0xbf7fe194",
+        "0xbbb5e6ea",
+        "0xbcf567fc",
+        "0x392e7f28",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fe194",
+        "0x3bb5e6ea",
+        "0x3cf567fc",
+        "0xb92e7f28"
+      ],
+      "first_call": 21649,
+      "first_context": {
+        "trial": 2,
+        "tick": 87,
+        "phase": "references"
+      },
+      "occurrences": 24
+    },
+    {
+      "id": 303,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525170",
+        "0x3d98b407",
+        "0x397b9800",
+        "0xbf7fd3cd",
+        "0xbcbd4f65",
+        "0xbce6ea7b",
+        "0xbb9224d7",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fd3cd",
+        "0x3cbd4f65",
+        "0x3ce6ea7b",
+        "0x3b9224d7"
+      ],
+      "first_call": 21829,
+      "first_context": {
+        "trial": 2,
+        "tick": 90,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 304,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525178",
+        "0x3d98b407",
+        "0x397ba000",
+        "0xbf7fbd8d",
+        "0xbd105348",
+        "0xbcdcdc0c",
+        "0xbbfadabf",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fbd8d",
+        "0x3d105348",
+        "0x3cdcdc0c",
+        "0x3bfadabf"
+      ],
+      "first_call": 21949,
+      "first_context": {
+        "trial": 2,
+        "tick": 92,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 305,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525188",
+        "0x3d98b408",
+        "0x397ba000",
+        "0xbf7fc054",
+        "0xbd071f2c",
+        "0xbced6f37",
+        "0xbb74bdbb",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc054",
+        "0x3d071f2c",
+        "0x3ced6f37",
+        "0x3b74bdbb"
+      ],
+      "first_call": 22009,
+      "first_context": {
+        "trial": 2,
+        "tick": 93,
+        "phase": "references"
+      },
+      "occurrences": 16
+    },
+    {
+      "id": 306,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525190",
+        "0x3d98b409",
+        "0x397ba000",
+        "0xbf7fc07e",
+        "0xbcbeefdc",
+        "0xbd135eb5",
+        "0x3c237adf",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fc07e",
+        "0x3cbeefdc",
+        "0x3d135eb5",
+        "0xbc237adf"
+      ],
+      "first_call": 22189,
+      "first_context": {
+        "trial": 2,
+        "tick": 96,
+        "phase": "references"
+      },
+      "occurrences": 8
+    },
+    {
+      "id": 307,
+      "kind": "recorded_native_callback",
+      "input_bits": [
+        "0x3f7f493c",
+        "0xbb525198",
+        "0x3d98b40a",
+        "0x397ba000",
+        "0xbf7fb21d",
+        "0xbc6f6c54",
+        "0xbd32b13c",
+        "0x3c83c7a5",
+        "0x3f800000"
+      ],
+      "native_bits": [
+        "0x3f7fb21d",
+        "0x3c6f6c54",
+        "0x3d32b13c",
+        "0xbc83c7a5"
+      ],
+      "first_call": 22369,
+      "first_context": {
+        "trial": 2,
+        "tick": 99,
+        "phase": "references"
+      },
+      "occurrences": 4
+    },
+    {
+      "id": 308,
+      "kind": "synthetic_control",
+      "label": "identical",
+      "input_bits": [
+        "0x3f800000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x3f800000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x3f000000"
+      ]
+    },
+    {
+      "id": 309,
+      "kind": "synthetic_control",
+      "label": "antipodal",
+      "input_bits": [
+        "0x3f800000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0xbf800000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x3f000000"
+      ]
+    },
+    {
+      "id": 310,
+      "kind": "synthetic_control",
+      "label": "quarter_turn",
+      "input_bits": [
+        "0x3f800000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x3f800000",
+        "0x3e800000"
+      ]
+    },
+    {
+      "id": 311,
+      "kind": "synthetic_control",
+      "label": "nonunit",
+      "input_bits": [
+        "0x40000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x40400000",
+        "0x3e800000"
+      ]
+    },
+    {
+      "id": 312,
+      "kind": "synthetic_control",
+      "label": "clamp_low",
+      "input_bits": [
+        "0x3f800000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x3f800000",
+        "0xbe800000"
+      ]
+    },
+    {
+      "id": 313,
+      "kind": "synthetic_control",
+      "label": "clamp_high",
+      "input_bits": [
+        "0x3f800000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x00000000",
+        "0x3f800000",
+        "0x3fa00000"
+      ]
+    }
+  ]
+}

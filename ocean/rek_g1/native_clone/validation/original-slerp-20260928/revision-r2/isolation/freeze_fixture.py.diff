@@ -1,0 +1,11 @@
+--- r1/freeze_fixture.py
++++ r2/freeze_fixture.py
+@@ -11,7 +11,7 @@
+     target=SESSION/'input/fixtures.json'
+     with target.open('xb') as f:f.write(data)
+     fixture_sha=hashlib.sha256(data).hexdigest()
+-    config={'schema':'rek.original_slerp.run.v1','run_id':'slerp-boundary-20260928-r1','expected_game_root':'Z:/session/game',
++    config={'schema':'rek.original_slerp.run.v1','run_id':'slerp-boundary-20260928-r2','expected_game_root':'Z:/session/game',
+             'output_directory':'Z:/session/out/oracle','fixture_manifest':'Z:/session/input/fixtures.json','fixture_sha256':fixture_sha}
+     raw=(json.dumps(config,indent=2)+'\n').encode()
+     with (SESSION/'input/run-config.json').open('xb') as f:f.write(raw)
