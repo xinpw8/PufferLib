@@ -1,0 +1,1058 @@
+{
+  "schema": "rek.native_clone.frozen_dependency_source.v1",
+  "dependency_inventory_sha256": "bf273e8268fdd3b2e903492f162566fb6c59f67183cd100bbb95e49dd4182f9f",
+  "files": [
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c.cu",
+      "bytes": 93577,
+      "sha256": "7e35a03b78dd51b1d5630e6abdf4b56f432dc868dad1b328877a8db89308ded6",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630.cu",
+      "bytes": 472026,
+      "sha256": "09cc65175cec23b7337baf9eff519327bd8ef4bdeeaa2504ae38c6dc1bbb5b06",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__solve_LD_sparse_fused__locals__kernel_8d11feb4_ba43376/wp__solve_LD_sparse_fused__locals__kernel_8d11feb4_ba43376.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp__solve_LD_sparse_fused__locals__kernel_8d11feb4_ba43376/wp__solve_LD_sparse_fused__locals__kernel_8d11feb4_ba43376.cu",
+      "bytes": 110365,
+      "sha256": "48cc39cf54d15b68ee7187e242d474728a2473041cea180674d596140ba6cf03",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp__solve_LD_sparse_fused__locals__kernel_8d11feb4_ba43376/wp__solve_LD_sparse_fused__locals__kernel_8d11feb4_ba43376.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f.cu",
+      "bytes": 5791,
+      "sha256": "f782ec06c9c43ef5f9ebca45eef6957d6af27a4572956fd52c2b73f93cf9a4e6",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_build_inverse_positions_1c785915_1c78591/wp_build_inverse_positions_1c785915_1c78591.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_build_inverse_positions_1c785915_1c78591/wp_build_inverse_positions_1c785915_1c78591.cu",
+      "bytes": 20701,
+      "sha256": "1e847db747c8d2c5a0ae88e666562194bbf33b860b2cf03b7bfa7358c941d2f0",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_build_inverse_positions_1c785915_1c78591/wp_build_inverse_positions_1c785915_1c78591.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99.cu",
+      "bytes": 32294,
+      "sha256": "fc203a20166eb56e149244095055d07ba2f6348af849ff1b63fee6f6c396662c",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb.cu",
+      "bytes": 741866,
+      "sha256": "1df2393a74197a59f087817b38f0fc29e2e3db4cf69f860dfb635b0b4e14a2b6",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d.cu",
+      "bytes": 527005,
+      "sha256": "b6b46875ab252ccb7e882868d84a17378f31fc0b6de9a6b88b5e88a99863ff30",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360.cu",
+      "bytes": 527005,
+      "sha256": "0b5d8bf700f72b8fb008247d1d8ca505d1867cc7de4d823db3aaeb1541cad9a2",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67.cu",
+      "bytes": 527005,
+      "sha256": "a1ec6adf5fe4fd003c0d7a1a2142d9797ad777eb6c5202db45ad30573a62dd37",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_classify_589db79d_bd60ae8/wp_classify_589db79d_bd60ae8.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_classify_589db79d_bd60ae8/wp_classify_589db79d_bd60ae8.cu",
+      "bytes": 5201,
+      "sha256": "cc53685033c178f255b9e520b42afaf1d2941957d65d5bcfda97a4afda5fe853",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_classify_589db79d_bd60ae8/wp_classify_589db79d_bd60ae8.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_cone_coefficients_5a177e1/wp_cone_coefficients_5a177e1.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_cone_coefficients_5a177e1/wp_cone_coefficients_5a177e1.cu",
+      "bytes": 21790,
+      "sha256": "67252f8b9547119ece6eca10690912c27d79f76a589b5df829047fc33cfa2842",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_cone_coefficients_5a177e1/wp_cone_coefficients_5a177e1.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62.cu",
+      "bytes": 25205,
+      "sha256": "09e5f29758a502f66c357b09668a4db5cbab0a11f452c18d6b9cde172e94cbda",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_inverse_fb4f63f/wp_generated_inverse_fb4f63f.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_inverse_fb4f63f/wp_generated_inverse_fb4f63f.cu",
+      "bytes": 62531,
+      "sha256": "c8c5ec7354ccda6c85d204e62034a5f1e5ab1776fa7dbd059ba1fb70a8550757",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_generated_inverse_fb4f63f/wp_generated_inverse_fb4f63f.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_sparse_pair_dde3097/wp_generated_sparse_pair_dde3097.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_sparse_pair_dde3097/wp_generated_sparse_pair_dde3097.cu",
+      "bytes": 64846,
+      "sha256": "a17b7bb46b8f80e24473d81a8c868c05e4a6f92b2e1305f5704460ea6b0171d1",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_generated_sparse_pair_dde3097/wp_generated_sparse_pair_dde3097.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_gpu_physics_capacity_9059e27/wp_gpu_physics_capacity_9059e27.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_gpu_physics_capacity_9059e27/wp_gpu_physics_capacity_9059e27.cu",
+      "bytes": 17929,
+      "sha256": "ef9c6e4d0f0938739a7d2da7505079cfd12f1ba801584db05a3d2f561ddb57b6",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_gpu_physics_capacity_9059e27/wp_gpu_physics_capacity_9059e27.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_inspect_rectangle_37106e69_86f8721/wp_inspect_rectangle_37106e69_86f8721.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_inspect_rectangle_37106e69_86f8721/wp_inspect_rectangle_37106e69_86f8721.cu",
+      "bytes": 5209,
+      "sha256": "df66791d234a5c24595b9e4ec2ab1e52b65945d8be3cf6f45ad765021b314a9e",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_inspect_rectangle_37106e69_86f8721/wp_inspect_rectangle_37106e69_86f8721.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26.cu",
+      "bytes": 144599,
+      "sha256": "7b2cfb22454f79a7963be6b673006a3c643ba499ecdfb320889208af12834593",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a.cu",
+      "bytes": 145640,
+      "sha256": "a2d63474fdc10fef8b8329bc08d87b4e7c58df6d99bcadce8e8ac8a4fdf4a408",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30.cu",
+      "bytes": 5406,
+      "sha256": "41b1c7c7dfe7a4261b9664b742a504578f9601cc0a57e11732631db4c1a78a33",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1.cu",
+      "bytes": 6257,
+      "sha256": "0be1d7bb09bbccb3449103c365eb2e1acfe9bab0362295e9a62e63bf99dde49f",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e.cu",
+      "bytes": 25227,
+      "sha256": "67561c060b262492f6e16029c0693e4158fb0952d6d6baf98710471b32339716",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.collision_driver_88f7770/wp_mujoco_warp._src.collision_driver_88f7770.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.collision_driver_88f7770/wp_mujoco_warp._src.collision_driver_88f7770.cu",
+      "bytes": 7396,
+      "sha256": "f15036054c44b7975473db7cde2596ae0db8376da9d6e89ca1424990d59f794d",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.collision_driver_88f7770/wp_mujoco_warp._src.collision_driver_88f7770.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.constraint_c567367/wp_mujoco_warp._src.constraint_c567367.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.constraint_c567367/wp_mujoco_warp._src.constraint_c567367.cu",
+      "bytes": 409460,
+      "sha256": "94aa33c25579c1590a312411b30288bd8f6a4679cfd6ad1fa63d0bb47ed15e81",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.constraint_c567367/wp_mujoco_warp._src.constraint_c567367.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.derivative_7ba27fe/wp_mujoco_warp._src.derivative_7ba27fe.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.derivative_7ba27fe/wp_mujoco_warp._src.derivative_7ba27fe.cu",
+      "bytes": 54562,
+      "sha256": "7eb493c0257bbe2b4a91a8daca432fe3d584b699bdeaaf859a61f93377f52f59",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.derivative_7ba27fe/wp_mujoco_warp._src.derivative_7ba27fe.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.cu",
+      "bytes": 140599,
+      "sha256": "722a0f5a24dd51502f2b8554b2a3995b1adac7a6eabdbab098959dba430f7ce0",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_8f5355c/wp_mujoco_warp._src.forward_8f5355c.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_8f5355c/wp_mujoco_warp._src.forward_8f5355c.cu",
+      "bytes": 140600,
+      "sha256": "1e9bec9c303e88948dc32edd71ea64495377695a46872cb824ddb28b18f38e47",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_8f5355c/wp_mujoco_warp._src.forward_8f5355c.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.passive_8bfe11c/wp_mujoco_warp._src.passive_8bfe11c.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.passive_8bfe11c/wp_mujoco_warp._src.passive_8bfe11c.cu",
+      "bytes": 240757,
+      "sha256": "25b3f745c883360bc1a69d6e89a0ced728bff48e57ae1b5b79080e349207bca2",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.passive_8bfe11c/wp_mujoco_warp._src.passive_8bfe11c.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.sensor_18a78e5/wp_mujoco_warp._src.sensor_18a78e5.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.sensor_18a78e5/wp_mujoco_warp._src.sensor_18a78e5.cu",
+      "bytes": 965589,
+      "sha256": "b92dfa8d9c7ccbd781edf57d9633c03571f209ece32a6c095fb7aed0643e30e0",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.sensor_18a78e5/wp_mujoco_warp._src.sensor_18a78e5.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.smooth_26bbc02/wp_mujoco_warp._src.smooth_26bbc02.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.smooth_26bbc02/wp_mujoco_warp._src.smooth_26bbc02.cu",
+      "bytes": 704038,
+      "sha256": "1293786dc081745e32ce4e467f6b98d61c9d7c55de10567c6c38b9135460f147",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.smooth_26bbc02/wp_mujoco_warp._src.smooth_26bbc02.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.solver_b116efb/wp_mujoco_warp._src.solver_b116efb.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.solver_b116efb/wp_mujoco_warp._src.solver_b116efb.cu",
+      "bytes": 185496,
+      "sha256": "fbc05f45cc26dd5f65402c8df42b297e6e56c67202da2c2fcfc754f11f422d6e",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.solver_b116efb/wp_mujoco_warp._src.solver_b116efb.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.support_dd3f924/wp_mujoco_warp._src.support_dd3f924.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.support_dd3f924/wp_mujoco_warp._src.support_dd3f924.cu",
+      "bytes": 26800,
+      "sha256": "2809be30b0972a4f92f4caf6b36e1832f60216d934f6116a27bcaaf7ca4d1deb",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mujoco_warp._src.support_dd3f924/wp_mujoco_warp._src.support_dd3f924.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2.cu",
+      "bytes": 9384,
+      "sha256": "a5b560118b1c2ddcb5d4e9aff371e7c39d3456538bdf6f8aa5ab29f219219b18",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4.cu",
+      "bytes": 14152,
+      "sha256": "fc686d946346aa0039435892214dc2344faa8bf765a7845fd02972f9c6e45d08",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_observe_construction_7928f696_7928f69/wp_observe_construction_7928f696_7928f69.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_observe_construction_7928f696_7928f69/wp_observe_construction_7928f696_7928f69.cu",
+      "bytes": 3154,
+      "sha256": "0d377d537b9dd59ef20c1809cff67033aa5e3c8a6da5c4fa4d85cd550c64a2ba",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_observe_construction_7928f696_7928f69/wp_observe_construction_7928f696_7928f69.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_cone_cache_generated_1f8500a/wp_rek_cone_cache_generated_1f8500a.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_cone_cache_generated_1f8500a/wp_rek_cone_cache_generated_1f8500a.cu",
+      "bytes": 86983,
+      "sha256": "1cc6b0b609ae1610d2700631f72c7c15eccd10cee426aebd081623a01372dbc9",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_rek_cone_cache_generated_1f8500a/wp_rek_cone_cache_generated_1f8500a.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_jtcj_inverse_experiment_fb4f63f/wp_rek_jtcj_inverse_experiment_fb4f63f.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_jtcj_inverse_experiment_fb4f63f/wp_rek_jtcj_inverse_experiment_fb4f63f.cu",
+      "bytes": 62531,
+      "sha256": "c8c5ec7354ccda6c85d204e62034a5f1e5ab1776fa7dbd059ba1fb70a8550757",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_rek_jtcj_inverse_experiment_fb4f63f/wp_rek_jtcj_inverse_experiment_fb4f63f.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_sparse_pair_experiment_dde3097/wp_rek_sparse_pair_experiment_dde3097.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_sparse_pair_experiment_dde3097/wp_rek_sparse_pair_experiment_dde3097.cu",
+      "bytes": 64846,
+      "sha256": "a17b7bb46b8f80e24473d81a8c868c05e4a6f92b2e1305f5704460ea6b0171d1",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_rek_sparse_pair_experiment_dde3097/wp_rek_sparse_pair_experiment_dde3097.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1.cu",
+      "bytes": 5670,
+      "sha256": "d490a8800708203fb058b6a22b41f5cacd2764c00bdb392180b9a8e1261528d8",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2.cu",
+      "bytes": 5551,
+      "sha256": "03886572782cbbacc71c0718ff9c02aaa4010c7d9def9bc0256365acb2cd757d",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_sparse_pair_replay_factory_f6475ee/wp_sparse_pair_replay_factory_f6475ee.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_sparse_pair_replay_factory_f6475ee/wp_sparse_pair_replay_factory_f6475ee.cu",
+      "bytes": 17965,
+      "sha256": "711fced31f1804d9cff62abeeb081a28d51617be93abb8baf0433c678ef7a162",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_sparse_pair_replay_factory_f6475ee/wp_sparse_pair_replay_factory_f6475ee.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_efc__locals__kernel_81015163_8101516/wp_update_constraint_efc__locals__kernel_81015163_8101516.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_efc__locals__kernel_81015163_8101516/wp_update_constraint_efc__locals__kernel_81015163_8101516.cu",
+      "bytes": 31079,
+      "sha256": "1d2642372a5522004ac21ba1f88e499dc5eb0db0a4ff833376b5aa0ee1ae3c77",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_update_constraint_efc__locals__kernel_81015163_8101516/wp_update_constraint_efc__locals__kernel_81015163_8101516.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7.cu",
+      "bytes": 5853,
+      "sha256": "ff3a01de1863047d3ca8eec501d1a6bef45f999dad816c718ca49bce45dd12eb",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d.cu",
+      "bytes": 25154,
+      "sha256": "8e1ec4d5ad7d66587365c7dcdbfbe8a84fc86f8623eb239f78b43e704b1cc166",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2.cu",
+      "bytes": 13545,
+      "sha256": "980800d5d7656f84e17b06738239daf2f7ada6cda0f281478823a4031f02ad6e",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_zero_kernel__locals__kernel_62b805ca_25fc91d/wp_zero_kernel__locals__kernel_62b805ca_25fc91d.cu",
+      "resolved_path": "/home/spark-advantage/.cache/warp/1.12.0/wp_zero_kernel__locals__kernel_62b805ca_25fc91d/wp_zero_kernel__locals__kernel_62b805ca_25fc91d.cu",
+      "bytes": 28757,
+      "sha256": "fb0492da4de20b167c41ad76452b878c838b7c9c2ac83a01c42e887034c0b256",
+      "categories": [
+        "warp_kernel_source"
+      ],
+      "payload_path": "dependency_source/.cache/warp/1.12.0/wp_zero_kernel__locals__kernel_62b805ca_25fc91d/wp_zero_kernel__locals__kernel_62b805ca_25fc91d.cu",
+      "attribution": "Generated Warp CUDA source; original notices retained. Provenance identifies Warp 1.12.0 / MuJoCo-Warp or experiment name in path."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/physical-measurement-integration-20260921-r1/source-r2/ocean/rek_g1/native5/measurement.cu",
+      "resolved_path": "/home/spark-advantage/rek-training/physical-measurement-integration-20260921-r1/source-r2/ocean/rek_g1/native5/measurement.cu",
+      "bytes": 16718,
+      "sha256": "31ac31944b0abb608dfd9ed16168803b2eabdd33e3d24a04200ab042f3f76b38",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/physical-measurement-integration-20260921-r1/source-r2/ocean/rek_g1/native5/measurement.cu",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/vendor/cJSON.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/vendor/cJSON.c",
+      "bytes": 80399,
+      "sha256": "298581a04a36c0165da4b0aade235c23088cb2faa58651d720ea2f3706ed0b0d",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/vendor/cJSON.c",
+      "attribution": "cJSON third-party source; original copyright and MIT notice retained."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_combat_cuda.cu",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_combat_cuda.cu",
+      "bytes": 5186,
+      "sha256": "5dd75a892db2c456e6cd0013a203deba50bf22e5e66f92e4030b8f6fdf2399a7",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_combat_cuda.cu",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_combat_tick.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_combat_tick.c",
+      "bytes": 11120,
+      "sha256": "f686dee995dd1f9c20da96f482a00047c194c288200ece64bef9b2cbe4fe03f6",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_combat_tick.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_fall_state.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_fall_state.c",
+      "bytes": 10454,
+      "sha256": "40a483fe409aec67fb2e3a5254aaaa28e3821bc13b83dd4ecb3e8f532215144b",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_fall_state.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_fight_state.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_fight_state.c",
+      "bytes": 33701,
+      "sha256": "0fc7bea059c352ff79efbe37714b2821033e5a5757c51481e29f34bd019f4907",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_fight_state.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_hit_detector.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_hit_detector.c",
+      "bytes": 11187,
+      "sha256": "2db5d054bdc07539c0323efa0f700f6fcd6aa63564a94fd258feb7d059d34846",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_hit_detector.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_motion_cuda.cu",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_motion_cuda.cu",
+      "bytes": 10222,
+      "sha256": "14079ebd524d5baeba120bb4631aa165659e174f0e4c75da63c59cf0998a0251",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_motion_cuda.cu",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_semantic_action_table.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_semantic_action_table.c",
+      "bytes": 3525,
+      "sha256": "bedaa79fb970cc60707e6aabe1415ea7a2c0743ed41ffeeea63cbd4bbcf2a03f",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_semantic_action_table.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_strike_catalog.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_strike_catalog.c",
+      "bytes": 12161,
+      "sha256": "5380e5d4c7d0cf1fe32e0f3839d9a6dbf93963c3cb5beb512b3e5660e354a866",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_strike_catalog.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/collision_schedule.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/collision_schedule.cpp",
+      "bytes": 10621,
+      "sha256": "5dc9e582230a6dc209657136ded3be4895fcd1aa179dc36cc89e7b1383c03051",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/collision_schedule.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/conditional_if.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/conditional_if.cpp",
+      "bytes": 6681,
+      "sha256": "e412dd061601e593d3ae5af6a0adc9ec6c6b2fdbe37d87e61671288073aa4d0f",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/conditional_if.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/conditional.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/conditional.cpp",
+      "bytes": 2978,
+      "sha256": "6ea5fd04ee44195476ae733ffe8f016d4135878a8ec473238163c4f0271dbf7e",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/conditional.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/constraint_schedule.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/constraint_schedule.cpp",
+      "bytes": 5083,
+      "sha256": "2ffce0a3a5690be570d3ed793f3acba8e0e759a9ab1cfc906b45e26e6e951ac1",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/constraint_schedule.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/kernel_program.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/kernel_program.cpp",
+      "bytes": 12192,
+      "sha256": "17f3e0926465b118db2b1f9a7f4dd567755fa1dc7dc89375a1488e82ecc05d03",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/kernel_program.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/model_data.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/model_data.cpp",
+      "bytes": 19370,
+      "sha256": "70b15354b44dfaee20a78612c04b4c9b1b411aa0c23cfd65f56a8faeeb8ea85f",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/model_data.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/native_module.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/native_module.cpp",
+      "bytes": 4592,
+      "sha256": "b2e0e0fde10b81a6efc43dfea9362a96386472b0000b93d3a0eef0ed4937bc35",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/native_module.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/native_step.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/native_step.cpp",
+      "bytes": 4740,
+      "sha256": "abb225d378653c82c3a873b4533d3d583376c09c9279f8ede67dd21d15dc9218",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/native_step.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/schedule.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/schedule.cpp",
+      "bytes": 18166,
+      "sha256": "2dba51348f021a379bfa0a51e92c421ccdb30bab38befcffdc8a194b0937d42d",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/schedule.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/solver_schedule.cpp",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/solver_schedule.cpp",
+      "bytes": 11561,
+      "sha256": "c3a2e2a7443e771245f793f762f2ac057d2518025c8e8715bf5c19311c401b5e",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/solver_schedule.cpp",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native_locomotion_command.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native_locomotion_command.c",
+      "bytes": 20260,
+      "sha256": "e5bc8f3b6985811958fac5d4c316815ed8d40570b23b455bb1fa50e25a13e027",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native_locomotion_command.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native_motion_routes.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native_motion_routes.c",
+      "bytes": 9500,
+      "sha256": "ce198ba2b781006293a5c07da1680fe0c005fd640f3ad0f84dba7d40341bb6d7",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native_motion_routes.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/physics.cu",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/physics.cu",
+      "bytes": 42331,
+      "sha256": "4ab6b630f0bd7def77bc7bc4a7a02e7f1e27edc8bfb28d42def8bffb80284729",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/physics.cu",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/puffer_action_adapter.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/puffer_action_adapter.c",
+      "bytes": 12252,
+      "sha256": "a03bb1591aa75576620fda9f16b3d0495a1ff1de5de96e134c47e109b9692e10",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/puffer_action_adapter.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/sonic_controller.cu",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/sonic_controller.cu",
+      "bytes": 12844,
+      "sha256": "533fd750c000ba21535dfb3efd0fe0a9907a135038cf025607d1fa73df2d0ca9",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/sonic_controller.cu",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/sonic_motion_composer_libm_candidate.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/sonic_motion_composer_libm_candidate.c",
+      "bytes": 4000,
+      "sha256": "0dd47e311a93736a55945345e76043fd413d3acc795cb56511b3dbeff04e7b22",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/sonic_motion_composer_libm_candidate.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/sonic_motion_entry_matcher_native.c",
+      "resolved_path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/sonic_motion_entry_matcher_native.c",
+      "bytes": 26279,
+      "sha256": "2ff11593aec7c2a41e196aed9c4b37c49e3417d0ff9446ffdefe195df065f360",
+      "categories": [
+        "reused_translation_unit_source"
+      ],
+      "payload_path": "dependency_source/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/sonic_motion_entry_matcher_native.c",
+      "attribution": "Historical REK native integration translation unit; existing source comments/notices retained; origin path and object linkage recorded in dependency inventory."
+    }
+  ],
+  "reused_object_source_provenance": [
+    {
+      "object": "/home/spark-advantage/rek-training/physical-measurement-integration-20260921-r1/build-r2/measurement.o",
+      "object_sha256": "7b29e3a37f4ae1b519d5522a67bc161d820a771bcc70de80c617204ab68a4864",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/physical-measurement-integration-20260921-r1/source-r2/ocean/rek_g1/native5/measurement.cu",
+      "translation_unit_sha256": "31ac31944b0abb608dfd9ed16168803b2eabdd33e3d24a04200ab042f3f76b38",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/cJSON.o",
+      "object_sha256": "eb41568eaa0dfee60e0b31cbc7b607365d4c93dfe46c0dafac6b131ec22b91a1",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/vendor/cJSON.c",
+      "translation_unit_sha256": "298581a04a36c0165da4b0aade235c23088cb2faa58651d720ea2f3706ed0b0d",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_combat_cuda.o",
+      "object_sha256": "4aae9f5069468ffb8e8cf21e9917aead778e2f8911574796e24b4061a5416149",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_combat_cuda.cu",
+      "translation_unit_sha256": "5dd75a892db2c456e6cd0013a203deba50bf22e5e66f92e4030b8f6fdf2399a7",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_combat_tick.device.o",
+      "object_sha256": "00a36ea18eb2083ff2f8ac16c84af8b7df69f2072d46a630567aa19b1f27261e",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_combat_tick.c",
+      "translation_unit_sha256": "f686dee995dd1f9c20da96f482a00047c194c288200ece64bef9b2cbe4fe03f6",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_fall_state.device.o",
+      "object_sha256": "d2f4572ef3f2344386742187abfa996e4fc994d7fe224d1a462cfc2ad7888630",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_fall_state.c",
+      "translation_unit_sha256": "40a483fe409aec67fb2e3a5254aaaa28e3821bc13b83dd4ecb3e8f532215144b",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_fight_state.device.o",
+      "object_sha256": "2212c8ac76ad55ae6ccb6d07b8d2b72c928438194bf0c2a6577cf5248f771879",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_fight_state.c",
+      "translation_unit_sha256": "0fc7bea059c352ff79efbe37714b2821033e5a5757c51481e29f34bd019f4907",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_hit_detector.device.o",
+      "object_sha256": "c3add8f44337f0ee54e6c95d31d2c3992d243302ee87c9ff9c297ef3818e20c9",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_hit_detector.c",
+      "translation_unit_sha256": "2db5d054bdc07539c0323efa0f700f6fcd6aa63564a94fd258feb7d059d34846",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_motion_cuda.o",
+      "object_sha256": "807b6276b48f55305a8741818ce5896d7d1b55afe3521573537de8632a990096",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_motion_cuda.cu",
+      "translation_unit_sha256": "14079ebd524d5baeba120bb4631aa165659e174f0e4c75da63c59cf0998a0251",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_semantic_action_table.device.o",
+      "object_sha256": "b0e1a75056e9d07c542c16397f7f12155e3be16d842af6b12fbf88a8925ba5f5",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_semantic_action_table.c",
+      "translation_unit_sha256": "bedaa79fb970cc60707e6aabe1415ea7a2c0743ed41ffeeea63cbd4bbcf2a03f",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_strike_catalog.host.o",
+      "object_sha256": "5896261334c7003d79e04d6e50651e76aae2ae4c5010021db91fba83727a180d",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/g1_strike_catalog.c",
+      "translation_unit_sha256": "5380e5d4c7d0cf1fe32e0f3839d9a6dbf93963c3cb5beb512b3e5660e354a866",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_collision_schedule.o",
+      "object_sha256": "d2a01f47566c87fbea836bc028b80d4b48a927d7aae5d4c3ce8e8384d88019bc",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/collision_schedule.cpp",
+      "translation_unit_sha256": "5dc9e582230a6dc209657136ded3be4895fcd1aa179dc36cc89e7b1383c03051",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_conditional_if.o",
+      "object_sha256": "da32dc58123ce53390347a63f0b52b3fb1b5ed17e025007bda74853a5727b066",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/conditional_if.cpp",
+      "translation_unit_sha256": "e412dd061601e593d3ae5af6a0adc9ec6c6b2fdbe37d87e61671288073aa4d0f",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_conditional.o",
+      "object_sha256": "7df30ffd42ca73f86351d9494b0d77db93f1ec226f301305d89aeae7d1ce4730",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/conditional.cpp",
+      "translation_unit_sha256": "6ea5fd04ee44195476ae733ffe8f016d4135878a8ec473238163c4f0271dbf7e",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_constraint_schedule.o",
+      "object_sha256": "79a16da1933de0fa8146c469424faa138588472da667576ff99339fba37e7ffc",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/constraint_schedule.cpp",
+      "translation_unit_sha256": "2ffce0a3a5690be570d3ed793f3acba8e0e759a9ab1cfc906b45e26e6e951ac1",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_kernel_program.o",
+      "object_sha256": "d9ea3a6fe3b9479e13941fc3137dea9e180962ccbf224bde16959a9f79e96efa",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/kernel_program.cpp",
+      "translation_unit_sha256": "17f3e0926465b118db2b1f9a7f4dd567755fa1dc7dc89375a1488e82ecc05d03",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_model_data.o",
+      "object_sha256": "fedfb7bbd21bc83fc2af65b96b32817ca97db4bd8305dfe34b614504d7cf107a",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/model_data.cpp",
+      "translation_unit_sha256": "70b15354b44dfaee20a78612c04b4c9b1b411aa0c23cfd65f56a8faeeb8ea85f",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_native_module.o",
+      "object_sha256": "30219494060914803c5420b5e3d3a3d683dcaf71bfe7632f9c4c136b21ab110a",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/native_module.cpp",
+      "translation_unit_sha256": "b2e0e0fde10b81a6efc43dfea9362a96386472b0000b93d3a0eef0ed4937bc35",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_native_step.o",
+      "object_sha256": "2a75dbe7383033ec2f4be38c35369919a87100154fac14d2f947e83ea2308b6b",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/native_step.cpp",
+      "translation_unit_sha256": "abb225d378653c82c3a873b4533d3d583376c09c9279f8ede67dd21d15dc9218",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_schedule.o",
+      "object_sha256": "4d086f9c0e5ac0a982ef3f07e005b6738f42828242399a3e8f998d35e9c1ae4e",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/schedule.cpp",
+      "translation_unit_sha256": "2dba51348f021a379bfa0a51e92c421ccdb30bab38befcffdc8a194b0937d42d",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_solver_schedule.o",
+      "object_sha256": "9c06c8d78c8f8cd01258281f4d86d1ced22d62ed6dbed5629b7875844b5cfcf3",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/mujoco_gpu/solver_schedule.cpp",
+      "translation_unit_sha256": "c3a2e2a7443e771245f793f762f2ac057d2518025c8e8715bf5c19311c401b5e",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/native_locomotion_command.device.o",
+      "object_sha256": "9621d46788ea42aba380959766089e6001e63a6eb19fad9f7ad762ed60f27c5f",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native_locomotion_command.c",
+      "translation_unit_sha256": "e5bc8f3b6985811958fac5d4c316815ed8d40570b23b455bb1fa50e25a13e027",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/native_motion_routes.host.o",
+      "object_sha256": "d54e77aedfd8aa99eb58a69c7fd0038332173bcb367bac8ccb048d519b4a616a",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native_motion_routes.c",
+      "translation_unit_sha256": "ce198ba2b781006293a5c07da1680fe0c005fd640f3ad0f84dba7d40341bb6d7",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/physics.o",
+      "object_sha256": "bb513139b7bb6cc28ba0a660287580ec57d04c69645ade7e693e3b160277e24a",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/physics.cu",
+      "translation_unit_sha256": "4ab6b630f0bd7def77bc7bc4a7a02e7f1e27edc8bfb28d42def8bffb80284729",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/puffer_action_adapter.device.o",
+      "object_sha256": "a7b2e37cc89e90780f7d9cac92c7f7ec6ebea44f9f2c47fc3539e49322330aaa",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/puffer_action_adapter.c",
+      "translation_unit_sha256": "a03bb1591aa75576620fda9f16b3d0495a1ff1de5de96e134c47e109b9692e10",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_controller.o",
+      "object_sha256": "22f87a417bd5ed43fabae1188ed3cd444571e55f6af26e0ea34ac085bdeb4bc4",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/sonic_controller.cu",
+      "translation_unit_sha256": "533fd750c000ba21535dfb3efd0fe0a9907a135038cf025607d1fa73df2d0ca9",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_motion_composer_libm_candidate.device.o",
+      "object_sha256": "cb401103831be80ecc1144314658a465afddb47125acd9815a8520fd1f786399",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/sonic_motion_composer_libm_candidate.c",
+      "translation_unit_sha256": "0dd47e311a93736a55945345e76043fd413d3acc795cb56511b3dbeff04e7b22",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    },
+    {
+      "object": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_motion_entry_matcher_native.device.o",
+      "object_sha256": "80bcf24ff26384ddd1103a26d804bcdded6f699f456b712a957c978204eac2d7",
+      "recorded_build_translation_unit": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/sonic_motion_entry_matcher_native.c",
+      "translation_unit_sha256": "2ff11593aec7c2a41e196aed9c4b37c49e3417d0ff9446ffdefe195df065f360",
+      "current_source_path": null,
+      "translation_unit_bytes_equal_current": null,
+      "scope": "Object digest reverified against reused-inputs; historical build script supplies source mapping. No new compilation or header-closure equivalence claim."
+    }
+  ],
+  "limitations": [
+    "These 73 files preserve exactly inventoried translation units and generated kernels; no new compilation or full header/toolchain closure is claimed.",
+    "External weights, libraries, compiler and historical object files remain pinned dependencies."
+  ]
+}

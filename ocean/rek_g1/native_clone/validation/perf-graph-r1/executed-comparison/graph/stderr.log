@@ -1,0 +1,16 @@
+native_reset={"cold_reset":"reinitialize_scene_and_composer","body_reset_order":"runner_then_input","subscription_order_proven":false,"heading_source":"actual_body_and_active_frame0_reference"}
+physics_backend=mujoco_cuda cpu_physics=0 python_runtime=0 arenas=4 contact_pool=2048 constraint_rows_per_arena=512 native_phase_nodes=164
+native5 runtime: physics_backend=mujoco_cuda arenas=4 fighters=8 controller_bytes=57813876
+model_sha256=6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa export_sha256=1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3 motion_manifest_sha256=7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28
+encoder_sha256=2befe0f7be8e72a33824f04fd39c191287e1e9aab05807012d6ceeb3f688ff40 decoder_sha256=7f4cb9a01bd21bbd0ef96e3c82d2ee1fc015e7a31dfb032d5e844719af3e9de2
+physical_opponent={"mode":"recovered_bot1_g1_v1","cadence":"candidate_Update_then_FixedUpdate_50Hz","rng":"candidate_xorshift32","commands":"continuous_native","counted_reset":"preserve_tactical_state_rng_recovery","round_reset":"deactivate_reactivate_preserve_rng_recovery","getup_clips":"current_G1_null","motor_shutdown_hold":"not_modeled","device_action_bot_slot":"zero_not_categorical_command","authentic_parity":false}
+observable_balance={"schema":"rek.native5.observable_balance.v1","features":223,"root":"verified_free_root_origin_wxyz","history":"preceding_50Hz_observation","history_reset":"explicit_reset_or_episode_boundary_only","joint_pose_available":false,"joint_mapping":"unproven_not_raw_qpos","referee_source":"native_count_active","raw_inspection_unchanged":true,"old_weights_compatible":false}
+normalized_reward={"mode":"normalized_points_falls_v1","scale":0.01,"bounds":[-1,1],"own_confirmed_fall":-0.01,"fall_event_source":"BECAME_FALLEN","terminal_bonus":0,"normalization":"fixed_scale"}
+eval_worker cuda_graph_step=1 captured_runtime_step_only=1
+eval_worker cuda_graph_step=1 captured_runtime_step_only=1
+eval_worker cuda_graph_step=1 captured_runtime_step_only=1
+eval_worker cuda_graph_step=1 captured_runtime_step_only=1
+eval_worker cuda_graph_step=1 captured_runtime_step_only=1
+eval_worker cuda_graph_step=1 captured_runtime_step_only=1
+normalized_reward_saturations=0
+normalized_reward_summary={"scope":"all_executed_runtime_transitions","confirmed_falls":[0,0],"awarded_points":[0,0],"saturations":0}

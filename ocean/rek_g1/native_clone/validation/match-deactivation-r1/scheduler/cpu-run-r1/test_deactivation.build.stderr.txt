@@ -1,0 +1,8 @@
+tests/test_deactivation.cpp: In function ‘void {anonymous}::test_deactivate(Assets&)’:
+tests/test_deactivation.cpp:136:15: error: inconsistent deduction for ‘auto’: ‘const RekG1PufferAdapter’ and then ‘const RekG1CudaSemanticRow’
+  136 |         const auto adapter=row.adapter,otherrow=f.rows[1];const auto other=f.composers[1];
+      |               ^~~~
+tests/test_deactivation.cpp: In function ‘void {anonymous}::test_inactive(Assets&)’:
+tests/test_deactivation.cpp:154:39: error: inconsistent deduction for ‘auto’: ‘const RekG1CudaSemanticRow’ and then ‘const SonicMotionComposerNative’
+  154 |         uint8_t active[2]={0,1};const auto before=f.rows[0],composer=f.composers[0];
+      |                                       ^~~~

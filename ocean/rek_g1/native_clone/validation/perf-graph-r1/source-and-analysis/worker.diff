@@ -1,0 +1,68 @@
+--- original/eval_worker.cpp
++++ candidate/eval_worker.cpp
+@@ -1,4 +1,5 @@
+ #include "runtime_api.h"
++#include "eval_step_graph.h"
+ #include "../g1_semantic_scheduler_cuda.h"
+ #include "native_policy.h"
+ #include "fast_mode_config.h"
+@@ -71,6 +72,8 @@
+     std::string scoring_mode;
+     rek5_modes::Identity mode_identity;
+     bool failed=false;
++    bool use_step_graph=false;
++    EvalStepGraph step_graph;
+     template<class T>T* allocate(size_t count){
+         T* p=nullptr;cuda_ok(cudaMalloc((void**)&p,count*sizeof(T)));
+         allocations.push_back(p);cuda_ok(cudaMemsetAsync(p,0,count*sizeof(T),stream));return p;
+@@ -123,6 +126,10 @@
+             scoring_mode=scoring?scoring->valuestring:"v4_spheres";
+             if(scoring_mode!="v4_spheres"&&scoring_mode!="recovered_hit_rules_v1"&&scoring_mode!="recovered_hit_rules_v2")throw std::runtime_error("Invalid scoring mode");
+             setenv("REK_FAST_SCORING",scoring_mode.c_str(),1);
++        }
++        if(const auto* graph=field(config,"cuda_graph_step")) {
++            if(!cJSON_IsBool(graph))throw std::runtime_error("cuda_graph_step must be boolean");
++            use_step_graph=cJSON_IsTrue(graph);
+         }
+         arenas=integer(config,"arenas",4);if(arenas<=0)throw std::runtime_error("Invalid arena count");
+         cuda_ok(cudaStreamCreate(&stream));
+@@ -166,11 +173,19 @@
+     void reset(){
+         // Engine failures require process recreation, never a hidden repair/reset.
+         if(failed)throw std::runtime_error("Recreate evaluator after engine failure");
++        // Destroy a prior capture before any reset or later resource replacement.
++        step_graph.clear();
+         cuda_ok(cudaMemsetAsync(direct_enabled,0,arenas*2,stream));
+         control_mode[0]=control_mode[1]=-1;
+         runtime_ok(rek_native5_reset(runtime,stream));
+         for(auto* p:policies)if(p)policy_ok(rek_native_policy_reset(p,stream));
+         runtime_ok(rek_native5_check_status(runtime,stream));tick=0;scripted_move=0;
++        if(use_step_graph) {
++            // Recording enqueues no simulated step. Inputs were bound once in
++            // the constructor; copies and high-level inference stay outside.
++            step_graph.capture(stream,[&]{runtime_ok(rek_native5_step(runtime,stream));});
++            std::fprintf(stderr,"eval_worker cuda_graph_step=1 captured_runtime_step_only=1\n");
++        }
+     }
+     Json request(const cJSON* command){
+         auto reply=object();num(reply.get(),"id",integer(command,"id",0));
+@@ -268,7 +283,9 @@
+                             view.action_masks,view.terminals,external,side,2,deterministic[side],stream),side);
+                     }
+                 }
+-                runtime_ok(rek_native5_step(runtime,stream));tick++;
++                if(use_step_graph)step_graph.launch(stream);
++                else runtime_ok(rek_native5_step(runtime,stream));
++                tick++;
+                 try{
+                     runtime_ok(rek_native5_check_status(runtime,stream));
+                     for(int side=0;side<2;side++)if(policies[side])policy_side_ok(rek_native_policy_check_status(policies[side],stream),side);
+@@ -295,6 +312,8 @@
+         cJSON_AddItemToObject(reply.get(),"state",state(snapshot()).release());return reply;
+     }
+     ~Worker(){
++        if(stream)cudaStreamSynchronize(stream);
++        step_graph.clear();
+         renderer.reset();for(auto* p:policies)rek_native_policy_destroy(p);
+         if(runtime)rek_native5_close(runtime);for(auto* p:allocations)cudaFree(p);
+         if(stream)cudaStreamDestroy(stream);

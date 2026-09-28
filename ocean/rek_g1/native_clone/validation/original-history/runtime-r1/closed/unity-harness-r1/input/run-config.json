@@ -1,0 +1,9 @@
+{
+  "schema": "rek.original_composer.run.v1",
+  "run_id": "rek-native-history-20260927-r1",
+  "expected_game_root": "Z:/session/game",
+  "output_directory": "Z:/session/out/oracle",
+  "fixture_manifest": "Z:/session/input/fixtures.json",
+  "fixture_sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0",
+  "mode": "sequence"
+}

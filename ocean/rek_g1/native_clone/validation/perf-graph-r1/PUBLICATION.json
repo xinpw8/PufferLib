@@ -1,0 +1,187 @@
+{
+  "schema": "rek.native_clone.optional_graph_publication.v1",
+  "utc": "2026-09-28T02:10:21.806671+00:00",
+  "destination": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-27\\rek-native-clone-r1\\perf-graph-r1",
+  "decision": "disabled_strict_equivalence_failed",
+  "files": [
+    {
+      "path": "source-and-analysis/analyze_closed.py",
+      "bytes": 6398,
+      "sha256": "309295d12b0e6d5be26a24a918c8f47689e160231aec31582d09fc84dbaefe4c"
+    },
+    {
+      "path": "source-and-analysis/closed-analysis-r1/ANALYSIS.json",
+      "bytes": 4911,
+      "sha256": "defc09fe6bc6d11c38826150b0f77658f220a81a637cfa069ca2081b1019acdb"
+    },
+    {
+      "path": "source-and-analysis/closed-analysis-r1/ANALYSIS.md",
+      "bytes": 1647,
+      "sha256": "e465d838947f0268b0434a44a91ad9ecd0ed8c98c2102ac898312d6287491af6"
+    },
+    {
+      "path": "source-and-analysis/compare_workers.executed-r1.py",
+      "bytes": 9217,
+      "sha256": "c5272ed6ed02368731e7095054ff0c6f9ca42f5c6af2bb4cd41091f328c300cb"
+    },
+    {
+      "path": "source-and-analysis/compare_workers.py",
+      "bytes": 9391,
+      "sha256": "8be3dbd89870dfa344666a318979cb65402dd1ae23b8de9760c82d50bb467d7f"
+    },
+    {
+      "path": "source-and-analysis/eval_step_graph.h",
+      "bytes": 2169,
+      "sha256": "039c67b7355ad7d5ded81c771f81f876bc905dbb3bd57fe6522d30a348ca39b5"
+    },
+    {
+      "path": "source-and-analysis/eval_worker.cpp",
+      "bytes": 23530,
+      "sha256": "19e5048133faecbab69b8a54755b05eed32a6a607ed29fd117c3cec073a67716"
+    },
+    {
+      "path": "source-and-analysis/eval_worker.original.cpp",
+      "bytes": 22894,
+      "sha256": "35b70b245d4fc4a635a2fd364b2e15645c445b73c63c4563d3abd42070f94a41"
+    },
+    {
+      "path": "source-and-analysis/mock/cuda_runtime_api.h",
+      "bytes": 1489,
+      "sha256": "63eb6da493754253bece7d4576b26e0a8999eb6f7439e5237c5b76c2622bb3c4"
+    },
+    {
+      "path": "source-and-analysis/publish.py",
+      "bytes": 2042,
+      "sha256": "d03a0a71b169eadd2404568c050ae66f0d692614cb8b9211a2831f78832a95e5"
+    },
+    {
+      "path": "source-and-analysis/README.md",
+      "bytes": 2855,
+      "sha256": "206dfd67cee3bccb5d41837ec37567b62d8568ec1f72cdfb13b41d5b6bc5d132"
+    },
+    {
+      "path": "source-and-analysis/SOURCE.json",
+      "bytes": 738,
+      "sha256": "43ebae3ef02d0aa36f3f0e4b51e00bf05145d045ae784989c397af4c07dde3cc"
+    },
+    {
+      "path": "source-and-analysis/stage.py",
+      "bytes": 3014,
+      "sha256": "03dbcf254b3c446ec41402f8cedd0a16dba5a3e17eab6aa2c5a019dd07001853"
+    },
+    {
+      "path": "source-and-analysis/test_compare_workers.py",
+      "bytes": 1464,
+      "sha256": "d449a9ea96dca4c32a623ee88b92df62bf726662e897403462162ce71be52d59"
+    },
+    {
+      "path": "source-and-analysis/test_source_contract.py",
+      "bytes": 1332,
+      "sha256": "95bb29a1378b606b5828f82bdc8cf30386524dcc86fe361aa47c8b2321eab425"
+    },
+    {
+      "path": "source-and-analysis/test_step_graph",
+      "bytes": 19128,
+      "sha256": "ce640f5106e4284cdb0a5c03fc7d96420882277e09676469b9db8d0fd71480e4"
+    },
+    {
+      "path": "source-and-analysis/test_step_graph.cpp",
+      "bytes": 2703,
+      "sha256": "8532e92b36536e3149b1b977dd38ba55a471ce6128aae3f624483a1a89035935"
+    },
+    {
+      "path": "source-and-analysis/tests-cpu.json",
+      "bytes": 106,
+      "sha256": "df3554e22b516896a5c6e2688e8dd0e5bd22a83d68fcadb933a29266482e4366"
+    },
+    {
+      "path": "source-and-analysis/TESTS-FINAL.json",
+      "bytes": 829,
+      "sha256": "80542c9645b58c82ea45c705f8b9abf9a954df06b8055ccdb160ab617417650e"
+    },
+    {
+      "path": "source-and-analysis/worker.diff",
+      "bytes": 3581,
+      "sha256": "bdd922a650c0d768096942ef6cfbfc52b33152df3943502f723c601af911370d"
+    },
+    {
+      "path": "executed-comparison/eager/exit.json",
+      "bytes": 17,
+      "sha256": "e89df0eae5ec7db81135aed16463968955c578bcc4f2ec43172eff351f080c17"
+    },
+    {
+      "path": "executed-comparison/eager/protocol.jsonl",
+      "bytes": 4682222,
+      "sha256": "e45533e2cdab4a2bf71e96ff6f407ad3e0460e632479017764128366c70c917a"
+    },
+    {
+      "path": "executed-comparison/eager/stderr.log",
+      "bytes": 2006,
+      "sha256": "d340b18d384ea4a82d931988de80d27b45bfc00c2157e1d9a141e27ca99eae80"
+    },
+    {
+      "path": "executed-comparison/eager/timings.json",
+      "bytes": 260,
+      "sha256": "b46b41ea08e7f9d95033c8c491e18ee88eb62187d5ae5516279f2130d76109ba"
+    },
+    {
+      "path": "executed-comparison/eager/worker.json",
+      "bytes": 1306,
+      "sha256": "f9e9445f21ffd602d7262639f891a5c872d7dc515eb1176b0b7d3f2551230f58"
+    },
+    {
+      "path": "executed-comparison/FETCHED.json",
+      "bytes": 2049,
+      "sha256": "d6e1e134cb54483402d0a02845c7216a3dd96476d1e466808d292857f55001bc"
+    },
+    {
+      "path": "executed-comparison/graph/exit.json",
+      "bytes": 17,
+      "sha256": "e89df0eae5ec7db81135aed16463968955c578bcc4f2ec43172eff351f080c17"
+    },
+    {
+      "path": "executed-comparison/graph/protocol.jsonl",
+      "bytes": 4682464,
+      "sha256": "b13a7d544eea4ca34d68b65c83ca18795d5e63416ca4899dfb0c82d8236046ab"
+    },
+    {
+      "path": "executed-comparison/graph/stderr.log",
+      "bytes": 2360,
+      "sha256": "48c17e6370c26a24d97c6a64a4fe9f21cb0aecbe17f75e039271f769023ea517"
+    },
+    {
+      "path": "executed-comparison/graph/timings.json",
+      "bytes": 259,
+      "sha256": "43a352069a50e76ab68a8b004c6a91de284cfa2f729a475164f69405817a0030"
+    },
+    {
+      "path": "executed-comparison/graph/worker.json",
+      "bytes": 1305,
+      "sha256": "c791a708d183ab7c909a5db6c5a68c07a144b4ac619ab344e42e96a0da0743c6"
+    },
+    {
+      "path": "executed-comparison/INPUTS.json",
+      "bytes": 1064,
+      "sha256": "cca1bdad34e825253da653a8c9050556e9a472b23f7431b1b13b09b4bd2d49d4"
+    },
+    {
+      "path": "executed-comparison/MANIFEST.json",
+      "bytes": 1839,
+      "sha256": "e47e18c71c85daceca7d3ff7da85f78a61653e0dc8b00e9eabfa0b3890a962af"
+    },
+    {
+      "path": "executed-comparison/requests.json",
+      "bytes": 22917,
+      "sha256": "37fdf6ead9a60d3b86247e4e987c6865d978c16858c23e64282a4aaf0db364f3"
+    },
+    {
+      "path": "executed-comparison/SUMMARY.json",
+      "bytes": 200920,
+      "sha256": "cca9e9844b2715dc039e15122624cfbe16d56ee07d6c79b24a2610521f66ac97"
+    }
+  ],
+  "count": 35,
+  "bytes": 9720443,
+  "source_nas_hashes_match": true,
+  "no_new_gpu_runs_by_publisher": true
+}

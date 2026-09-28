@@ -1,0 +1,1877 @@
+[
+  {
+    "op": "snapshot"
+  },
+  {
+    "op": "reset"
+  },
+  {
+    "op": "snapshot"
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "strafe": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "strafe": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "strafe": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "strafe": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "strafe": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "strafe": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "yaw": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "yaw": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "yaw": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "yaw": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "yaw": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "yaw": -1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 0.25,
+      "strafe": -0.5,
+      "yaw": 0.125
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 0.25,
+      "strafe": -0.5,
+      "yaw": 0.125
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 0.25,
+      "strafe": -0.5,
+      "yaw": 0.125
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "moveIndex": 0
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "moveIndex": 1
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "cancelAction": true
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 1
+  },
+  {
+    "op": "reset"
+  },
+  {
+    "op": "snapshot"
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 0.3,
+      "strafe": 0.6,
+      "yaw": -0.2
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 0.3,
+      "strafe": 0.6,
+      "yaw": -0.2
+    },
+    "steps": 1
+  },
+  {
+    "op": "step",
+    "command": {
+      "forward": 0.3,
+      "strafe": 0.6,
+      "yaw": -0.2
+    },
+    "steps": 1
+  },
+  {
+    "op": "reset"
+  },
+  {
+    "op": "step",
+    "action": 1,
+    "steps": 2
+  },
+  {
+    "op": "reset"
+  },
+  {
+    "op": "step",
+    "command": {},
+    "humanSide": 1,
+    "steps": 2
+  },
+  {
+    "op": "reset"
+  },
+  {
+    "op": "snapshot"
+  },
+  {
+    "op": "step",
+    "command": {},
+    "steps": 512,
+    "benchmark": true
+  }
+]

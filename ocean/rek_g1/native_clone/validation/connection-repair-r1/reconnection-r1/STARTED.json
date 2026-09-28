@@ -1,0 +1,37 @@
+{
+  "utc": "2026-09-28T11:56:04.1638239Z",
+  "scriptSha256": "aa2d3ad86fd62448c713245379e45f420fee0c6b481aa9a9c0dc2adf95644f95",
+  "untilStopped": true,
+  "processes": [
+    {
+      "mode": "tunnel",
+      "pid": 235256,
+      "startedUtc": "2026-09-28T11:56:04.1281885Z",
+      "args": [
+        "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\passive-support-r2\\passive.py",
+        "tunnel",
+        "--local",
+        "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\passive-support-r1\\active",
+        "--remote",
+        "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r4",
+        "--until-stop"
+      ]
+    },
+    {
+      "mode": "mirror",
+      "pid": 92628,
+      "startedUtc": "2026-09-28T11:56:04.1524455Z",
+      "args": [
+        "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\passive-support-r2\\passive.py",
+        "mirror",
+        "--local",
+        "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\passive-support-r1\\active",
+        "--remote",
+        "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r4",
+        "--until-stop",
+        "--resume"
+      ]
+    }
+  ],
+  "reason": "Original four-hour tunnel/mirror lifetime expired; Spark service remained healthy"
+}

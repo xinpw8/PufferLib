@@ -1,0 +1,27 @@
+{
+  "binary": {
+    "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/build-r4/rek-native-clone",
+    "sha256": "bfed1ab056a8ed14a619f535df88bae86e408670e739100f83e82018b19c9516"
+  },
+  "driver": {
+    "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/perf-graph-r1/compare_workers.py",
+    "sha256": "c5272ed6ed02368731e7095054ff0c6f9ca42f5c6af2bb4cd41091f328c300cb"
+  },
+  "original_worker": {
+    "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r2/worker.json",
+    "sha256": "30af15c69a3d7a1005fc8596678c7046b67264d809a6b08a63f6eb56dfed9e18"
+  },
+  "server": {
+    "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r2/server.json",
+    "sha256": "435cdfc907eaeb25b73a00a42a002ff808b6924872affa62f70934b96680631e"
+  },
+  "schedule_sha256": "37fdf6ead9a60d3b86247e4e987c6865d978c16858c23e64282a4aaf0db364f3",
+  "authorized_overrides": {
+    "round_seconds": 2,
+    "cuda_graph_step": [
+      false,
+      true
+    ]
+  },
+  "sequential_fresh_processes": true
+}

@@ -1,0 +1,227 @@
+[
+  {
+    "path": "ocean/rek_g1/league/public/app.js",
+    "bytes": 35775,
+    "sha256": "2d7cd889a2ff7249dd09e96434f81c172f98cbd2bc917aee7b30afb935ccf5e3"
+  },
+  {
+    "path": "ocean/rek_g1/league/public/app.test.cjs",
+    "bytes": 35582,
+    "sha256": "3dc9253f83c9be899bfa119ea8e4b3d1eb43965e634f10cd7e82b469610b43fc"
+  },
+  {
+    "path": "ocean/rek_g1/league/public/index.html",
+    "bytes": 7845,
+    "sha256": "e8b5e762c5cdc275f7e6d2a14a17353503b621576ceb31c5c8e06f983aa6a06f"
+  },
+  {
+    "path": "ocean/rek_g1/league/public/style.css",
+    "bytes": 9687,
+    "sha256": "c661b568e5f8b806e56c51b9be0988d6bf4a2fb037d0633d4a34a2cab2e63ec6"
+  },
+  {
+    "path": "ocean/rek_g1/native5/README.md",
+    "bytes": 9000,
+    "sha256": "2c15d5b0438561b38d97bcf5c73f8ab8b47c4fb76953b33da5cb1677aa9b1b89"
+  },
+  {
+    "path": "ocean/rek_g1/native5/WILL_CONNECT.md",
+    "bytes": 5831,
+    "sha256": "d68f655d98559ec7724b7e03b5a4043527b8412c3946cdb4512ef2f5ba35dd73"
+  },
+  {
+    "path": "ocean/rek_g1/native5/build_eval.sh",
+    "bytes": 3355,
+    "sha256": "b8a0733dcda356fa66c92d5a97e60b03805443580b0ea1235267244aea06e9e6"
+  },
+  {
+    "path": "ocean/rek_g1/native5/build_fast.sh",
+    "bytes": 3840,
+    "sha256": "e2e8f07663592db45e1d7ffdc34d414e646857be0c28527bcd661022caddf29b"
+  },
+  {
+    "path": "ocean/rek_g1/native5/build_live_policy_worker.sh",
+    "bytes": 3023,
+    "sha256": "55dd5ed90613adbb5616b586e3914f4dc76ea28eaf3e9357de1a9c402ba5449c"
+  },
+  {
+    "path": "ocean/rek_g1/native5/build_observable_prev_action.sh",
+    "bytes": 2133,
+    "sha256": "f94b6970800b90a54cbc3c48a94e58d595c97a16db9258623c76226fee64531f"
+  },
+  {
+    "path": "ocean/rek_g1/native5/build_score_head_probe.sh",
+    "bytes": 1249,
+    "sha256": "faad7d875bd4959cc8f639b33294be18721d9415b5528ceedf3f5b607b110617"
+  },
+  {
+    "path": "ocean/rek_g1/native5/eval_worker.cpp",
+    "bytes": 17143,
+    "sha256": "da7c4391550618d44b8d58a348788cbfc34bd2b76f634d354c706cd4fc405c32"
+  },
+  {
+    "path": "ocean/rek_g1/native5/fast_runtime.cu",
+    "bytes": 83510,
+    "sha256": "76ff64e7b029f2d22ff41881bf5f950c91c5c0658d57bc1b83a4e7ff98cd266c"
+  },
+  {
+    "path": "ocean/rek_g1/native5/live_policy_worker.cu",
+    "bytes": 16208,
+    "sha256": "72f291fb95efe72fc7895f0803e618723375cc8a8f6717c8e2fdab209ef95ffe"
+  },
+  {
+    "path": "ocean/rek_g1/native5/live_policy_worker.test.cjs",
+    "bytes": 9609,
+    "sha256": "3a9bb5040c69a72c3a62ec067a69666f8f3e7db436b74b82328a9c5ee907244d"
+  },
+  {
+    "path": "ocean/rek_g1/native5/live_transfer/build_observable_encoder.sh",
+    "bytes": 1123,
+    "sha256": "88888d02ee158f5bc480417a58f07c554f907e8a1a61f3dc7d466d11491f58e7"
+  },
+  {
+    "path": "ocean/rek_g1/native5/live_transfer/encode_observable_balance.cpp",
+    "bytes": 30277,
+    "sha256": "43e5e63fbf72b2bd26ed374b70bc7b4f668782be2275c565c6c21024b5f25fe8"
+  },
+  {
+    "path": "ocean/rek_g1/native5/live_transfer/observable_encoder_test.cjs",
+    "bytes": 15586,
+    "sha256": "1cd50c9cd2158a18e2f1743ff66515945a312abe2bc5e5c71c0aeb123637418b"
+  },
+  {
+    "path": "ocean/rek_g1/native5/live_transfer_run.cjs",
+    "bytes": 29042,
+    "sha256": "ab5efa486539353a97f3b01631e52d23e8009400987542aed504b01d6f10d368"
+  },
+  {
+    "path": "ocean/rek_g1/native5/live_transfer_run.test.cjs",
+    "bytes": 40563,
+    "sha256": "378ebf7297be2a12e76379778293296201bfdd5580b664447230acc73f57a969"
+  },
+  {
+    "path": "ocean/rek_g1/native5/observable_prev_action.h",
+    "bytes": 3851,
+    "sha256": "42d79bd6d453085b11058b5679b11aadec5175a2a060c534b71463282d4a28fa"
+  },
+  {
+    "path": "ocean/rek_g1/native5/observable_prev_action_migration.cu",
+    "bytes": 13120,
+    "sha256": "aea7c96bbbdf7f3f6f483867b7351d4dd700b1ee1318987616484e5d7a89de33"
+  },
+  {
+    "path": "ocean/rek_g1/native5/observable_prev_action_test.cpp",
+    "bytes": 3909,
+    "sha256": "4481474c31d472d3d59ada606f69ff06585381eadc9533d24c915fbd46cebfe0"
+  },
+  {
+    "path": "ocean/rek_g1/native5/puffer_env.cu",
+    "bytes": 22517,
+    "sha256": "14081bbee462bfaf5411d92cf5c56e9b6d41c4b2a0c3858c91275b7cf98b35d2"
+  },
+  {
+    "path": "ocean/rek_g1/native5/runtime.cu",
+    "bytes": 46249,
+    "sha256": "8d666837903f381b8b1087af21b6f2ed660a07366d4aa854e8f6017e9cdb9044"
+  },
+  {
+    "path": "ocean/rek_g1/native5/score_head_data.cjs",
+    "bytes": 17574,
+    "sha256": "f77f1da9bf2970ed6ad71beb02dc8fc4a23da9728d31f929bfb1829597b59703"
+  },
+  {
+    "path": "ocean/rek_g1/native5/score_head_data.test.cjs",
+    "bytes": 7838,
+    "sha256": "cd0fead9e65f6dc6d2d365b77595f0329a518cf550d8f5b523c738c05d931a52"
+  },
+  {
+    "path": "ocean/rek_g1/native5/score_head_probe.cu",
+    "bytes": 21593,
+    "sha256": "f14fe4e044184e5a3b053720a0754ad031433c87d9f77f956537392d06a26d27"
+  },
+  {
+    "path": "ocean/rek_g1/native5/test_will_connect.c",
+    "bytes": 18052,
+    "sha256": "554bb18373f5b3d2c1b1ee72de2459c3f6f7ecb25ade9939a474f625ebc27eaf"
+  },
+  {
+    "path": "ocean/rek_g1/native5/test_will_connect_replay.py",
+    "bytes": 5056,
+    "sha256": "58074f0493dce2f4f56c03f53e67914fb40f877893d639237ff2ebdb1b84596e"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/human-contact-potential-20260918/README.md",
+    "bytes": 5157,
+    "sha256": "01d99a2685b3dc294dfc1a631c9e224294754be4a7dae1d41606ff7f99446a51"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/human-contact-potential-20260918/contact-potential-diagnostics.json",
+    "bytes": 9824,
+    "sha256": "150dc5140bdf67e6054d4b10120a2912ac1ed202bfa682139a372468838592a2"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/human-contact-potential-20260918/contact-potential-model.json",
+    "bytes": 2827,
+    "sha256": "dd4ebe98786ca3e1ea31a6433aa65f5134f87068d1beaab41298b6301fb98004"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/human-contact-potential-20260918/export_training_results.cjs",
+    "bytes": 11817,
+    "sha256": "63ee7cdb3c2275939487c4a5acb8d1590c1a309bf3989265f059af913fc36370"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/human-score-head-20260918/holdout.tsv",
+    "bytes": 20977,
+    "sha256": "9975e32f42678a3543051460d2f0ecbf858db0ced69fb4b4d19bf01c3851eeea"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/human-score-head-20260918/manifest.json",
+    "bytes": 19498,
+    "sha256": "9b696af958ab605bdc921f187990a5deafbefb34fbf145d5f2b3332b09194ea7"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/human-score-head-20260918/train.tsv",
+    "bytes": 14480,
+    "sha256": "adcb1d2e7f4571aac8661501178f06e4fcbd09735792b4265bf652c956936421"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/observable-prev-action-cpu-20260921.md",
+    "bytes": 7472,
+    "sha256": "ac9ef51b0c2c0b94d809c8489b1861c7e83b81cdd85c8b906d8f3717ebeb27d7"
+  },
+  {
+    "path": "ocean/rek_g1/native5/validation/observable-prev-action-integration-20260921.md",
+    "bytes": 5899,
+    "sha256": "0e31f8e33b2f1f1e32936458518a55175d7c92f0e180d6dc32f4349fdc3cabbb"
+  },
+  {
+    "path": "ocean/rek_g1/native5/will_connect.h",
+    "bytes": 24426,
+    "sha256": "993b3bd70d7cae122ea8ce9c82c5c4e5a0310fbdf2dc58a5497a4086149651a5"
+  },
+  {
+    "path": "ocean/rek_g1/native5/will_connect_diagnostics.h",
+    "bytes": 4847,
+    "sha256": "23dc2d406eb134180233036b4b61c7fdb6d7d55a42661219fdd82981b654d057"
+  },
+  {
+    "path": "ocean/rek_g1/native5/will_connect_diagnostics_test.cpp",
+    "bytes": 4608,
+    "sha256": "b0effa7b3b6cfe8b17f08cab2bff9a092fb615aa20441caa3b8750f94d09929b"
+  },
+  {
+    "path": "ocean/rek_g1/native5/will_connect_json.h",
+    "bytes": 3818,
+    "sha256": "f54c6bb783e2f5b9163cca252346c88d3d8ddea4f38fc312fd16b1aace273ef8"
+  },
+  {
+    "path": "ocean/rek_g1/native5/will_connect_regression_test.c",
+    "bytes": 5188,
+    "sha256": "9618be03a325bbf096ed0e781d8c868919a39ba338fc98b2b2698473cb755827"
+  },
+  {
+    "path": "ocean/rek_g1/native5/will_connect_snapshot.cpp",
+    "bytes": 2987,
+    "sha256": "4077f5dd75d3cba19e04902c0efc084ca89b0c15a965d77d4986124698cac5fc"
+  }
+]

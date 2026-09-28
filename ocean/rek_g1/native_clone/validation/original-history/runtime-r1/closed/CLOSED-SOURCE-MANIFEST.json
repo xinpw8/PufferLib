@@ -1,0 +1,142 @@
+{
+  "schema": "rek.original_history.closed_capture.v1",
+  "utc": "2026-09-28T01:42:07.080848+00:00",
+  "container_id": "510ae9d7128b0533b496ceab7e634fbb26374198fd38167ad7bf6ab24d7acfc5",
+  "image_id": "sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879",
+  "state": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-09-28T01:40:16.205957552Z",
+    "FinishedAt": "2026-09-28T01:41:17.046148923Z"
+  },
+  "files": [
+    {
+      "path": "isolation/container-created-receipt.json",
+      "bytes": 2180,
+      "sha256": "8af6c0e3a840807b3441ce53163b57764c4ba7795b41088ed38342bb0c10b406"
+    },
+    {
+      "path": "isolation/container-finished-receipt.json",
+      "bytes": 411,
+      "sha256": "5c47e7e2ceeda8b25f0c9c07cc0ac719b5c8fc8cfdc11bf2c83516b90f0fecfa"
+    },
+    {
+      "path": "isolation/container-prestart-receipt.json",
+      "bytes": 2180,
+      "sha256": "b28aa43cf72498eb860cf05cacd327b408fe01136c7699a7197f2eca03f85bf6"
+    },
+    {
+      "path": "unity-harness-r1/INPUT.json",
+      "bytes": 648,
+      "sha256": "f36a5d09ef3318094a868b5aa519cc5c8b2daad98d5c4cd3cf018e2f7969eb21"
+    },
+    {
+      "path": "unity-harness-r1/PLUGIN.json",
+      "bytes": 156,
+      "sha256": "c542d5b42fc826a3a230441d648ba2e76f542f527fd15d87efdcfb3bdcff68fb"
+    },
+    {
+      "path": "unity-harness-r1/STAGED.json",
+      "bytes": 106620,
+      "sha256": "0ba8b08ddfdb4929673c6c6424be7883f39fccf95106c05f9c8177b756bcb456"
+    },
+    {
+      "path": "unity-harness-r1/docker-create-command.json",
+      "bytes": 2277,
+      "sha256": "6dcd0d9bf31941c01d91b7cfb339ed926a4eee62a63fd62e5293ed99c2ecf278"
+    },
+    {
+      "path": "unity-harness-r1/game/BepInEx/LogOutput.log",
+      "bytes": 1278,
+      "sha256": "493c1590c10ea2dc2f61135b4c6bc7ac56ab6bab489c29400706585b157b4664"
+    },
+    {
+      "path": "unity-harness-r1/game/REK_COMPOSER_ORACLE_ISOLATED.json",
+      "bytes": 136,
+      "sha256": "24f5efeb7b6388670f6f475e5f13d8d51138d6091087032dafd57a572c3035b9"
+    },
+    {
+      "path": "unity-harness-r1/input/INPUT-STAGING.json",
+      "bytes": 1137,
+      "sha256": "ce1dcd671bc558b6a859667e354f71625ddeb7d0444331024a307824347cd7fd"
+    },
+    {
+      "path": "unity-harness-r1/input/fixtures.json",
+      "bytes": 68579,
+      "sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0"
+    },
+    {
+      "path": "unity-harness-r1/input/run-config.json",
+      "bytes": 349,
+      "sha256": "73903b580229642c318521d838252778907a2e53178145786d2de88d0e73f87b"
+    },
+    {
+      "path": "unity-harness-r1/input/sonic_config.json",
+      "bytes": 11880,
+      "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355"
+    },
+    {
+      "path": "unity-harness-r1/out/game.exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "unity-harness-r1/out/game.finished.utc",
+      "bytes": 21,
+      "sha256": "b58a4f675c4925d666916d6d112aff046cea1f21138f0131f69ba57676273ea1"
+    },
+    {
+      "path": "unity-harness-r1/out/game.stderr.log",
+      "bytes": 125769,
+      "sha256": "ec605315611099cd3481e0f3b32cb1ee1d51544ac19459b38f2b5c2762370959"
+    },
+    {
+      "path": "unity-harness-r1/out/game.stdout.log",
+      "bytes": 1824,
+      "sha256": "bbdea4c79173e74741161e06331aab234362d29b36abbbc95841d8f5fd58ef93"
+    },
+    {
+      "path": "unity-harness-r1/out/image-packages.txt",
+      "bytes": 152,
+      "sha256": "44fcfa5c1bebd7b7480b06ab77d38e5ece4b69353003b451339828d29eb1bea1"
+    },
+    {
+      "path": "unity-harness-r1/out/oracle/oracle.jsonl",
+      "bytes": 1856321,
+      "sha256": "8495728eb588d9ff51da93d1f6783fbb3c8757cc80f56a16f6892a85bd9f308c"
+    },
+    {
+      "path": "unity-harness-r1/out/unity.log",
+      "bytes": 12462,
+      "sha256": "ea3a6e391d02b48469442cd92aa3e38e06673510f31243c755b36c8e1c26e5f2"
+    },
+    {
+      "path": "unity-harness-r1/out/x-display.txt",
+      "bytes": 26026,
+      "sha256": "783e1df6abc1a61169c12f174221e4c6ac2b2e251474a29bd6a9afa41ded1c54"
+    },
+    {
+      "path": "unity-harness-r1/out/xvfb.stderr.log",
+      "bytes": 1255,
+      "sha256": "0bac115c5580e35921d81254a7da3faf4a2bcbffe9063af638a27e97a1471a01"
+    },
+    {
+      "path": "unity-harness-r1/out/xvfb.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "unity-harness-r1/run.started",
+      "bytes": 21,
+      "sha256": "2487567fef16179078cf8b036663a6a27e54ec01455c52e9f947936d27fd76ac"
+    }
+  ],
+  "full_private_runtime_not_duplicated": "575 static source copies retained remotely; byte inventory in STAGED.json"
+}

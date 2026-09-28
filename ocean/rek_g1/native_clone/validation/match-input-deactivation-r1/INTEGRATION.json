@@ -1,0 +1,34 @@
+{
+  "schema": "rek.match_input_deactivation.integration.v1",
+  "utc": "2026-09-28T02:22:40.345298+00:00",
+  "sources": [
+    {
+      "path": "native5/runtime.cu",
+      "sha256": "c7534b540018bf161fbc5c0763f4f4190fd5fc643c5ec32774960ebd028b2c5b"
+    },
+    {
+      "path": "g1_semantic_scheduler_cuda.cu",
+      "sha256": "beea0fa369afca02138f7806aa511562d8918c181a19e006fb762dc0fd63d69b"
+    },
+    {
+      "path": "g1_semantic_scheduler_cuda.h",
+      "sha256": "d31933796698939fefbbdbb9517c7febecabc69073fde662e10c844860ef5fd7"
+    },
+    {
+      "path": "native5/motion_assets.cu",
+      "sha256": "0095b2f0eef99c39fe74bfd496bd9a42269f2e5c19a1c441160510de45b5a964"
+    },
+    {
+      "path": "native5/motion_assets.cuh",
+      "sha256": "1333736eaec60fa72c5c1e3d52dee9a1205cccf0ee574df6f831588e656534d0"
+    }
+  ],
+  "runtime_cpu_edge_checks": 26,
+  "scheduler_cpu_checks_reported": 143,
+  "ordered_reset_checks_reported": 216,
+  "legacy_dispatch_checks_reported": 21839,
+  "gpu_executed_by_this_agent": false,
+  "remote_upload_by_this_agent": false,
+  "public_layout_changed": false,
+  "scope": "local staged runtime and scheduler; parent owns integrated GPU validation"
+}

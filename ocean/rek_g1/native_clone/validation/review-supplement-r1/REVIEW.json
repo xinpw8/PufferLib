@@ -1,0 +1,53 @@
+{
+  "schema": "rek.native_clone.independent_review_supplement.v1",
+  "utc": "2026-09-28T01:52:19.652453+00:00",
+  "app_review": {
+    "verdict": "no blocking issue found for prepared side0 Bot1 app",
+    "reviewer": "research_pathways",
+    "source_manifest_sha256": "73516917b2b40d41dd64f6f1bb3e837e5b54f6c2afce04752820301eb20cbfef",
+    "files": [
+      {
+        "path": "league/server.cjs",
+        "sha256": "21705bd9a26e12b38e6074f9bb4f0d6cacc84f95bc6d456b41de2b26e7f10b8b"
+      },
+      {
+        "path": "league/input.cjs",
+        "sha256": "d098118cabfd1319ae62f27a0cd474ea9bf7f687feecbae90deefe6dc5f1c51a"
+      },
+      {
+        "path": "league/public/app.js",
+        "sha256": "b4e6f2f92ddec600f0f6a58aa09bd4503e133df11f05da18e2b1ec9a9781b093"
+      },
+      {
+        "path": "league/public/controls.js",
+        "sha256": "283f9707affe1d85b4a068123c2d8b26fb0e45198bd2ab9e9f90b22228e98251"
+      },
+      {
+        "path": "league/paced_loop.cjs",
+        "sha256": "698eea4b68ec7821600447470b3ba64b085f8938ae2d93524195289f3237b681"
+      },
+      {
+        "path": "league/worker.cjs",
+        "sha256": "26a5ec02395e90c1c5850897314c3175f1aaaa96c0574ec6716132534a107036"
+      },
+      {
+        "path": "prepare.cjs",
+        "sha256": "6548b5f097003d051f72b8f52e869e5f80a9a788f9ed035d3c975ab9cc91b94a"
+      }
+    ],
+    "observations": [
+      "Body-yielding input/step/play endpoints recheck worker generation and switch state before action. Explicit step and reset exclude paced ticks and wait for an outstanding tick.",
+      "Browser input packets serialize; release advances generation and sequence, preventing unsent stale edges from returning after reset/blur. Server rejects old sequences.",
+      "Direct velocity signs and magnitudes are passed unchanged; move category16..32 maps to native index0..16 and each accepted queued edge is consumed once.",
+      "Keyboard uses physical event.code and longest held chord; saved double-tap bindings use explicit300ms window. Input is scoped to the arena element.",
+      "Prepared app fixes humanSide0, matching its visible score labels. The generic API permits side1 but this review does not approve static UI labels for side1."
+    ],
+    "scope": "Read-only source review; no UI input, server requests, runtime, GPU, new tests, or changes."
+  },
+  "controller_review": {
+    "reviewer": "training_audit",
+    "verdict": "PASS bounded read-only review; no blocking delta",
+    "scheduler_sha256": "1739dd7a6d37ac760b94c9d2f9e1e4f70ecaef5505f85503089658bf5330e5b1",
+    "review_summary": "Candidate commits after reset/reference/heading/ordinaryIdle success; invalid order/nonfinite base preserves composer and fails action masks closed. Actual base used; heading is evaluated at explicit runner callback point. Four original reset flags clear; passive route/last/brake/effectiveVelocity retained. Dispatch mode retention and cold clear explicit. Reviewed216 assertions. Callback order and1ULP libm heading residual remain explicit limitations."
+  }
+}

@@ -1,0 +1,30 @@
++ gcc -std=c11 -O2 -c vendor/cJSON.c -o /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/cJSON.o
++ gcc -std=c99 -O2 ocean/rek_g1/native5/test_will_connect.c -lm -o /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect
++ /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect
++ gcc -std=c99 -O2 ocean/rek_g1/native5/will_connect_regression_test.c -lm -o /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect-regression
++ /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect-regression
++ g++ -std=c++17 -O2 ocean/rek_g1/native5/will_connect_diagnostics_test.cpp /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/cJSON.o -lm -o /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect-diagnostics
++ /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect-diagnostics
++ g++ -std=c++17 -O2 -Wall -Wextra -Werror ocean/rek_g1/native5/observable_prev_action_test.cpp -o /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-previous-action
++ /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-previous-action
++ g++ -std=c++17 -O2 -DREK_LIVE_PROTOCOL_TEST -x c++ ocean/rek_g1/native5/live_policy_worker.cu -x none /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/cJSON.o -o /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/live-protocol
++ for schema in rek.native5.scaled_polar_xy.v1 rek.native5.observable_balance.v1 rek.native5.observable_balance_prev_action.v1
++ REK_OBSERVATION_SCHEMA=rek.native5.scaled_polar_xy.v1
++ node ocean/rek_g1/native5/live_policy_worker.test.cjs protocol /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/live-protocol
++ for schema in rek.native5.scaled_polar_xy.v1 rek.native5.observable_balance.v1 rek.native5.observable_balance_prev_action.v1
++ REK_OBSERVATION_SCHEMA=rek.native5.observable_balance.v1
++ node ocean/rek_g1/native5/live_policy_worker.test.cjs protocol /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/live-protocol
++ for schema in rek.native5.scaled_polar_xy.v1 rek.native5.observable_balance.v1 rek.native5.observable_balance_prev_action.v1
++ REK_OBSERVATION_SCHEMA=rek.native5.observable_balance_prev_action.v1
++ node ocean/rek_g1/native5/live_policy_worker.test.cjs protocol /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/live-protocol
++ g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -Wno-misleading-indentation ocean/rek_g1/native5/live_transfer/encode_observable_balance.cpp /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/cJSON.o -lcrypto -o /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/encoder
++ printf '<mujoco model="cpu-identity-fixture"/>\n'
++ for schema in rek.native5.observable_balance.v1 rek.native5.observable_balance_prev_action.v1
++ REK_OBSERVATION_SCHEMA=rek.native5.observable_balance.v1
++ node ocean/rek_g1/native5/live_transfer/observable_encoder_test.cjs /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/encoder /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/identity-fixture.xml
++ for schema in rek.native5.observable_balance.v1 rek.native5.observable_balance_prev_action.v1
++ REK_OBSERVATION_SCHEMA=rek.native5.observable_balance_prev_action.v1
++ node ocean/rek_g1/native5/live_transfer/observable_encoder_test.cjs /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/encoder /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/identity-fixture.xml
++ sha256sum /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-previous-action /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect-diagnostics /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/test-will-connect-regression /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/live-protocol /mnt/c/rekagent/work/rek-github-checkpoint-20260928-r1/preexisting-tests/cpu/encoder
++ code=0
++ printf '%s\n' 0

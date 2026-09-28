@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "python3",
+    "-",
+    "--root",
+    "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1",
+    "--build",
+    "build-r6",
+    "--source",
+    "source-r6",
+    "--run",
+    "run-r4",
+    "--app",
+    "app-r3",
+    "--tools",
+    "tools-r5"
+  ],
+  "started_utc": "2026-09-28T02:25:38.146337+00:00",
+  "collector_sha256": "6b2d64a12d655498dbf59dfa9663a16d946bb76564f1bcf89e198bd8878d649f",
+  "remote_mode": "stdin script, no remote file mutation"
+}

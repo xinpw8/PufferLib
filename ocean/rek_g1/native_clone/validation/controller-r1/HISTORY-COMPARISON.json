@@ -1,0 +1,269 @@
+{
+  "schema": "rek.native_clone.original_history_comparison.v1",
+  "oracle": {
+    "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\original-history\\runtime-r1\\oracle.jsonl",
+    "sha256": "8495728eb588d9ff51da93d1f6783fbb3c8757cc80f56a16f6892a85bd9f308c"
+  },
+  "fixture_sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0",
+  "native_history_sha256": "a8d5da383f46673357c9b5547d129eb26c7d3494e24be20335def471fb830f24",
+  "native_heading_sha256": "d7dd1bf719aa771993cf1e53a3953fe723f5d5b3f21ff5c3d3bae70856f37266",
+  "history_values_compared": 27832,
+  "history_bit_mismatch_count": 0,
+  "queries": [
+    {
+      "repeat": 0,
+      "operation": 0,
+      "label": "empty",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 2,
+      "label": "push_1",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 4,
+      "label": "push_2",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 6,
+      "label": "push_3",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 13,
+      "label": "push_9",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 15,
+      "label": "push_10",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 17,
+      "label": "push_11",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 27,
+      "label": "push_20",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 29,
+      "label": "push_21",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 31,
+      "label": "push_22",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 37,
+      "label": "push_27",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 39,
+      "label": "cleared",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 41,
+      "label": "after_clear_1",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 0,
+      "operation": 45,
+      "label": "after_clear_4",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 0,
+      "label": "empty",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 2,
+      "label": "push_1",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 4,
+      "label": "push_2",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 6,
+      "label": "push_3",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 13,
+      "label": "push_9",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 15,
+      "label": "push_10",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 17,
+      "label": "push_11",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 27,
+      "label": "push_20",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 29,
+      "label": "push_21",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 31,
+      "label": "push_22",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 37,
+      "label": "push_27",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 39,
+      "label": "cleared",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 41,
+      "label": "after_clear_1",
+      "compared": 994,
+      "bit_mismatches": []
+    },
+    {
+      "repeat": 1,
+      "operation": 45,
+      "label": "after_clear_4",
+      "compared": 994,
+      "bit_mismatches": []
+    }
+  ],
+  "heading_values_compared": 20,
+  "heading_bit_mismatch_count": 4,
+  "heading_cases": [
+    {
+      "label": "identity",
+      "compared": 5,
+      "bit_mismatches": [],
+      "native_values": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "label": "positive_yaw",
+      "compared": 5,
+      "bit_mismatches": [
+        0,
+        1
+      ],
+      "native_values": [
+        1.2870023250579834,
+        0.7999999523162842,
+        0.0,
+        0.0,
+        0.6000000238418579
+      ]
+    },
+    {
+      "label": "negative_yaw",
+      "compared": 5,
+      "bit_mismatches": [
+        0,
+        1
+      ],
+      "native_values": [
+        -1.2870023250579834,
+        0.7999999523162842,
+        0.0,
+        0.0,
+        -0.6000000238418579
+      ]
+    },
+    {
+      "label": "tilted_asymmetric",
+      "compared": 5,
+      "bit_mismatches": [],
+      "native_values": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "scope": "Shared production step-1 history append and decoder packing with explicit pretransformed snapshots; original ring step2 separately verified by oracle, not implemented in this fixed step1 native path. Heading compares original CalcHeadingMj and YawQuatMj on four explicit inputs using CPU libm callbacks. No physics, source snapshot transforms, model inference, GPU, server, or all-input transcendental parity claim."
+}

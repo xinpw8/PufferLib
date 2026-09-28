@@ -1,0 +1,27 @@
+{
+  "schema": "rek.native_clone.direct_api_source_review.v1",
+  "utc": "2026-09-28T01:52:42.420984+00:00",
+  "verdict": "PASS after direct override category bypass correction",
+  "reviewed_source_sha256": {
+    "native5/runtime.cu": "31feae324e76ec54eb2ea9ebf2f4eab1edf565a8f1b9432c852b877d5ca66c07",
+    "native5/eval_worker.cpp": "d4dd240935c8a41f997bb617b2fd5c576ce87249162b7d1604839edee2ac5247",
+    "native5/runtime_api.h": "06a498bf9304d17832b6e377e5af3b513cfde4ff4203197e9a70622dba34aa88",
+    "g1_semantic_scheduler_cuda.cu": "1739dd7a6d37ac760b94c9d2f9e1e4f70ecaef5505f85503089658bf5330e5b1"
+  },
+  "issues_fixed": [
+    "Enabled direct rows previously validated ignored categorical values, causing false sticky action failures"
+  ],
+  "other_scope": [
+    "Direct command ownership/reset and first-tick event pulse",
+    "Actual per-tick acceptance/rejection feedback",
+    "Current G1 null-getup-clips input recovery versus independent motor suspension",
+    "Explicit ordered body reset using actual body orientation; subscription order remains unproven"
+  ],
+  "test_status": "C++ source staged; Python/bash syntax checked; GPU not run by this agent",
+  "test_sources": {
+    "build.sh": "9673497a663a02b62a8f0e4df41dadf35eef80bfa1a92295c466d0c663cc9031",
+    "direct_api_test.cpp": "d78db9d56eabaf281ef31d8aa3fb64dcf787f01b5408ef707bfee683ee6ac9b8",
+    "README.md": "4d5e5a190d03451cc9eda625398a1f68c64ddbb4bcfc948e694721dadde73908",
+    "run.py": "37fd651887cd7d9e4ff15dfc46ca6eeec4c48140bbc7ded3415f03cdab69525b"
+  }
+}

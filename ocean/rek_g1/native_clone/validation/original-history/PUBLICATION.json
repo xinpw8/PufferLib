@@ -1,0 +1,231 @@
+{
+  "schema": "rek.original_history.publication.v1",
+  "utc": "2026-09-28T01:44:00.594428+00:00",
+  "source": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\original-history",
+  "destination": "R:\\pufferlib\\rek-evidence\\2026-09-27\\rek-native-clone-r1\\original-history",
+  "files": [
+    {
+      "path": "bin\\Release\\net6.0\\RekHistoryOracle.deps.json",
+      "bytes": 440,
+      "sha256": "f3e29e9a856c399f2db86ef895889406f52256f44fc3401615c14536b43afde0"
+    },
+    {
+      "path": "bin\\Release\\net6.0\\RekHistoryOracle.dll",
+      "bytes": 60416,
+      "sha256": "39289ff8f2df29f791a0fe682eaa8d29c38a435d523af06a01b4b786df315804"
+    },
+    {
+      "path": "BUILD-PINS.json",
+      "bytes": 1131,
+      "sha256": "c564c4bca7baca720354aa13467228cd530d925445434de788e91296d9449874"
+    },
+    {
+      "path": "capture_closed.py",
+      "bytes": 2133,
+      "sha256": "cfda5d736b2a3c4d12265b2a49384b7011dbfcc0cbfce8491dcb7980cedb0fa9"
+    },
+    {
+      "path": "create_source.py",
+      "bytes": 11901,
+      "sha256": "2ee52fc86f4017b3e73c4fa4547a95f2b7719b22289cdbeb5b4380b72114275f"
+    },
+    {
+      "path": "fixture\\fixtures.json",
+      "bytes": 68579,
+      "sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0"
+    },
+    {
+      "path": "fixture\\sonic_config.json",
+      "bytes": 11880,
+      "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355"
+    },
+    {
+      "path": "isolation\\orchestrate.py",
+      "bytes": 5789,
+      "sha256": "cdb6504ea8d64514be6b9ea9555774bfc101eb86b89291a391173f36ecb9b554"
+    },
+    {
+      "path": "isolation\\prepare_runtime.py",
+      "bytes": 8395,
+      "sha256": "7537128f1dc38c4da113e9ad2c9d0acab66edcd5a88b91e0c791b14766f8cff2"
+    },
+    {
+      "path": "Plugin.cs",
+      "bytes": 17006,
+      "sha256": "b53227ea44dcecb984006c034e7b0b8025152f9c7b1207f54328ebe2b226c94e"
+    },
+    {
+      "path": "prepare_inputs.py",
+      "bytes": 3216,
+      "sha256": "35f460202da8a1362601ef0f30c04f72b203659965c381bb3e6a383fc1484ca1"
+    },
+    {
+      "path": "publish.py",
+      "bytes": 1805,
+      "sha256": "9b4a065ec854f91b26645b4928133fd4e3cce013b2c694efcab355394067bd25"
+    },
+    {
+      "path": "RekHistoryOracle.csproj",
+      "bytes": 1658,
+      "sha256": "ad4eed13c180c982d673a42079ea31cc28899c324ab8c84b1f7b36b0d7a82c6a"
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 5975,
+      "sha256": "f1b13ff111acb0b5179692a9726e7ac3298451ecc311646348074aa541a027a7"
+    },
+    {
+      "path": "runtime-r1\\closed\\CLOSED-SOURCE-MANIFEST.json",
+      "bytes": 4845,
+      "sha256": "1370fd2eea1727007faa2c0f5bc26fa5216b5ced86c9a5a6d79e18c397e7f3a8"
+    },
+    {
+      "path": "runtime-r1\\closed\\isolation\\container-created-receipt.json",
+      "bytes": 2180,
+      "sha256": "8af6c0e3a840807b3441ce53163b57764c4ba7795b41088ed38342bb0c10b406"
+    },
+    {
+      "path": "runtime-r1\\closed\\isolation\\container-finished-receipt.json",
+      "bytes": 411,
+      "sha256": "5c47e7e2ceeda8b25f0c9c07cc0ac719b5c8fc8cfdc11bf2c83516b90f0fecfa"
+    },
+    {
+      "path": "runtime-r1\\closed\\isolation\\container-prestart-receipt.json",
+      "bytes": 2180,
+      "sha256": "b28aa43cf72498eb860cf05cacd327b408fe01136c7699a7197f2eca03f85bf6"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\docker-create-command.json",
+      "bytes": 2277,
+      "sha256": "6dcd0d9bf31941c01d91b7cfb339ed926a4eee62a63fd62e5293ed99c2ecf278"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\game\\BepInEx\\LogOutput.log",
+      "bytes": 1278,
+      "sha256": "493c1590c10ea2dc2f61135b4c6bc7ac56ab6bab489c29400706585b157b4664"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\game\\REK_COMPOSER_ORACLE_ISOLATED.json",
+      "bytes": 136,
+      "sha256": "24f5efeb7b6388670f6f475e5f13d8d51138d6091087032dafd57a572c3035b9"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\input\\fixtures.json",
+      "bytes": 68579,
+      "sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\input\\INPUT-STAGING.json",
+      "bytes": 1137,
+      "sha256": "ce1dcd671bc558b6a859667e354f71625ddeb7d0444331024a307824347cd7fd"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\input\\run-config.json",
+      "bytes": 349,
+      "sha256": "73903b580229642c318521d838252778907a2e53178145786d2de88d0e73f87b"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\input\\sonic_config.json",
+      "bytes": 11880,
+      "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\INPUT.json",
+      "bytes": 648,
+      "sha256": "f36a5d09ef3318094a868b5aa519cc5c8b2daad98d5c4cd3cf018e2f7969eb21"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\game.exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\game.finished.utc",
+      "bytes": 21,
+      "sha256": "b58a4f675c4925d666916d6d112aff046cea1f21138f0131f69ba57676273ea1"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\game.stderr.log",
+      "bytes": 125769,
+      "sha256": "ec605315611099cd3481e0f3b32cb1ee1d51544ac19459b38f2b5c2762370959"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\game.stdout.log",
+      "bytes": 1824,
+      "sha256": "bbdea4c79173e74741161e06331aab234362d29b36abbbc95841d8f5fd58ef93"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\image-packages.txt",
+      "bytes": 152,
+      "sha256": "44fcfa5c1bebd7b7480b06ab77d38e5ece4b69353003b451339828d29eb1bea1"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\oracle\\oracle.jsonl",
+      "bytes": 1856321,
+      "sha256": "8495728eb588d9ff51da93d1f6783fbb3c8757cc80f56a16f6892a85bd9f308c"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\unity.log",
+      "bytes": 12462,
+      "sha256": "ea3a6e391d02b48469442cd92aa3e38e06673510f31243c755b36c8e1c26e5f2"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\x-display.txt",
+      "bytes": 26026,
+      "sha256": "783e1df6abc1a61169c12f174221e4c6ac2b2e251474a29bd6a9afa41ded1c54"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\xvfb.stderr.log",
+      "bytes": 1255,
+      "sha256": "0bac115c5580e35921d81254a7da3faf4a2bcbffe9063af638a27e97a1471a01"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\out\\xvfb.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\PLUGIN.json",
+      "bytes": 156,
+      "sha256": "c542d5b42fc826a3a230441d648ba2e76f542f527fd15d87efdcfb3bdcff68fb"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\run.started",
+      "bytes": 21,
+      "sha256": "2487567fef16179078cf8b036663a6a27e54ec01455c52e9f947936d27fd76ac"
+    },
+    {
+      "path": "runtime-r1\\closed\\unity-harness-r1\\STAGED.json",
+      "bytes": 106620,
+      "sha256": "0ba8b08ddfdb4929673c6c6424be7883f39fccf95106c05f9c8177b756bcb456"
+    },
+    {
+      "path": "runtime-r1\\DOWNLOAD-VERIFIED.json",
+      "bytes": 263,
+      "sha256": "cf3b4699a3aee693ea72eab5738b1178804383406ed420e182f0f50aaacc720f"
+    },
+    {
+      "path": "runtime-r1\\oracle.jsonl",
+      "bytes": 1856321,
+      "sha256": "8495728eb588d9ff51da93d1f6783fbb3c8757cc80f56a16f6892a85bd9f308c"
+    },
+    {
+      "path": "runtime-r1\\VERIFIED.json",
+      "bytes": 5314,
+      "sha256": "48ada4f19e45c3eafe3f552d5b7f20698ad622d031afeeda14be3d92e0638db1"
+    },
+    {
+      "path": "unpack_closed.py",
+      "bytes": 1375,
+      "sha256": "5d7cf7db6d074db109d4c25eb8735d940dcb22885389e3a468eac3769312c2cc"
+    },
+    {
+      "path": "verify_trace.py",
+      "bytes": 5661,
+      "sha256": "bd9c56efbe2e52086acf2879e86df37ec85a6ddb92233547bea09b95c2119192"
+    }
+  ],
+  "file_count": 44,
+  "total_bytes": 4295787,
+  "all_destination_hashes_readback_verified": true
+}

@@ -1,0 +1,29 @@
+{
+  "runs": [
+    {
+      "name": "node-suites",
+      "command": [
+        "C:\\Users\\Daniel\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+        "--test",
+        "ocean/rek_g1/league/public/app.test.cjs",
+        "ocean/rek_g1/native5/live_transfer_run.test.cjs",
+        "ocean/rek_g1/native5/score_head_data.test.cjs"
+      ],
+      "started_utc": "2026-09-28T19:22:48.137527+00:00",
+      "finished_utc": "2026-09-28T19:22:50.224404+00:00",
+      "exit_code": 0
+    },
+    {
+      "name": "diff-check",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "started_utc": "2026-09-28T19:22:50.224404+00:00",
+      "finished_utc": "2026-09-28T19:22:50.293919+00:00",
+      "exit_code": 0
+    }
+  ],
+  "source_changes_during_tests": []
+}

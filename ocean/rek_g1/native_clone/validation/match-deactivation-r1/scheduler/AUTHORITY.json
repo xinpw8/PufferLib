@@ -1,0 +1,7 @@
+{
+  "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\RobotInputController.txt",
+  "bytes": 350697,
+  "sha256": "f248df08449e3ff0706ce15ea07e4d58517f2fc9ed3f3143473fa48c4323bc21",
+  "method": "RobotInputController.Deactivate",
+  "scope": "Nonvisual physical robot with valid composer/config references; caller provides phase edge"
+}

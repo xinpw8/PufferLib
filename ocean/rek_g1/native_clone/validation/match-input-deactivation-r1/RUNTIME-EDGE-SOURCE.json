@@ -1,0 +1,5 @@
+{
+  "runtime_sha256": "c7534b540018bf161fbc5c0763f4f4190fd5fc643c5ec32774960ebd028b2c5b",
+  "exact_kernel_body_sha256": "97baf6aff09ab365aa3a2699888b76851bce60ebc3a119dedd521b90f73911e7",
+  "test_method": "exact kernel body, minimal CPU view fields and launch indices; no GPU"
+}

@@ -1,0 +1,360 @@
+{
+  "schema": "rek.native_match_lifecycle.publication.v1",
+  "utc": "2026-09-28T02:19:32.684977+00:00",
+  "destination": "R:\\pufferlib\\rek-evidence\\2026-09-27\\rek-native-clone-r1\\match-lifecycle-r1",
+  "files": [
+    {
+      "path": "cpu-run-r1/artifact-hashes.sha256",
+      "bytes": 572,
+      "sha256": "461db0357bdd58987f77d6cda40c65bd8c4c1d7ec2118b2ba8f9eb2122cba927"
+    },
+    {
+      "path": "cpu-run-r1/build.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cpu-run-r1/build.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cpu-run-r1/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "cpu-run-r1/original-combat.stdout.txt",
+      "bytes": 33,
+      "sha256": "83989b66ec3a46ffc541f83ba8813315be8e1e204ac190bfbe240ea130607b8d"
+    },
+    {
+      "path": "cpu-run-r1/original-fight.stdout.txt",
+      "bytes": 44,
+      "sha256": "fb7c27498e318573db801b4cc06ac3cfc659cfd9dc750202211f71396e540d56"
+    },
+    {
+      "path": "cpu-run-r1/test-match",
+      "bytes": 75888,
+      "sha256": "46b00d7fb59810d41117d0719d5081ebfe078488027c5b8a777b5475faecce33"
+    },
+    {
+      "path": "cpu-run-r1/test-original-combat",
+      "bytes": 73480,
+      "sha256": "d70482762879dd54472e3ce0563c274a1551e9917426eda8661d33c675932e01"
+    },
+    {
+      "path": "cpu-run-r1/test-original-fight",
+      "bytes": 72896,
+      "sha256": "59ef30e12a1e6a5ef4ad642e9a44a8a9f163b91aca658dca8650671da67be5d7"
+    },
+    {
+      "path": "cpu-run-r1/test.stdout.txt",
+      "bytes": 80,
+      "sha256": "e6a62824b4f33af4db251f4a787a4e9cfa8a7db6e459a4cd47c981aaa7ac6b50"
+    },
+    {
+      "path": "cuda-build-r1/build.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cuda-build-r1/build.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "cuda-build-r1/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "cuda-build-r1/g1_native_combat_cuda.o",
+      "bytes": 109376,
+      "sha256": "3bd88b29ec2cf9d436ee5592ba6acf70243b95e80990dc52dfc0012f805c68ce"
+    },
+    {
+      "path": "dependencies/g1_combat_cuda.h",
+      "bytes": 1614,
+      "sha256": "88563e60cfa2f9da09586450b0deeeb9c89a845a360d6ae2c615bc30ced63cff"
+    },
+    {
+      "path": "dependencies/g1_combat_metrics.h",
+      "bytes": 7017,
+      "sha256": "1d317c32e55c802540cfdc4598c3fb37cd260e45b9c83bd975c1ac36bfc31b58"
+    },
+    {
+      "path": "dependencies/g1_combat_tick.c",
+      "bytes": 11120,
+      "sha256": "f686dee995dd1f9c20da96f482a00047c194c288200ece64bef9b2cbe4fe03f6"
+    },
+    {
+      "path": "dependencies/g1_combat_tick.h",
+      "bytes": 2472,
+      "sha256": "045c2e456f95c60113a4922502ec12c0dae9f51faca046d39e0c71d557ce8690"
+    },
+    {
+      "path": "dependencies/g1_combat_types.h",
+      "bytes": 1484,
+      "sha256": "8f8311cd792f6950df51009f859b5d83174f34faaa6963dd21e2ce9b06a1808d"
+    },
+    {
+      "path": "dependencies/g1_cuda_qualifiers.h",
+      "bytes": 581,
+      "sha256": "d6576fd9d12c7d1f8b96fed8a5842a804e8139de8755407d4a85d0bb307a9a35"
+    },
+    {
+      "path": "dependencies/g1_fall_mujoco.h",
+      "bytes": 2972,
+      "sha256": "1320492e1586b8d4c730277f81411c36c55cdad19b1bc82e37ffc1f90c81f659"
+    },
+    {
+      "path": "dependencies/g1_fall_state.c",
+      "bytes": 10454,
+      "sha256": "40a483fe409aec67fb2e3a5254aaaa28e3821bc13b83dd4ecb3e8f532215144b"
+    },
+    {
+      "path": "dependencies/g1_fall_state.h",
+      "bytes": 4771,
+      "sha256": "68db7b255485ba933b67a32407368eaae0ebeb6f30aeb98d621c3f0dd4c32327"
+    },
+    {
+      "path": "dependencies/g1_fight_state.c",
+      "bytes": 33701,
+      "sha256": "0fc7bea059c352ff79efbe37714b2821033e5a5757c51481e29f34bd019f4907"
+    },
+    {
+      "path": "dependencies/g1_fight_state.h",
+      "bytes": 9467,
+      "sha256": "b2d02c3daa0ab40eeae00b8d77a4ce696029ed49b0fa459cbe460f9f1ceb0b1b"
+    },
+    {
+      "path": "dependencies/g1_hit_detector.c",
+      "bytes": 11187,
+      "sha256": "2db5d054bdc07539c0323efa0f700f6fcd6aa63564a94fd258feb7d059d34846"
+    },
+    {
+      "path": "dependencies/g1_hit_detector.h",
+      "bytes": 3380,
+      "sha256": "f2b8163f04b3ad9102376b46f4230b4148ac5182263eabacfa80c1bc5c9eb758"
+    },
+    {
+      "path": "dependencies/g1_hit_mujoco.h",
+      "bytes": 6394,
+      "sha256": "7225e39ac0e75bb78bb84a677e34e89d7e5a8452bd96de26e7722c5217cebf66"
+    },
+    {
+      "path": "dependencies/g1_model_identity.h",
+      "bytes": 3178,
+      "sha256": "d8e98ad266d4c3e92558636a6e09cbca8fe19c92c6f02bb772a727e0885a9989"
+    },
+    {
+      "path": "dependencies/g1_motion_cuda.h",
+      "bytes": 3285,
+      "sha256": "8c5b40ecca3e4ffab184daed5055f697ad76cd588b0855774df7a024ce8e134a"
+    },
+    {
+      "path": "dependencies/g1_mujoco_feature_registry.h",
+      "bytes": 3623,
+      "sha256": "b2bec2fec2009189ecc94831983ea7f4bffd2f2104e8b379a0e911035c087fb3"
+    },
+    {
+      "path": "dependencies/g1_native_combat_cuda.h",
+      "bytes": 5549,
+      "sha256": "0c226fc2945549e4f9990ad69908b6facf1cda11ce589b1cbe3e1584e91c2286"
+    },
+    {
+      "path": "dependencies/g1_semantic_action_table.h",
+      "bytes": 1002,
+      "sha256": "c0d3c973d4451416062759eb48b19d63bd10d98fea1eefd9d1ff37ea09324419"
+    },
+    {
+      "path": "dependencies/g1_semantic_assets.h",
+      "bytes": 2636,
+      "sha256": "e0a432e77f22fab528f6f8b50ec848bed0f367a9e3ec3fa5c9ca7fb8b38d7fbf"
+    },
+    {
+      "path": "dependencies/g1_semantic_scheduler_cuda.h",
+      "bytes": 5220,
+      "sha256": "f0fd14660a2bf2d5f472ff5151dbb4d649bed53bfb2cde18db87b09a6f4c6121"
+    },
+    {
+      "path": "dependencies/g1_strike_catalog.h",
+      "bytes": 2457,
+      "sha256": "a17761726489287bffcc382315485a663662e82b5c6b8d5fccd4ca7cd3f0a837"
+    },
+    {
+      "path": "dependencies/gear_sonic_native_batch.h",
+      "bytes": 3003,
+      "sha256": "fa74569e216a0ff37a7ab54f9113ef3b8ac23beba8ec6f7fb64b65e2b0369944"
+    },
+    {
+      "path": "dependencies/gear_sonic_native_duel.h",
+      "bytes": 10051,
+      "sha256": "6899b74b8a595e231cd3ce22a45daa2d690d98f41e934f6c1c7feb7380e0c6e6"
+    },
+    {
+      "path": "dependencies/gear_sonic_native_mujoco.h",
+      "bytes": 1580,
+      "sha256": "f9448b7d51d5a2de3b6f38cee594b4765499c6106a555ed656a8a11a1cfa2fe8"
+    },
+    {
+      "path": "dependencies/gear_sonic_ort.h",
+      "bytes": 1720,
+      "sha256": "5e07fbb5a6e4f266b6a9db9c42824004fa68f5c41f0bff3117752e797aad520a"
+    },
+    {
+      "path": "dependencies/held_input.h",
+      "bytes": 7363,
+      "sha256": "6ed2d4f3256c4bc1c1aa2c80a33d4f7abb2596e2384609621f126caa25668453"
+    },
+    {
+      "path": "dependencies/native_locomotion_command.h",
+      "bytes": 6453,
+      "sha256": "da36f24025ac19d917a97d2ac3380d684773698e8f834002bd07f2863e1263af"
+    },
+    {
+      "path": "dependencies/native_motion_routes.h",
+      "bytes": 3925,
+      "sha256": "adbdf468dd4c445ae206b33a305f62040824a2d26156bb70a5175c47e34a588d"
+    },
+    {
+      "path": "dependencies/native_puffer_vector.h",
+      "bytes": 4133,
+      "sha256": "999d72f1417218e83f8ec8d8dffbaae43f042f49ff5443649760e962acac8c78"
+    },
+    {
+      "path": "dependencies/puffer_action_adapter.h",
+      "bytes": 4261,
+      "sha256": "2cff96ee01fc083244f09330d1c4df99e9aab53d7e72dddcd4f54068062fd633"
+    },
+    {
+      "path": "dependencies/semantic_action.h",
+      "bytes": 8392,
+      "sha256": "c6c82b4fd06559e1423d74de111726ba4ee988d839d96b006c2e308e755a4ddb"
+    },
+    {
+      "path": "dependencies/semantic_binding.h",
+      "bytes": 9152,
+      "sha256": "6fd3c03f5180ef5f66ba18f2b1f424089249922d327608b64ea57050d7c66380"
+    },
+    {
+      "path": "dependencies/semantic_duel_runtime.h",
+      "bytes": 11526,
+      "sha256": "ccd7e1bb44a80d66c092ac7bc144c91ab88b6d776b668835d78ad0f7f036cde3"
+    },
+    {
+      "path": "dependencies/sonic_motion_composer_libm_candidate.h",
+      "bytes": 970,
+      "sha256": "3441472ccca82dd89d5e080f64c578cf9ceb3e683caaeeeaec5bfae6599d8f0e"
+    },
+    {
+      "path": "dependencies/sonic_motion_composer_native.h",
+      "bytes": 8911,
+      "sha256": "2ccac0b9609f544fbd59d287abea111907149a7a7ed17f6ce11216557ec71154"
+    },
+    {
+      "path": "dependencies/sonic_motion_entry_matcher_native.h",
+      "bytes": 6213,
+      "sha256": "a0d10bf32f103a436a7af3fd7365f2d8e16f5c1b9e2534fdc6b009309d420151"
+    },
+    {
+      "path": "dependencies/test_g1_combat_tick.c",
+      "bytes": 11255,
+      "sha256": "a7afca11461f619c4390789e983678d442b5761b309d0340dba839d240b5c11b"
+    },
+    {
+      "path": "dependencies/test_g1_fight_state.c",
+      "bytes": 39598,
+      "sha256": "243bbc097da276cb9139a70ff9f7b005ea536173eb5e5247aedb06a50014c672"
+    },
+    {
+      "path": "g1_match_lifecycle.h",
+      "bytes": 2987,
+      "sha256": "8565738466387221a76ceba4a9f766fc882339a3ac0c4446bf37e2fcdb278190"
+    },
+    {
+      "path": "kernels_cpu.inc",
+      "bytes": 29196,
+      "sha256": "506f56e3b7a50cd97b1c0964cb9d29854383b6649d14e721a3f30a248a71be35"
+    },
+    {
+      "path": "match-lifecycle.diff",
+      "bytes": 12193,
+      "sha256": "4ed4adeae797e5e86c842bab9d8cfe80fe1551c27134c4c356632c3f59f1cd45"
+    },
+    {
+      "path": "original/g1_native_combat_cuda.cu",
+      "bytes": 38803,
+      "sha256": "c4be9d890e133dc17388926a58b2daa27e6c769f8de06f790d973bfbdd0c31f1"
+    },
+    {
+      "path": "original/g1_native_combat_cuda.h",
+      "bytes": 5549,
+      "sha256": "0c226fc2945549e4f9990ad69908b6facf1cda11ce589b1cbe3e1584e91c2286"
+    },
+    {
+      "path": "prepare_test.py",
+      "bytes": 1387,
+      "sha256": "174250e6e857001e7a1a2263de33bcfc146cb592ebd9ec6043dd46af6ef50903"
+    },
+    {
+      "path": "publish.py",
+      "bytes": 1391,
+      "sha256": "71aeef686ce7a0fb6209a6d56ef03db4ebde4019f85d473bf4176a556688e344"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4244,
+      "sha256": "af33283933c823ca7eea9031db80a065c49463f840575857e9a47800a865fc78"
+    },
+    {
+      "path": "run_cpu.sh",
+      "bytes": 1271,
+      "sha256": "b3a454cd241807dafa8b445d69b735310b64a6e171179c62b5db431456544cea"
+    },
+    {
+      "path": "source/g1_match_lifecycle.h",
+      "bytes": 2987,
+      "sha256": "8565738466387221a76ceba4a9f766fc882339a3ac0c4446bf37e2fcdb278190"
+    },
+    {
+      "path": "source/g1_native_combat_cuda.cu",
+      "bytes": 44113,
+      "sha256": "c7d2f0fb28e18805b785459d93e19b20f13c06ddfa6750a7596bb3dd6d9d4b89"
+    },
+    {
+      "path": "source/g1_native_combat_cuda.h",
+      "bytes": 7769,
+      "sha256": "fba13d48a7af91afc72f2a6c49bff97485d21c5f7f4aa32cac1022dbff4141cf"
+    },
+    {
+      "path": "SOURCE-PINS.json",
+      "bytes": 4819,
+      "sha256": "6f66a870ea55e4cb0c72dddf07a74754cce4608e5217b2001f65d677e8b53104"
+    },
+    {
+      "path": "stage.py",
+      "bytes": 6783,
+      "sha256": "8ca05124a88e3aac43bce4e2a173a1f70360b405913b04289b5d15953fd5810b"
+    },
+    {
+      "path": "stubs/cuda_runtime.h",
+      "bytes": 196,
+      "sha256": "1179e5ec3c71b2eca7caea524355526ee03901f70bdd08e6ba5a9cc704db8a5a"
+    },
+    {
+      "path": "stubs/cuda_runtime_api.h",
+      "bytes": 88,
+      "sha256": "76535cf183c283971146cc60fe799523b1d0df0d20b9a937f8ed273b2a037e03"
+    },
+    {
+      "path": "test_match.cpp",
+      "bytes": 6488,
+      "sha256": "58d294704cd59d61a5247d10d626ee79a56fc8d63cff46fc7eb327fa54db7408"
+    }
+  ],
+  "file_count": 70,
+  "bytes": 774707,
+  "all_readbacks_equal": true
+}

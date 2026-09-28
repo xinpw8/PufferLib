@@ -1,0 +1,61 @@
+{
+  "schema": "rek.native_clone.verification_tools.v1",
+  "executed_gpu": false,
+  "files": [
+    {
+      "path": "build-native.sh",
+      "bytes": 3272,
+      "sha256": "6375a8b9b0b2ac19d1a3c88d7d0f16214259a37511993b97d5d9e9833a913370"
+    },
+    {
+      "path": "env.json",
+      "bytes": 769,
+      "sha256": "eff58f99763ea991a8f29e3705155f78958002d205738c61e2e03f00039a0781"
+    },
+    {
+      "path": "freeze_tools.py",
+      "bytes": 862,
+      "sha256": "a82e101ac1447ced7ddc9b387088a8f751330325d34a0a824ac287070b4e48e6"
+    },
+    {
+      "path": "launch_remote.py",
+      "bytes": 2654,
+      "sha256": "068f082168f43bdf0146b398c69505c057549a4ecaa27a6fdc3417d55509d97c"
+    },
+    {
+      "path": "match_smoke.py",
+      "bytes": 3518,
+      "sha256": "bb18003fd07ccc34313aa2eaa9b7ef02a91e4a3ba35e939087006bdcc858cf59"
+    },
+    {
+      "path": "native_cli.py",
+      "bytes": 1195,
+      "sha256": "cd504bbfb5e06fa962b3614b3e103a3ea3e80fe369447a22c92ce6a1266f244f"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2242,
+      "sha256": "49fc8fc930dc82b3f8bd4909a2878186162c486b712ef5a5f40fdbe2157646cc"
+    },
+    {
+      "path": "smoke_native.py",
+      "bytes": 8921,
+      "sha256": "f34b4d2e9db2aa04d7a5c564a4fb7eb811eb2fd8427d71f8d37581285c882d1f"
+    },
+    {
+      "path": "test_smoke_contract.py",
+      "bytes": 1724,
+      "sha256": "80e798b06076f7eedf02bd27351a44ecf7c5a0b254e54f845bbd918449056bd9"
+    },
+    {
+      "path": "tests.txt",
+      "bytes": 503,
+      "sha256": "762d39fa1f81e2ce24796ad9c7cf1d091776611d87b4aa39b82714c2949cf094"
+    },
+    {
+      "path": "worker-template.json",
+      "bytes": 1201,
+      "sha256": "7d48bad6b5d1b05de8940b00388bdef31c03e67b5b781786f5725aa73046ecc2"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+test_deferred_edge_and_unbounded_wait_fail (test_smoke_contract.Tests.test_deferred_edge_and_unbounded_wait_fail) ... ok
+test_inactive_batch_requires_one_rejected_edge (test_smoke_contract.Tests.test_inactive_batch_requires_one_rejected_edge) ... ok
+test_phase_wait_uses_snapshots_and_single_neutral_steps (test_smoke_contract.Tests.test_phase_wait_uses_snapshots_and_single_neutral_steps) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK

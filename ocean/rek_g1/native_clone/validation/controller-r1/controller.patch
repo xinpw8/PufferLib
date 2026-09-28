@@ -1,0 +1,296 @@
+--- original/ocean/rek_g1/g1_heading_native.h
++++ source-r1/ocean/rek_g1/g1_heading_native.h
+@@ -0,0 +1,30 @@
++#pragma once
++#include "sonic_motion_composer_native.h"
++#include <math.h>
++
++/* Recovered SonicPolicyRunner.CalcHeadingMj/YawQuatMj operation order.
++ * Transcendental callbacks retain their declared backend provenance. */
++REK_G1_FN static inline int rek_g1_heading_angle(
++        const SonicMotionComposerNativeBackends* b, const float q[4], float* out) {
++    if (!b || !b->atan2_f || !q || !out) return 0;
++    for (int i=0; i<4; ++i) if (!isfinite(q[i])) return 0;
++    volatile float yx=q[2]*q[1], zw=q[3]*q[0];
++    volatile float sum=yx+zw, numerator=2.0f*sum;
++    volatile float zz=q[3]*q[3], yy=q[2]*q[2];
++    volatile float sq=zz+yy, twice=2.0f*sq, denominator=1.0f-twice;
++    return b->atan2_f(b->context,numerator,denominator,out) && isfinite(*out);
++}
++
++REK_G1_FN static inline int rek_g1_initial_heading(
++        const SonicMotionComposerNativeBackends* b, const float base[4],
++        const float reference[4], float out[4]) {
++    float base_angle, reference_angle, sine, cosine;
++    if (!b || !b->sin_cos_f || !out
++            || !rek_g1_heading_angle(b,base,&base_angle)
++            || !rek_g1_heading_angle(b,reference,&reference_angle)) return 0;
++    volatile float difference=base_angle-reference_angle, half=difference*0.5f;
++    if (!b->sin_cos_f(b->context,half,&sine,&cosine)
++            || !isfinite(sine) || !isfinite(cosine)) return 0;
++    out[0]=cosine; out[1]=0; out[2]=0; out[3]=sine;
++    return 1;
++}
+--- original/ocean/rek_g1/g1_semantic_scheduler_cuda.cu
++++ source-r1/ocean/rek_g1/g1_semantic_scheduler_cuda.cu
+@@ -3,6 +3,7 @@
+ #endif
+ #include "g1_semantic_scheduler_cuda.h"
+ #include <math.h>
++#include "g1_heading_native.h"
+ 
+ namespace {
+ constexpr unsigned THREADS = 128;
+@@ -121,6 +122,51 @@
+     }
+ }
+ 
++__global__ void reset_ordered_kernel(const RekG1CudaSemanticBuffers* buffers,
++        const uint8_t* reset, const float* base, RekG1CudaResetOrder order,
++        uint8_t preserve_dispatch_mode, size_t count) {
++    const auto& b = *buffers;
++    for (size_t i = size_t(blockIdx.x) * blockDim.x + threadIdx.x;
++            i < count; i += size_t(blockDim.x) * gridDim.x) {
++        if (!reset[i]) continue;
++        auto& row = b.rows[i];
++        if ((order != REK_G1_RESET_RUNNER_THEN_INPUT && order != REK_G1_RESET_INPUT_THEN_RUNNER)
++                || preserve_dispatch_mode > 1) {
++            row.status = 400; write_outputs(b,i); continue;
++        }
++        auto candidate = b.composers[i];
++        SonicMotionComposerNativeStatus status = SONIC_MOTION_COMPOSER_NATIVE_OK;
++        if (order == REK_G1_RESET_INPUT_THEN_RUNNER)
++            status = sonic_motion_composer_native_play_action(&candidate,&b.routes[0].clip,&b.routes[0].config);
++        if (!status) status = sonic_motion_composer_native_reset(&candidate);
++        float positions[29], reference[4], heading[4];
++        if (!status) status = sonic_motion_composer_native_reference_frame(&candidate,0,b.mirror,positions,reference);
++        if (!status && !rek_g1_initial_heading(&candidate.backends,base+i*4,reference,heading))
++            status = SONIC_MOTION_COMPOSER_NATIVE_BACKEND_FAILURE;
++        if (!status && order == REK_G1_RESET_RUNNER_THEN_INPUT)
++            status = sonic_motion_composer_native_play_action(&candidate,&b.routes[0].clip,&b.routes[0].config);
++        if (status) { row.status=300+int(status); write_outputs(b,i); continue; }
++        const auto previous_mode = row.direct_native_active;
++        auto locomotion = row.locomotion;
++        const auto velocity = row.effective_velocity;
++        // HandleResetComplete clears four flags (one 16-bit plus two byte
++        // stores); route IDs and last/brake commands are retained. The runner
++        // does not overwrite VelocityCommand in its reset callback.
++        locomotion.locomotion_active = locomotion.transition_settling = 0;
++        locomotion.stop_braking = locomotion.has_momentum = 0;
++        row = {};
++        const auto adapter_status = rek_g1_puffer_init(&row.adapter,&b.table->table);
++        if (adapter_status) row.status=100+int(adapter_status);
++        row.direct_native_active = preserve_dispatch_mode ? previous_mode : 0;
++        row.locomotion = locomotion;
++        row.effective_velocity = velocity;
++        row.translation_settled=1;
++        b.composers[i]=candidate;
++        for (int axis=0;axis<4;++axis) b.heading_wxyz[i*4+axis]=heading[axis];
++        write_outputs(b,i);
++    }
++}
++
+ __device__ int play_route(const RekG1CudaSemanticBuffers& b, size_t i, int route) {
+     if (route < 0 || route >= 24) return 400;
+     const auto status = sonic_motion_composer_native_play_action(&b.composers[i],
+@@ -373,6 +419,19 @@
+     return cudaGetLastError();
+ }
+ 
++extern "C" cudaError_t rek_g1_cuda_semantic_reset_ordered(
++        const RekG1CudaSemanticBuffers* b, const uint8_t* reset,
++        const float* base, RekG1CudaResetOrder order,
++        uint8_t preserve_dispatch_mode, size_t count, cudaStream_t stream) {
++    if (order != REK_G1_RESET_RUNNER_THEN_INPUT && order != REK_G1_RESET_INPUT_THEN_RUNNER)
++        return cudaErrorInvalidValue;
++    if (preserve_dispatch_mode > 1) return cudaErrorInvalidValue;
++    if (!count) return cudaSuccess;
++    if (!b || !reset || !base) return cudaErrorInvalidValue;
++    reset_ordered_kernel<<<blocks_for(count), THREADS, 0, stream>>>(b,reset,base,order,preserve_dispatch_mode,count);
++    return cudaGetLastError();
++}
++
+ extern "C" cudaError_t rek_g1_cuda_semantic_pre(
+         const RekG1CudaSemanticBuffers* b, const float* actions,
+         const float* velocity, const uint8_t* suspended, size_t count, cudaStream_t stream) {
+--- original/ocean/rek_g1/g1_semantic_scheduler_cuda.h
++++ source-r1/ocean/rek_g1/g1_semantic_scheduler_cuda.h
+@@ -84,6 +84,20 @@
+     const RekG1CudaSemanticBuffers* buffers, const uint8_t* reset,
+     const float* heading_wxyz, size_t count, cudaStream_t stream);
+ 
++/* Original callback bodies are ordered explicitly: the source does not prove
++ * global Unity event subscription order. Cold construction uses semantic_reset.
++ * base_wxyz is the actual current body orientation, not a cached idle heading.
++ * preserve_dispatch_mode retains the direct/categorical latch across body reset;
++ * a full external reset passes zero and separately clears its runtime mode. */
++typedef enum RekG1CudaResetOrder {
++    REK_G1_RESET_RUNNER_THEN_INPUT = 1,
++    REK_G1_RESET_INPUT_THEN_RUNNER = 2
++} RekG1CudaResetOrder;
++extern "C" cudaError_t rek_g1_cuda_semantic_reset_ordered(
++    const RekG1CudaSemanticBuffers* buffers, const uint8_t* reset,
++    const float* base_wxyz, RekG1CudaResetOrder order,
++    uint8_t preserve_dispatch_mode, size_t count, cudaStream_t stream);
++
+ /* local_velocity order: angular xyz, linear xyz, as mj_objectVelocity(local=1).
+  * Reference rows and headings here feed the controller BEFORE physics. */
+ extern "C" cudaError_t rek_g1_cuda_semantic_pre(
+--- original/ocean/rek_g1/native5/motion_assets.cu
++++ source-r1/ocean/rek_g1/native5/motion_assets.cu
+@@ -423,6 +423,12 @@
+     cuda_check(rek_g1_cuda_semantic_reset(scheduler, flags, headings, count, stream), "reset semantic scheduler");
+ }
+ 
++void RekNative5Motion::reset_ordered(const uint8_t* flags, const float* base,
++        RekG1CudaResetOrder order, bool preserve_dispatch_mode, cudaStream_t stream) {
++    cuda_check(rek_g1_cuda_semantic_reset_ordered(scheduler,flags,base,order,
++        uint8_t(preserve_dispatch_mode),count,stream), "ordered semantic reset");
++}
++
+ void RekNative5Motion::pre(const float* actions, const float* velocity, const uint8_t* suspended, cudaStream_t stream) {
+     cuda_check(rek_g1_cuda_semantic_pre(scheduler, actions, velocity, suspended ? suspended : zero_flags, count, stream), "semantic pre-step");
+ }
+--- original/ocean/rek_g1/native5/motion_assets.cuh
++++ source-r1/ocean/rek_g1/native5/motion_assets.cuh
+@@ -19,6 +19,8 @@
+     RekNative5Motion& operator=(const RekNative5Motion&) = delete;
+ 
+     void reset(const uint8_t* reset_flags, const float* heading_wxyz, cudaStream_t stream);
++    void reset_ordered(const uint8_t* reset_flags, const float* base_wxyz,
++        RekG1CudaResetOrder order, bool preserve_dispatch_mode, cudaStream_t stream);
+     void pre(const float* actions, const float* local_velocity,
+         const uint8_t* suspended, cudaStream_t stream);
+     void pre_direct(const float* actions, const RekG1CudaDirectCommand* commands,
+--- original/ocean/rek_g1/native5/robot_history.h
++++ source-r1/ocean/rek_g1/native5/robot_history.h
+@@ -0,0 +1,16 @@
++#pragma once
++#include "../g1_cuda_qualifiers.h"
++
++/* One transformed channel at a time. The original configured decoder requests
++ * ten step-1 snapshots, oldest first with zero padding after Clear. This dense
++ * equivalent deliberately does not implement arbitrary ring queries. */
++REK_G1_FN static inline void rek_native_history_push_channel(
++        float history[930], int group, int width, int column, float entry) {
++    float* channel=history+group+column;
++    for (int slot=0;slot<9;++slot) channel[slot*width]=channel[(slot+1)*width];
++    channel[9*width]=entry;
++}
++REK_G1_FN static inline float rek_native_decoder_value(
++        const float tokens[64], const float history[930], int index) {
++    return index<64 ? tokens[index] : history[index-64];
++}
+--- original/ocean/rek_g1/native5/robot_state.cu
++++ source-r1/ocean/rek_g1/native5/robot_state.cu
+@@ -1,4 +1,6 @@
++#define REK_G1_CUDA_DEVICE 1
+ #include "robot_state.cuh"
++#include "robot_history.h"
+ 
+ #include <cmath>
+ #include <cstdio>
+@@ -108,15 +110,13 @@
+         group=900;width=3;column=channel-90;
+         entry=gravity(base+row*4,column);
+     }
+-    float* history=s.history+row*930+group+column;
+-    for (int slot=0;slot<9;++slot) history[slot*width]=history[(slot+1)*width];
+-    history[9*width]=entry;
++    rek_native_history_push_channel(s.history+row*930,group,width,column,entry);
+ }
+ 
+ __global__ void decoder_input(RobotState s, const float* tokens) {
+     const std::size_t row=blockIdx.x;
+     for (int i=threadIdx.x;i<994;i+=blockDim.x)
+-        s.decoder_observations[row*994+i]=i<64 ? tokens[row*64+i] : s.history[row*930+i-64];
++        s.decoder_observations[row*994+i]=rek_native_decoder_value(tokens+row*64,s.history+row*930,i);
+ }
+ 
+ __device__ float clamp_action(float value) {
+--- original/ocean/rek_g1/sonic_motion_composer_native.c
++++ source-r1/ocean/rek_g1/sonic_motion_composer_native.c
+@@ -993,6 +993,26 @@
+     return SONIC_MOTION_COMPOSER_NATIVE_OK;
+ }
+ 
++/* Recovered SonicMotionComposer.Reset. This preserves the installed current
++ * layer and transition settings; it is distinct from constructing a composer.
++ * Scheduling this relative to RobotInputController.PlayIdle requires the actual
++ * OnResetComplete listener order, which is not selected by this primitive. */
++REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_reset(
++        SonicMotionComposerNative* composer) {
++    SonicMotionComposerNativeStatus status = validate_composer(composer);
++    if (status != SONIC_MOTION_COMPOSER_NATIVE_OK) return status;
++    composer->current_layer.cursor = entry_cursor(&composer->current_layer);
++    composer->from_layer.active = 0;
++    composer->xt = 0;
++    composer->action_playing = 0;
++    composer->pending_heading_delta = 0.0f;
++    composer->current_layer.heading_valid = 0;
++    composer->from_layer.heading_valid = 0;
++    composer->current_layer.heading_resync = 0;
++    composer->from_layer.heading_resync = 0;
++    return SONIC_MOTION_COMPOSER_NATIVE_OK;
++}
++
+ REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_install_layer(
+         SonicMotionComposerNativeLayer* layer,
+         const SonicMotionComposerNativeClip* clip,
+@@ -1409,6 +1429,27 @@
+     outgoing_ownership = f32_mul(outgoing_weight, outgoing_ownership);
+     combined = f32_add(current_ownership, outgoing_ownership);
+     return clamp01(combined, result);
++}
++
++REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_reference_frame(
++        const SonicMotionComposerNative* composer, int32_t frames_ahead,
++        const SonicMotionComposerNativeMirrorTable* mirror_table,
++        float joint_positions[29], float root_quaternion_wxyz[4]) {
++    SonicMotionComposerNativePose pose;
++    SonicMotionComposerNativeStatus status = validate_composer(composer);
++    if (status) return status;
++    if (joint_positions == NULL || root_quaternion_wxyz == NULL)
++        return SONIC_MOTION_COMPOSER_NATIVE_INVALID_ARGUMENT;
++    if (composer->current_layer.active && (composer->current_layer.config.mirror
++            || (composer->from_layer.active && composer->from_layer.config.mirror))) {
++        status = validate_mirror_table(mirror_table);
++        if (status) return status;
++    }
++    status = get_reference_frame(composer, frames_ahead, mirror_table, &pose);
++    if (status) return status;
++    memcpy(joint_positions, pose.joint_positions, sizeof(pose.joint_positions));
++    memcpy(root_quaternion_wxyz, pose.root_quaternion_wxyz, sizeof(pose.root_quaternion_wxyz));
++    return SONIC_MOTION_COMPOSER_NATIVE_OK;
+ }
+ 
+ REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_build_reference_rows(
+--- original/ocean/rek_g1/sonic_motion_composer_native.h
++++ source-r1/ocean/rek_g1/sonic_motion_composer_native.h
+@@ -192,6 +192,12 @@
+     const SonicMotionComposerNativeBackends* backends
+ );
+ 
++/* In-place recovered reset, preserving current clip/config/playback and blend
++ * settings. This does not choose idle or resolve reset-listener order. */
++REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_reset(
++    SonicMotionComposerNative* composer
++);
++
+ REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_install_layer(
+     /* Must point to a zero-initialized or previously valid layer. */
+     SonicMotionComposerNativeLayer* layer,
+@@ -257,6 +263,13 @@
+     float* result
+ );
+ 
++/* One original GetReferenceFrame call, with the same native joint order as
++ * build_reference_rows. Outputs are changed only after a successful sample. */
++REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_reference_frame(
++    const SonicMotionComposerNative* composer, int32_t frames_ahead,
++    const SonicMotionComposerNativeMirrorTable* mirror_table,
++    float joint_positions[29], float root_quaternion_wxyz[4]);
++
+ REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_build_reference_rows(
+     const SonicMotionComposerNative* composer,
+     const SonicMotionComposerNativeReferenceTiming* timing,

@@ -1,0 +1,120 @@
+{
+  "schema": "rek.original_history.verified.v1",
+  "trace": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\original-history\\runtime-r1\\oracle.jsonl",
+  "trace_sha256": "8495728eb588d9ff51da93d1f6783fbb3c8757cc80f56a16f6892a85bd9f308c",
+  "trace_bytes": 1856321,
+  "fixture_sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0",
+  "query_rows": 28,
+  "fresh_repeats_bit_identical": true,
+  "attested_original_methods": [
+    {
+      "type": "REKApp.SonicPolicyRunner",
+      "method": "BuildObsPlans",
+      "wrapper": "Void BuildObsPlans()",
+      "method_info": "0x91848be0",
+      "entrypoint": "0x6ffff7879ba0",
+      "rva": "0x2279ba0",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "bf5676ec47884019adfa2e2481501f5ee829bfb84e5c3968c22f213d31575592"
+    },
+    {
+      "type": "REKApp.SonicPolicyRunner",
+      "method": "FillHistoryChannel",
+      "wrapper": "Void FillHistoryChannel(DecoderObsConfig, Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray`1[System.Single], Int32)",
+      "method_info": "0x91849d10",
+      "entrypoint": "0x6ffff787cc70",
+      "rva": "0x227cc70",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "c175d53bc7687ea4adb2f6063ac1bed70b58d9a10e4020f3b02469c9ea63ff10"
+    },
+    {
+      "type": "REKApp.SonicPolicyRunner",
+      "method": "BuildDecoderObs",
+      "wrapper": "Void BuildDecoderObs(Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray`1[System.Single])",
+      "method_info": "0x918496e0",
+      "entrypoint": "0x6ffff7878f90",
+      "rva": "0x2278f90",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "e53faff68f6d468ea67d569b4eadec4b4ad78fc11edeb0fe2feb9d0365464ba6"
+    },
+    {
+      "type": "REKApp.SonicPolicyRunner",
+      "method": "CalcHeadingMj",
+      "wrapper": "Single CalcHeadingMj(Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray`1[System.Single])",
+      "method_info": "0x91849840",
+      "entrypoint": "0x6ffff787a310",
+      "rva": "0x227a310",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "0c1871a2ef02b89f1500f4f3dca331b9af3e7cfe35ba8439cf835b12a8223caa"
+    },
+    {
+      "type": "REKApp.SonicPolicyRunner",
+      "method": "YawQuatMj",
+      "wrapper": "Void YawQuatMj(Single, Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray`1[System.Single])",
+      "method_info": "0x918497e8",
+      "entrypoint": "0x6ffff788c300",
+      "rva": "0x228c300",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "782363aee4153efb90ff1273aa611efaf86240e10b5c9cd479a518df3c0bb941"
+    },
+    {
+      "type": "REKApp.SonicPolicyRunner",
+      "method": "QuatMulMj",
+      "wrapper": "Void QuatMulMj(Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray`1[System.Single], Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray`1[System.Single], Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray`1[System.Single])",
+      "method_info": "0x91849738",
+      "entrypoint": "0x6ffff7885c10",
+      "rva": "0x2285c10",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "a8ccec8c568ebba9f6667f5f2dfd0352bd2157417e85cd665ce43e8316baa794"
+    },
+    {
+      "type": "REKApp.SonicPolicyRunner+StateRingBuffer",
+      "method": "Push",
+      "wrapper": "Void Push(StateSnapshot)",
+      "method_info": "0x92507dc0",
+      "entrypoint": "0x6ffff78a2dc0",
+      "rva": "0x22a2dc0",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "2eb633429692b001b20bedc5b2468627c5940ee31637d9eda9da2c21520fc720"
+    },
+    {
+      "type": "REKApp.SonicPolicyRunner+StateRingBuffer",
+      "method": "GetLatest",
+      "wrapper": "Void GetLatest(Int32, Int32, Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray`1[REKApp.SonicPolicyRunner+StateSnapshot])",
+      "method_info": "0x92507e70",
+      "entrypoint": "0x6ffff78a2c80",
+      "rva": "0x22a2c80",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "970af08dff092ab01d3666069407b965ce1416a333ec415b9abb5e2abd1b65f1"
+    },
+    {
+      "type": "REKApp.SonicPolicyRunner+StateRingBuffer",
+      "method": "Clear",
+      "wrapper": "Void Clear()",
+      "method_info": "0x92507e18",
+      "entrypoint": "0x6ffff6f14bb0",
+      "rva": "0x1914bb0",
+      "module": "Z:\\session\\game\\GameAssembly.dll",
+      "first32_sha256": "968efa1ed86387f076eb9a07ada044db6d590784e3cbaf6b5399f6842014dafe"
+    }
+  ],
+  "exact_contract_checks": {
+    "decoder_float_bits": 27832,
+    "snapshot_channel_float_bits": 21948,
+    "direct_fill_float_bits": 26600
+  },
+  "completed_wrapper_calls": {
+    "JsonUtility.FromJson<SonicConfig>": 2,
+    "StateRingBuffer.ctor": 2,
+    "BuildObsPlans": 2,
+    "GetLatest": 56,
+    "BuildDecoderObs": 28,
+    "FillHistoryChannel": 140,
+    "Push": 62,
+    "Clear": 2,
+    "CalcHeadingMj": 4,
+    "YawQuatMj": 4,
+    "QuatMulMj": 4
+  },
+  "scope": "Original supplied-state history/decoder packing only. Independent native implementation comparison is a separate receipt. No full runner lifecycle, motor inference, physics or server authority claim."
+}

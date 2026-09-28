@@ -1,0 +1,87 @@
+[
+  {
+    "path": "cpu-run-r1\\test_deactivation.build.stdout.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "cpu-run-r1\\exit-code.txt",
+    "bytes": 2,
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+  },
+  {
+    "path": "cpu-run-r1\\test_deactivation.build.stderr.txt",
+    "bytes": 767,
+    "sha256": "a77bb6da682ba9dbeca4c25bc97b75bfd266c922f0b4362f37c44be8756e58a8"
+  },
+  {
+    "path": "cpu-run-r2\\test_ordered_reset",
+    "bytes": 78240,
+    "sha256": "4d9b2f4e74eca21491fb8c775485e14af2c77f31b44fe5414197727bbfcdca5c"
+  },
+  {
+    "path": "cpu-run-r2\\test_ordered_reset.build.stderr.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "cpu-run-r2\\test_ordered_reset.jsonl",
+    "bytes": 42,
+    "sha256": "133b5f697564a3b228f2cdca2ab57b79b700a1d9a9c8ca216603872d5142e700"
+  },
+  {
+    "path": "cpu-run-r2\\hashes.sha256",
+    "bytes": 1304,
+    "sha256": "2681410573e658b4b892318433bd9882bfc885c5d8e79ed9378923e744f4b66d"
+  },
+  {
+    "path": "cpu-run-r2\\test_g1_semantic_direct_cpu",
+    "bytes": 78744,
+    "sha256": "8ac0035af9a482f10685bf4725092a161d7ec2a18c46ef279e6931370f620f52"
+  },
+  {
+    "path": "cpu-run-r2\\test_deactivation.build.stdout.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "cpu-run-r2\\test_deactivation.jsonl",
+    "bytes": 42,
+    "sha256": "91f7affcccbbd5d4adfeefec049993d05a00a26f951eb9ae6c2c6c50075a3c0e"
+  },
+  {
+    "path": "cpu-run-r2\\test_g1_semantic_direct_cpu.jsonl",
+    "bytes": 145,
+    "sha256": "50621e3866be68b6f82bb0a03a032bc64e18f6b2a75ff79842f16ea0d56280ce"
+  },
+  {
+    "path": "cpu-run-r2\\exit-code.txt",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "path": "cpu-run-r2\\test_deactivation",
+    "bytes": 78288,
+    "sha256": "632b6c3e865fbda5a4cb61baae5a27c9deb0c7a151be71af11e643e4310b3973"
+  },
+  {
+    "path": "cpu-run-r2\\test_g1_semantic_direct_cpu.build.stdout.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "cpu-run-r2\\test_ordered_reset.build.stdout.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "cpu-run-r2\\test_deactivation.build.stderr.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "cpu-run-r2\\test_g1_semantic_direct_cpu.build.stderr.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

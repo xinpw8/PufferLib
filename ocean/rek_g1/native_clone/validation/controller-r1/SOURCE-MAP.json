@@ -1,0 +1,96 @@
+{
+  "schema": "rek.native_clone.controller_source_map.v1",
+  "created_utc": "2026-09-28T01:49:26.573408+00:00",
+  "snapshot_sha256": "c0d2933e3f9469089b7336b5ab296d0e2883ca6043fb5c9288924c05200e8794",
+  "entries": [
+    {
+      "relative_path": "ocean/rek_g1/g1_heading_native.h",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\g1_heading_native.h",
+      "old_sha256": null,
+      "new_sha256": "cc3de5757a0dde84bc8ebbf9f3e150e4d98df48b8455aa75ca1c0522f0790995",
+      "bytes": 1420
+    },
+    {
+      "relative_path": "ocean/rek_g1/g1_semantic_scheduler_cuda.cu",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\g1_semantic_scheduler_cuda.cu",
+      "old_sha256": "656b436ed49107252c2763b1c5be30226933ff7ac5ab1d49eca1e3d83efef6e8",
+      "new_sha256": "1739dd7a6d37ac760b94c9d2f9e1e4f70ecaef5505f85503089658bf5330e5b1",
+      "bytes": 23803
+    },
+    {
+      "relative_path": "ocean/rek_g1/g1_semantic_scheduler_cuda.h",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\g1_semantic_scheduler_cuda.h",
+      "old_sha256": "f0fd14660a2bf2d5f472ff5151dbb4d649bed53bfb2cde18db87b09a6f4c6121",
+      "new_sha256": "828b5d4b5406b4cef8854160a3ec1fe865385fe77479df549ee403b0eab2afb0",
+      "bytes": 6012
+    },
+    {
+      "relative_path": "ocean/rek_g1/native5/motion_assets.cu",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\native5\\motion_assets.cu",
+      "old_sha256": "2526681e4405532167742c746ebb521a47f4e37a340e7f0578329427c850f3f4",
+      "new_sha256": "0e24ce24983966a49e295a29e0866de7b6c660fe9367f29f67e9efcab500a18e",
+      "bytes": 24582
+    },
+    {
+      "relative_path": "ocean/rek_g1/native5/motion_assets.cuh",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\native5\\motion_assets.cuh",
+      "old_sha256": "2c57ee8615eae661f5d148a2f148fd62371b8e9a8be7a123a73083a87bfb08ec",
+      "new_sha256": "7e6ed50ed35161a7cd26ebf583cd7abb8389fa4bff6e211088a5f342960a9aac",
+      "bytes": 2755
+    },
+    {
+      "relative_path": "ocean/rek_g1/native5/robot_history.h",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\native5\\robot_history.h",
+      "old_sha256": null,
+      "new_sha256": "40a63385a4718b13820dedaaa58a1c721267c17b274a92ee5435cde2d0372a55",
+      "bytes": 757
+    },
+    {
+      "relative_path": "ocean/rek_g1/native5/robot_state.cu",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\native5\\robot_state.cu",
+      "old_sha256": "206e107962a1a2e253c45a3ba755e97b3d0d5bcd93ca64360d98fc0e7ede684e",
+      "new_sha256": "72e3e345870d3e4eb85b10700cc4e3230faec6f8d5954486de3dde08646acfa4",
+      "bytes": 15331
+    },
+    {
+      "relative_path": "ocean/rek_g1/sonic_motion_composer_native.c",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\sonic_motion_composer_native.c",
+      "old_sha256": "49ddd897fab689c4af4c0b63f66cbac1d96835294c6486d8304f39db0623e1a1",
+      "new_sha256": "a6bb4ca63b833085d8e10f5a5970e060a884644185b0b0e8a1a0500425c3ee1a",
+      "bytes": 55072
+    },
+    {
+      "relative_path": "ocean/rek_g1/sonic_motion_composer_native.h",
+      "source_path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\controller\\source-r1\\ocean\\rek_g1\\sonic_motion_composer_native.h",
+      "old_sha256": "2ccac0b9609f544fbd59d287abea111907149a7a7ed17f6ce11216557ec71154",
+      "new_sha256": "e5e13a32438e34331224e215019655b61edb72c31bd736f47b8ec60842aa834f",
+      "bytes": 9626
+    }
+  ],
+  "worktree_110_files_unchanged": true,
+  "recovered_source_pins": [
+    {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\SonicPolicyRunner.txt",
+      "sha256": "5c7668aa79591cd84dfd120856ecdf96554309c85a2d5a425e8f42636381ab58"
+    },
+    {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\RobotInputController.txt",
+      "sha256": "f248df08449e3ff0706ce15ea07e4d58517f2fc9ed3f3143473fa48c4323bc21"
+    },
+    {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\SonicPolicyRunner_NestedType_StateRingBuffer.txt",
+      "sha256": "086ff53e5f17cb0875913d0f4c7ece2246b07db7c5a5b415b1734987afd5cbf3"
+    },
+    {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\RobotInputController_NestedType__WaitForSubclassDependencies_d__82.txt",
+      "sha256": "2b2233581bcfb508777f4f7f78498cca7343484b05534f798419e72caa925e4b"
+    }
+  ],
+  "rebuild_translation_units": [
+    "ocean/rek_g1/sonic_motion_composer_native.c via g1_cuda_device.cu",
+    "ocean/rek_g1/g1_semantic_scheduler_cuda.cu",
+    "ocean/rek_g1/native5/motion_assets.cu",
+    "ocean/rek_g1/native5/robot_state.cu"
+  ],
+  "runtime_integration_owned_by_parent": true
+}

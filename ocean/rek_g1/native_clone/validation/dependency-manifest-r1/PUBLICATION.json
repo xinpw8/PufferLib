@@ -1,0 +1,58 @@
+{
+  "created_utc": "2026-09-28T02:27:13.650444+00:00",
+  "source": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\dependency-manifest-r1",
+  "nas": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-27\\rek-native-clone-r1\\dependency-manifest-r1",
+  "files": [
+    {
+      "path": "collect_dependencies.py",
+      "bytes": 9791,
+      "sha256": "6b2d64a12d655498dbf59dfa9663a16d946bb76564f1bcf89e198bd8878d649f"
+    },
+    {
+      "path": "collector.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "collector.stdout.json",
+      "bytes": 348260,
+      "sha256": "bf273e8268fdd3b2e903492f162566fb6c59f67183cd100bbb95e49dd4182f9f"
+    },
+    {
+      "path": "COMMAND.json",
+      "bytes": 499,
+      "sha256": "a3079a4664de8db72c4028692279f04092db8bdae9200d9ed72d1baa876c3af5"
+    },
+    {
+      "path": "DEPENDENCIES.json",
+      "bytes": 348260,
+      "sha256": "bf273e8268fdd3b2e903492f162566fb6c59f67183cd100bbb95e49dd4182f9f"
+    },
+    {
+      "path": "exit-code.txt",
+      "bytes": 3,
+      "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2674,
+      "sha256": "a523a56f30f08aed3de936f6589e8be66aa62d834106df12c0660c993258ddda"
+    },
+    {
+      "path": "test_verify.py",
+      "bytes": 715,
+      "sha256": "3936e5f6e92e0e1c5df33cbc1eda62110bd6a74a0c71701be71f4edfa95cbaf0"
+    },
+    {
+      "path": "VALIDATION.json",
+      "bytes": 533,
+      "sha256": "a07056698970aaaa1fd46fc836849e617d6ef0a6b913408d4e73f3d7d1da0391"
+    },
+    {
+      "path": "verify_dependencies.py",
+      "bytes": 1231,
+      "sha256": "496ececbbcf80e4a85e5a13acc58254ab2ec5ffae62f4d2c9e250792c33d7643"
+    }
+  ],
+  "bytes": 711966
+}

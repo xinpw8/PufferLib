@@ -1,0 +1,59 @@
+{
+  "id": "510ae9d7128b0533b496ceab7e634fbb26374198fd38167ad7bf6ab24d7acfc5",
+  "image": "sha256:5fb2c698c065d4502b3c09f3b847efac6aa5428541c4b4f26110e3a530cae879",
+  "network": "none",
+  "ipc": "private",
+  "pid_namespace": "private",
+  "privileged": false,
+  "gpu_devices": false,
+  "host_X_mount": false,
+  "original_profile_mount": false,
+  "original_game_writable_mount": false,
+  "bind_mounts": {
+    "/session/game/BepInEx/core": [
+      "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/original-history/unity-harness-r1/game/BepInEx/core",
+      false
+    ],
+    "/session/game/BepInEx/interop": [
+      "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/original-history/unity-harness-r1/game/BepInEx/interop",
+      false
+    ],
+    "/opt/codexrook/box64": [
+      "/home/spark-advantage/codexrook-runtime/box64-upstream-20260924-r1",
+      false
+    ],
+    "/opt/codexrook/wine-11.13": [
+      "/home/spark-advantage/codexrook-runtime/wine-11.13",
+      false
+    ],
+    "/session": [
+      "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/original-history/unity-harness-r1",
+      true
+    ],
+    "/session/game/BepInEx": [
+      "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/original-history/unity-harness-r1/game/BepInEx",
+      true
+    ],
+    "/session/game/BepInEx/unity-libs": [
+      "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/original-history/unity-harness-r1/game/BepInEx/unity-libs",
+      false
+    ],
+    "/opt/codexrook/x64root-ubuntu-24.04": [
+      "/home/spark-advantage/codexrook-runtime/x64root-ubuntu-24.04",
+      false
+    ],
+    "/session/input": [
+      "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/original-history/unity-harness-r1/input",
+      false
+    ],
+    "/session/game": [
+      "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/original-history/unity-harness-r1/game",
+      false
+    ]
+  },
+  "state": "created",
+  "translator": {
+    "source": "/home/spark-advantage/codexrook-runtime/box64-upstream-20260924-r1/bin/box64",
+    "sha256": "12a50a0f629f1ddeb08524c8f7399829e0b7101f79f4e20c094376c73a1af7ae"
+  }
+}

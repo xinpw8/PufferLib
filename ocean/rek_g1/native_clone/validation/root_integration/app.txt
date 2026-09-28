@@ -1,0 +1,39 @@
+✔ all seventeen saved bindings produce corresponding one-shot native move index (3.779ms)
+✔ saved chords take priority and double taps require a released edge within300ms (1.5195ms)
+✔ human durations are explicit and default to 300 seconds (3.5895ms)
+✔ human config changes only round_seconds and never modifies original assets or config (49.9817ms)
+✔ human config reports legacy training duration default without rewriting source (12.6049ms)
+✔ invalid durations and malformed configs are rejected (22.9998ms)
+✔ human config cleanup never recursively removes an unexpected sibling (20.1075ms)
+✔ session records native points winners and deduplicates exact terminal snapshots (0.6487ms)
+✔ KO winner remains authoritative even with fewer points (0.2211ms)
+✔ draws count as valid rounds while replay and unknown results are invalid (0.2185ms)
+✔ missing valid native winner does not become a score-derived win or draw (0.217ms)
+✔ new native round streams preserve scoreboard while reset clears the session (0.3434ms)
+✔ snapshot is detached and malformed terminal states do not mutate session (0.4143ms)
+✔ only authoritative native match terminal determines match W/L and is counted once (0.3825ms)
+✔ continuous diagonal and yaw survive without magnitude normalization (2.1ms)
+✔ native scheduler receives attack while moving and busy, once per edge (0.6578ms)
+✔ stale packets cannot resurrect held controls or edges; release clears pending (0.2896ms)
+✔ fractional commands validated verbatim and nonfinite refused (0.5843ms)
+{"ready":true,"url":"http://127.0.0.1:51211"}
+✔ native phase labels do not invent a timer or treat round terminal as match complete (2.4078ms)
+✔ launched zero-intermission server continues stepping native between-round phase without an extra browser timer (314.9889ms)
+✔ 24 ms fake worker loses no 20 ms interval opportunities after completing (13.4444ms)
+✔ fast worker remains capped at one fixed 20 ms simulation step per 20 ms (3.1523ms)
+✔ step plus frame is serial and lateness never accumulates a catch-up burst (2.8079ms)
+✔ stop during an in-flight request lets it complete without scheduling another (0.7388ms)
+✔ stop before the first tick cancels all work (0.3673ms)
+✔ a 500 ms pause does not create deferred simulation work (1.4889ms)
+{"ready":true,"url":"http://127.0.0.1:51212"}
+✔ paused protocol preserves continuous inputs, native events and exclusive requests across delayed HTTP bodies (319.2954ms)
+{"ready":true,"url":"http://127.0.0.1:51213"}
+✔ human server pauses, extends rounds, retains results and leaves league fixtures unchanged (513.3705ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 691.9535

@@ -1,0 +1,12 @@
+{
+  "schema": "rek.native_clone.dependency_inventory_validation.v1",
+  "created_utc": "2026-09-28T02:27:13.403181+00:00",
+  "dependencies_sha256": "bf273e8268fdd3b2e903492f162566fb6c59f67183cd100bbb95e49dd4182f9f",
+  "file_count": 586,
+  "recorded_digest_checks": 183,
+  "recorded_digest_matches": 183,
+  "errors": [],
+  "verifier_test": "PASS original identity, same-size mutation detection, missing-file detection",
+  "gpu_runs": 0,
+  "scope": "Existing Spark paths and static build provenance; no portability claim"
+}

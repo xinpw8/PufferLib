@@ -1,0 +1,34 @@
+{
+  "Plugin.cs": {
+    "bytes": 17006,
+    "sha256": "b53227ea44dcecb984006c034e7b0b8025152f9c7b1207f54328ebe2b226c94e"
+  },
+  "RekHistoryOracle.csproj": {
+    "bytes": 1658,
+    "sha256": "ad4eed13c180c982d673a42079ea31cc28899c324ab8c84b1f7b36b0d7a82c6a"
+  },
+  "fixture/fixtures.json": {
+    "bytes": 68579,
+    "sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0"
+  },
+  "fixture/sonic_config.json": {
+    "bytes": 11880,
+    "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355"
+  },
+  "prepare_inputs.py": {
+    "bytes": 3216,
+    "sha256": "35f460202da8a1362601ef0f30c04f72b203659965c381bb3e6a383fc1484ca1"
+  },
+  "isolation/prepare_runtime.py": {
+    "bytes": 8395,
+    "sha256": "7537128f1dc38c4da113e9ad2c9d0acab66edcd5a88b91e0c791b14766f8cff2"
+  },
+  "isolation/orchestrate.py": {
+    "bytes": 5789,
+    "sha256": "cdb6504ea8d64514be6b9ea9555774bfc101eb86b89291a391173f36ecb9b554"
+  },
+  "bin/Release/net6.0/RekHistoryOracle.dll": {
+    "bytes": 60416,
+    "sha256": "39289ff8f2df29f791a0fe682eaa8d29c38a435d523af06a01b4b786df315804"
+  }
+}

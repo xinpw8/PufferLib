@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>REK Native</title><link rel="stylesheet" href="/style.css"><script src="/controls.js" defer></script><script src="/state_labels.js" defer></script><script src="/app.js" defer></script></head>
+<body><main>
+<header><div><span class="eyebrow">LOCAL SIMULATOR</span><h1>REK Native</h1></div><span id="connection" role="status">Connecting</span></header>
+<div id="error" role="alert" hidden></div>
+<section class="game" aria-label="Native robot sparring">
+<div class="scoreboard">
+<div class="fighter blue"><span>YOU · G1</span><strong id="blue-score">0</strong><small><span id="blue-wins">0</span> rounds won · <span id="blue-falls">0</span> falls</small></div>
+<div class="round"><strong id="clock">2:00</strong><span id="round-status">Preparing simulator</span><small id="match-status">Match result pending</small></div>
+<div class="fighter orange"><span>BOT 1 · G1</span><strong id="orange-score">0</strong><small><span id="orange-wins">0</span> rounds won · <span id="orange-falls">0</span> falls</small></div>
+</div>
+<div id="arena" tabindex="0" role="application" aria-label="Click to control your robot. WASD movement, QE turn, saved G1 attack keys below.">
+<img id="frame" alt="Native G1 robots rendered with extracted original meshes" draggable="false"><div id="focus-prompt">Paused. Click here to play.</div>
+</div>
+<div class="toolbar"><button id="play" class="primary" disabled>Play</button><button id="reset" disabled>New match</button><button id="step" disabled>Step 20 ms</button><button id="cancel" disabled>Cancel action</button><div class="pace"><span id="pace">Pace awaiting play</span><small id="timing">20 ms control step</small></div></div>
+</section>
+<section class="results"><div><small>SESSION POINTS</small><strong id="points">0 : 0</strong></div><div><small>MATCH W / L</small><strong id="matches">0 / 0</strong></div><div><small>ROUND W / L / D</small><strong id="wld">0 / 0 / 0</strong><small id="rounds">0 completed rounds</small></div><div class="last"><small>LAST ROUND</small><span id="last-round">No completed round</span></div></section>
+<section class="controls"><div><h2>Your saved controls</h2><p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Q</kbd><kbd>E</kbd> turn.<br>Hold <kbd>Space</kbd> for combos. Double-tap kick keys within 300 ms.</p><p class="muted">Movement axes combine. Attack requests go directly to the native scheduler. Leaving this window pauses play.</p><p id="command-status" role="status">No attack requested</p></div><div id="moves" class="moves" aria-label="Attack controls"></div></section>
+<details><summary>Simulator and training interface</summary><p>The native app reuses extracted G1 meshes, motion assets and motor-controller weights. Unity shaders, authoritative server state and full gameplay parity remain unverified.</p><p>The view uses the complete extracted arena and diagnostic lighting. Collision geometry is loaded separately by the native simulator.</p><p>Training clients can read <a href="/api/protocol">/api/protocol</a>, inspect /api/snapshot, pause, reset and step the same process. Manual play and explicit stepping are serialized. Session inputs, states and frames are recorded.</p><p id="runtime-info"></p></details>
+</main></body></html>

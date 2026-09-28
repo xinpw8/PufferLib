@@ -1,0 +1,27 @@
+{
+  "utc": "2026-09-28T19:32:39.358502+00:00",
+  "scope": "Actual copied repository package; CPU-only checks. Live viewer was not changed.",
+  "checks": [
+    {
+      "command": "node --test league/input.test.cjs league/controls.test.cjs league/paced_loop.test.cjs league/human_session.test.cjs league/server.test.cjs league/protocol.test.cjs league/native_phase.test.cjs",
+      "cwd": "app",
+      "exit_code": 0,
+      "passed": 28,
+      "failed": 0,
+      "transcript": "app.txt"
+    },
+    {
+      "command": "C:\\Python312\\python.exe -m unittest -v test_passive.py",
+      "cwd": "passive_support",
+      "exit_code": 0,
+      "passed": 11,
+      "failed": 0,
+      "evidence": "Observed tool result during this publication turn; no separate complete transcript was saved."
+    },
+    {
+      "command": "bash -n ocean/rek_g1/native_clone/build.sh",
+      "cwd": "repository root",
+      "exit_code": 0
+    }
+  ]
+}

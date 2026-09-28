@@ -1,0 +1,46 @@
+in-line punches (analytic)
+  U in line d=0.50                     HIT      GREEN  margin=-0.1200 t=0.1643 v=2.625 tgt=2
+  I in line d=0.50                     HIT      GREEN  margin=-0.1600 t=0.2235 v=2.091 tgt=2
+  U far d=1.2                          MISS     RED    margin=+0.5800 t=-1.0000 v=0.000 tgt=0
+range edges (in line: U <= 0.62, I <= 0.66)
+  U d=0.61                             HIT      GREEN  margin=-0.0100 t=0.2062 v=2.625 tgt=2
+  U d=0.63                             MISS     AMBER  margin=+0.0100 t=-1.0000 v=0.000 tgt=0
+  I d=0.65                             HIT      GREEN  margin=-0.0100 t=0.2952 v=2.091 tgt=2
+  I d=0.67                             MISS     AMBER  margin=+0.0100 t=-1.0000 v=0.000 tgt=0
+impact speed / smother
+  U straight, centered opp (glancing)  WEAK     AMBER  margin=-0.0197 t=0.1824 v=1.203 tgt=2
+  U default (auto-aim), centered opp   HIT      GREEN  margin=-0.1412 t=0.1562 v=2.625 tgt=2
+  U opp inside chamber range           WEAK     AMBER  margin=-0.1800 t=0.0900 v=2.625 tgt=2
+  U default, facing away               MISS     RED    margin=+0.3927 t=-1.0000 v=0.000 tgt=0
+  U opp beside/behind lead shoulder    MISS     RED    margin=+0.1587 t=-1.0000 v=0.000 tgt=0
+motion
+  U d=0.9 static                       MISS     RED    margin=+0.2800 t=-1.0000 v=0.000 tgt=0
+  U d=0.9 opp stepping in 2 m/s        HIT      GREEN  margin=-0.1800 t=0.1797 v=4.625 tgt=2
+  U opp retreating 3 m/s               MISS     RED    margin=+0.4150 t=-1.0000 v=0.000 tgt=0
+  U opp walks into held fist           WEAK     AMBER  margin=-0.0200 t=0.2300 v=1.000 tgt=2
+guard / clean-hit speed
+  U glove in path                      BLOCKED  RED    margin=-0.1200 t=0.1643 v=2.625 tgt=2
+  U glove off-line                     HIT      GREEN  margin=-0.1200 t=0.1643 v=2.625 tgt=2
+  U min_speed 10                       WEAK     AMBER  margin=-0.1200 t=0.1643 v=2.625 tgt=2
+keys
+laterality (open side)
+  U straight, opp offset left          HIT      GREEN  margin=-0.0951 t=0.1682 v=2.475 tgt=2
+  I straight, opp offset left          MISS     RED    margin=+0.0808 t=-1.0000 v=0.000 tgt=0
+auto-aim (yaw-only)
+  U no auto-aim, opp off-line          MISS     RED    margin=+0.1300 t=-1.0000 v=0.000 tgt=0
+  U auto-aim 0.8 rad                   HIT      GREEN  margin=-0.1096 t=0.1683 v=2.625 tgt=2
+  U auto-aim 0.2 rad (cone too small)  MISS     AMBER  margin=+0.0488 t=-1.0000 v=0.000 tgt=0
+invariance: world yaw rotation
+  base (yawing, moving, guard)         BLOCKED  RED    margin=-0.1415 t=0.1971 v=3.043 tgt=2
+  rotated 0.7 rad                      BLOCKED  RED    margin=-0.1415 t=0.1971 v=3.043 tgt=2
+invariance: Unity (left-handed, y-up) == MuJoCo (right-handed, z-up)
+broad phase == full sweep (random scenarios)
+  20000 scenarios, 13188 rejected by broad phase
+fist velocity: analytic == finite difference
+sweep vs brute force (dense 0.1 ms sampling, yawing attackers)
+  3850 scenarios compared (miss 3042, hit 296, weak 158, blocked 354)
+timing
+  near miss (full sweep)     0.465 us / eval
+  far (broad-phase reject)   0.077 us / eval
+
+34 passed, 0 failed

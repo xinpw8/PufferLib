@@ -1,0 +1,24 @@
+{
+  "files": [
+    {
+      "path": "input/INPUT-STAGING.json",
+      "bytes": 1137,
+      "sha256": "ce1dcd671bc558b6a859667e354f71625ddeb7d0444331024a307824347cd7fd"
+    },
+    {
+      "path": "input/fixtures.json",
+      "bytes": 68579,
+      "sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0"
+    },
+    {
+      "path": "input/run-config.json",
+      "bytes": 349,
+      "sha256": "73903b580229642c318521d838252778907a2e53178145786d2de88d0e73f87b"
+    },
+    {
+      "path": "input/sonic_config.json",
+      "bytes": 11880,
+      "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355"
+    }
+  ]
+}

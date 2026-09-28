@@ -1,0 +1,17 @@
+{
+  "schema": "rek.native_clone.optional_step_graph.v1",
+  "original": {
+    "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\source\\ocean\\rek_g1\\native5\\eval_worker.cpp",
+    "sha256": "35b70b245d4fc4a635a2fd364b2e15645c445b73c63c4563d3abd42070f94a41"
+  },
+  "candidate": {
+    "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\perf-graph-r1\\eval_worker.cpp",
+    "sha256": "19e5048133faecbab69b8a54755b05eed32a6a607ed29fd117c3cec073a67716"
+  },
+  "header": {
+    "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\perf-graph-r1\\eval_step_graph.h",
+    "sha256": "039c67b7355ad7d5ded81c771f81f876bc905dbb3bd57fe6522d30a348ca39b5"
+  },
+  "default_enabled": false,
+  "gpu_tested": false
+}

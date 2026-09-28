@@ -1,0 +1,81 @@
+{
+  "schema": "rek.native_clone.match_lifecycle_independent_review.v1",
+  "created_utc": "2026-09-28T02:15:27.595761+00:00",
+  "verdict": "GO for integrated GPU validation",
+  "reviewed_files": [
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\source\\g1_native_combat_cuda.cu",
+      "bytes": 44113,
+      "sha256": "c7d2f0fb28e18805b785459d93e19b20f13c06ddfa6750a7596bb3dd6d9d4b89"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\source\\g1_native_combat_cuda.h",
+      "bytes": 7769,
+      "sha256": "fba13d48a7af91afc72f2a6c49bff97485d21c5f7f4aa32cac1022dbff4141cf"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\source\\g1_match_lifecycle.h",
+      "bytes": 2987,
+      "sha256": "8565738466387221a76ceba4a9f766fc882339a3ac0c4446bf37e2fcdb278190"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\test_match.cpp",
+      "bytes": 6488,
+      "sha256": "58d294704cd59d61a5247d10d626ee79a56fc8d63cff46fc7eb327fa54db7408"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\kernels_cpu.inc",
+      "bytes": 29196,
+      "sha256": "506f56e3b7a50cd97b1c0964cb9d29854383b6649d14e721a3f30a248a71be35"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\match-lifecycle.diff",
+      "bytes": 12193,
+      "sha256": "4ed4adeae797e5e86c842bab9d8cfe80fe1551c27134c4c356632c3f59f1cd45"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\cpu-run-r1\\test.stdout.txt",
+      "bytes": 80,
+      "sha256": "e6a62824b4f33af4db251f4a787a4e9cfa8a7db6e459a4cd47c981aaa7ac6b50"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\cpu-run-r1\\original-fight.stdout.txt",
+      "bytes": 44,
+      "sha256": "fb7c27498e318573db801b4cc06ac3cfc659cfd9dc750202211f71396e540d56"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\cpu-run-r1\\original-combat.stdout.txt",
+      "bytes": 33,
+      "sha256": "83989b66ec3a46ffc541f83ba8813315be8e1e204ac190bfbe240ea130607b8d"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\cpu-run-r1\\exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-native-clone-20260927-r1\\match-lifecycle-r1\\cuda-build-r1\\exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "review_scope": [
+    "Full additive source diff and helper read",
+    "Actual CPU kernel extraction reviewed and results read:3704 new checks,705 original fight,69 original combat",
+    "CUDA build exit0 read, no GPU run by reviewer",
+    "Current integration uses match API and exempts redo from normal duration override"
+  ],
+  "findings": [
+    "No blocking source defect found",
+    "Win counters retained through inter-round reset; tie prepares30s redo; three-round strict-leader cap retained",
+    "Counted-reset branch unchanged; inactive phases skip fall/referee/time changes",
+    "ROUND_PREPARED emits one body-reset pulse; following begin activates countdown",
+    "Completed fight outcome remains through OVER to IDLE until cold reset",
+    "Legacy false mode and active/count-reset CPU parity preserved"
+  ],
+  "limits": [
+    "Integrated physical match closure remains the root GPU validation task",
+    "countdown_complete=1 deliberately omits unverified original presentation Timeline",
+    "No claim of identical Unity end-to-end physics or timing"
+  ]
+}

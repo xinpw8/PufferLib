@@ -1,0 +1,22 @@
+[
+  {
+    "path": "g1_semantic_scheduler_cuda.cu",
+    "before_sha256": "1739dd7a6d37ac760b94c9d2f9e1e4f70ecaef5505f85503089658bf5330e5b1",
+    "sha256": "beea0fa369afca02138f7806aa511562d8918c181a19e006fb762dc0fd63d69b"
+  },
+  {
+    "path": "g1_semantic_scheduler_cuda.h",
+    "before_sha256": "828b5d4b5406b4cef8854160a3ec1fe865385fe77479df549ee403b0eab2afb0",
+    "sha256": "d31933796698939fefbbdbb9517c7febecabc69073fde662e10c844860ef5fd7"
+  },
+  {
+    "path": "native5/motion_assets.cu",
+    "before_sha256": "0e24ce24983966a49e295a29e0866de7b6c660fe9367f29f67e9efcab500a18e",
+    "sha256": "0095b2f0eef99c39fe74bfd496bd9a42269f2e5c19a1c441160510de45b5a964"
+  },
+  {
+    "path": "native5/motion_assets.cuh",
+    "before_sha256": "7e6ed50ed35161a7cd26ebf583cd7abb8389fa4bff6e211088a5f342960a9aac",
+    "sha256": "1333736eaec60fa72c5c1e3d52dee9a1205cccf0ee574df6f831588e656534d0"
+  }
+]

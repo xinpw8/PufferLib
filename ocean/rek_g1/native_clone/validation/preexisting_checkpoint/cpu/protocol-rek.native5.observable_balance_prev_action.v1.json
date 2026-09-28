@@ -1,0 +1,879 @@
+{
+  "test": "live-policy-worker",
+  "mode": "protocol",
+  "selection": "sampled",
+  "synthetic_observations": true,
+  "authentic_game_control": false,
+  "assertions": 368,
+  "responses": 110,
+  "actions": 0,
+  "checkpoint_sha256": null,
+  "latency_ms": null,
+  "exit_code": 0,
+  "stderr": "",
+  "transcript": [
+    {
+      "type": "protocol_ready",
+      "protocol": "rek.live_policy.v1",
+      "inference_available": false
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 1,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": true,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0025
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 2,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0011
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "seq": 2,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "code": "stale_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "empty_action_mask",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "terminal_boolean_required",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_round_id",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_round_id",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_schema_mismatch",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "missing_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "unsupported_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "unknown_type",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_schema_mismatch",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_availability",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_tilt",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_missing_joints",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_missing_rates",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_missing_referee",
+      "action_available": false
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 3,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0015
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observable_balance_padding",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_json_object",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_json_object",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "duplicate_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "embedded_nul",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "line_too_long",
+      "action_available": false
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 4,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0012
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 5,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0011
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 6,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.001
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 7,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0008
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 8,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0018
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 9,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0013
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 10,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0013
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 11,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0013
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 12,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0012
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 13,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 14,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0012
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 15,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0011
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 16,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0014
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 17,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 18,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0011
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 19,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0007
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 20,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 21,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0014
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 22,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0012
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 23,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0012
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 24,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0013
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 25,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 26,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 27,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 28,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0027
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 29,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0013
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 30,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0007
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 31,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.001
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 32,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0007
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 33,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0007
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 34,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0007
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 35,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 36,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0007
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 37,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "reset",
+      "protocol": "rek.live_policy.v1",
+      "seq": 38,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 0,
+      "latency_ms": 0.0009
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 39,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0011
+    },
+    {
+      "type": "terminal",
+      "protocol": "rek.live_policy.v1",
+      "seq": 40,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 0,
+      "latency_ms": 0.0011
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 41,
+      "round_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "recurrent_reset": true,
+      "round_changed": true,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.0008
+    },
+    {
+      "type": "closed",
+      "protocol": "rek.live_policy.v1",
+      "seq": 42
+    }
+  ]
+}

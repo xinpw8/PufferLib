@@ -1,0 +1,11 @@
+[
+  {
+    "ticks": 512,
+    "arenas": 4,
+    "wall_seconds": 9.742656162,
+    "one_arena_control_sps": 52.552403727126425,
+    "aggregate_arena_control_sps": 210.2096149085057,
+    "rendering": false,
+    "includes_upload_status_snapshot_protocol": true
+  }
+]

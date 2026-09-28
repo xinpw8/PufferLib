@@ -1,0 +1,17 @@
+{
+  "id": "510ae9d7128b0533b496ceab7e634fbb26374198fd38167ad7bf6ab24d7acfc5",
+  "state": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-09-28T01:40:16.205957552Z",
+    "FinishedAt": "2026-09-28T01:41:17.046148923Z"
+  },
+  "docker_attach_exit": 0
+}

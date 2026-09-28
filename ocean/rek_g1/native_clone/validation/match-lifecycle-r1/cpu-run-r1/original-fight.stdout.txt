@@ -1,0 +1,1 @@
+g1_fight_state tests passed: 705 assertions

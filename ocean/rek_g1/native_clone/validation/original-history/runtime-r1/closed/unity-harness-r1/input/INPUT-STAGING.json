@@ -1,0 +1,33 @@
+{
+  "schema": "rek.original_composer.input_staging.v1",
+  "fixture_sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0",
+  "config_sha256": "73903b580229642c318521d838252778907a2e53178145786d2de88d0e73f87b",
+  "marker": {
+    "run_id": "rek-native-history-20260927-r1",
+    "config_sha256": "73903b580229642c318521d838252778907a2e53178145786d2de88d0e73f87b"
+  },
+  "run_id": "rek-native-history-20260927-r1",
+  "mode": "sequence",
+  "required_environment": {
+    "REK_COMPOSER_ORACLE_ENABLE": "detached-v1",
+    "REK_COMPOSER_ORACLE_CONFIG": "Z:/session/input/run-config.json"
+  },
+  "required_cli": [
+    "--rek-composer-oracle"
+  ],
+  "output_must_be_absent": "Z:/session/out/oracle",
+  "files": {
+    "fixtures.json": {
+      "bytes": 68579,
+      "sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0"
+    },
+    "run-config.json": {
+      "bytes": 349,
+      "sha256": "73903b580229642c318521d838252778907a2e53178145786d2de88d0e73f87b"
+    },
+    "sonic_config.json": {
+      "bytes": 11880,
+      "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355"
+    }
+  }
+}

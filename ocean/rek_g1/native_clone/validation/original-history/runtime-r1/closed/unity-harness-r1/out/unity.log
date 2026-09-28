@@ -1,0 +1,227 @@
+CodeReloadManager initialized
+JobSystem: Creating JobQueue using job-worker-count value 2
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+Initialize engine version: 6000.5.8f1 (5cb7df797b7d)
+[Subsystems] Discovering subsystems at path Z:/session/game/REK_Data/UnitySubsystems
+[Subsystems] No descriptors matched for  examples in UnitySubsystems/UnityOpenXR/UnitySubsystemsManifest.json.
+[Subsystems] 1 'inputs' descriptors matched in UnitySubsystems/UnityOpenXR/UnitySubsystemsManifest.json
+[Subsystems] 1 'displays' descriptors matched in UnitySubsystems/UnityOpenXR/UnitySubsystemsManifest.json
+[Subsystems] No descriptors matched for  meshings in UnitySubsystems/UnityOpenXR/UnitySubsystemsManifest.json.
+[Subsystems] No descriptors matched for  examples in UnitySubsystems/libUnityARFoundationAndroidXR/UnitySubsystemsManifest.json.
+[Subsystems] No descriptors matched for  inputs in UnitySubsystems/libUnityARFoundationAndroidXR/UnitySubsystemsManifest.json.
+[Subsystems] No descriptors matched for  displays in UnitySubsystems/libUnityARFoundationAndroidXR/UnitySubsystemsManifest.json.
+[Subsystems] 1 'meshings' descriptors matched in UnitySubsystems/libUnityARFoundationAndroidXR/UnitySubsystemsManifest.json
+Forcing GfxDevice: Null
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+NullGfxDevice:
+    Version:  NULL 1.0 [1.0]
+    Renderer: Null Device
+    Vendor:   Unity Technologies
+FMOD initialized on nosound output
+[Physics::Module] Selected backend.
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+The referenced script (Unknown) on this Behaviour is missing!
+The referenced script on this Behaviour (Game Object '<null>') is missing!
+Microsoft Media Foundation video decoding to texture disabled: graphics device is Null, only Direct3D 11 and Direct3D 12 (only on desktop) are supported for hardware-accelerated video decoding.
+[PoxrUnity]  FrameID=0>>>>>>RegisterDescriptor
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+Unity.XR.OpenXR.Features.PICOSupport.PLog:i(String, String)
+PXR_HumanBodySubsystem:RegisterDescriptor()
+
+UnloadTime: 8.721600 ms
+Loaded HRTF: default.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+SteamAudio.HRTF:.ctor(Context, AudioSettings, String, Byte[], Single, HRTFNormType)
+SteamAudio.SteamAudioManager:OnApplicationStart(ManagerInitReason)
+
+This custom render path shader needs to have at least 1 passes.
+Could not find material Hidden/VideoDecode. Make sure the Video shaders are included in your build, in the Built-in Shader Settings section of the Graphics Settings.
+Could not find video decode shader pass YCbCr_To_RGB1 in shader <not found>
+Could not find video decode shader pass YCbCrA_To_RGBAFull in shader <not found>
+Could not find video decode shader pass YCbCrA_To_RGBA in shader <not found>
+Could not find video decode shader pass Flip_RGBA_To_RGBA in shader <not found>
+Could not find video decode shader pass Flip_RGBASplit_To_RGBA in shader <not found>
+Could not find video decode shader pass Flip_NV12_To_RGB1 in shader <not found>
+Could not find video decode shader pass Flip_NV12_To_RGBA in shader <not found>
+This custom render path shader needs to have at least 1 passes.
+Could not find material Hidden/VideoComposite. Make sure the Video shaders are included in your build, in the Built-in Shader Settings section of the Graphics Settings.
+Could not find video decode shader pass Default in shader <not found>
+[SteamManager] Awake
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.SteamManager:Awake()
+
+[SteamManager] SteamAPI.Init failed — Steam not running, missing steam_appid.txt, or invalid AppID
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:LogWarning(Object)
+
+[ServerContentAudit] scene 'Lobby': disabled 5 UIDocument(s); 6 AudioSource(s), 0 ParticleSystem(s) present (stripping candidates).
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.ServerContentAudit:Audit(Scene)
+
+Could not find a Collider associated with this filter in the scene.This XRPokeFilter will be disabled.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object, Object)
+UnityEngine.Debug:LogWarning(Object, Object)
+UnityEngine.XR.Interaction.Toolkit.Filtering.XRPokeFilter:Start()
+
+Could not find a Collider associated with this filter in the scene.This XRPokeFilter will be disabled.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object, Object)
+UnityEngine.Debug:LogWarning(Object, Object)
+UnityEngine.XR.Interaction.Toolkit.Filtering.XRPokeFilter:Start()
+
+Curl error 6: Could not resolve host: config.uca.cloud.unity3d.com
+The referenced script on this Behaviour (Game Object 'ArenaBootstrap') is missing!
+Unloading 6 Unused Serialized files (Serialized files now loaded: 0)
+Curl error 6: Could not resolve host: cdp.cloud.unity3d.com
+UnloadTime: 18.856900 ms
+[ArenaBootstrap] Missing REK_ARENA_ID / REK_CENTRAL_URL / REK_ARENA_TOKEN. ArenaBootstrap disabled.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.ArenaBootstrap:Log(String)
+REKApp.ArenaBootstrap:ResolveConfig()
+REKApp.ArenaBootstrap:Awake()
+
+FXPool: DontDestroyOnLoad only works for root GameObjects or components on root GameObjects.
+EffectPoolingSystem:Awake()
+
+[ line 2156496]
+
+[ServerContentAudit] scene 'Arena': disabled 5 UIDocument(s); 16 AudioSource(s), 13 ParticleSystem(s) present (stripping candidates).
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.ServerContentAudit:Audit(Scene)
+UnityEngine.SceneManagement.SceneManager:Internal_SceneLoaded(Scene, LoadSceneMode)
+
+Unloading 1627 unused Assets to reduce memory usage. Loaded Objects now: 11596.
+Total: 80.237600 ms (FindLiveObjects: 0.991700 ms CreateObjectMapping: 1.526800 ms MarkObjects: 73.487700 ms  DeleteObjects: 3.147900 ms)
+
+Could not find a Collider associated with this filter in the scene.This XRPokeFilter will be disabled.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object, Object)
+UnityEngine.Debug:LogWarning(Object, Object)
+UnityEngine.XR.Interaction.Toolkit.Filtering.XRPokeFilter:Start()
+
+Could not find a Collider associated with this filter in the scene.This XRPokeFilter will be disabled.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object, Object)
+UnityEngine.Debug:LogWarning(Object, Object)
+UnityEngine.XR.Interaction.Toolkit.Filtering.XRPokeFilter:Start()
+
+[Analytics] init client_id=cf679f7e8af04646a2e5db1d42ac956a session=1790559666 platform=steam_win version=0.0.119 lang=English os=Windows device=NVIDIA_DGX_Spark (NVIDIA) (first launch)
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.AnalyticsReporter:Init()
+REKApp.<Start>d__10:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+[Analytics] queued 'app_open' engagement=1ms (pending=1)
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.AnalyticsReporter:EnqueueAlways(String, String)
+REKApp.AnalyticsReporter:EnqueueOnce(String, String)
+REKApp.AnalyticsReporter:Init()
+REKApp.<Start>d__10:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+[PlatformIdentity] SteamManager not initialized. Steam not running, SteamManager not in scene, or steam_appid.txt missing. Continuing without Steam ID.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.PlatformIdentity:Log(String)
+REKApp.<WaitForDependencies>d__14:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+Curl error 6: Could not resolve host: cdp.cloud.unity3d.com
+[Analytics] queued 'session_end' duration=3222ms engagement=3221ms
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.AnalyticsReporter:EnqueueSessionEnd()
+REKApp.AnalyticsReporter:HandleWantsToQuit()
+UnityEngine.Application:Internal_ApplicationWantsToQuit()
+
+[Analytics] delaying quit to flush session_end
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.<QuitAfterFlush>d__59:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+REKApp.AnalyticsReporter:HandleWantsToQuit()
+UnityEngine.Application:Internal_ApplicationWantsToQuit()
+
+[RekEnv] Loaded channel=prod supabase=https://auth.rek.com central=https://central.rek.com
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.RekEnv:get_CentralServerUrl()
+REKApp.<FlushOnce>d__56:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+REKApp.AnalyticsReporter:HandleWantsToQuit()
+UnityEngine.Application:Internal_ApplicationWantsToQuit()
+
+Curl error 6: Could not resolve host: cdp.cloud.unity3d.com
+Curl error 6: Could not resolve host: central.rek.com
+[Analytics] flush failed (0): Cannot resolve destination host -- dropping 3 event(s)
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:LogWarning(Object)
+REKApp.<FlushOnce>d__56:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+[Analytics] flush done, resuming quit
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.<QuitAfterFlush>d__59:MoveNext()
+UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+
+[Analytics] dedup 'session_end'
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+REKApp.AnalyticsReporter:EnqueueSessionEnd()
+
+<color=#33FF64>[XRMultiplayer]</color> <color=#EC0CFA>[Lobby Manager]</color> Connected Lobby is null
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:Log(Object)
+XRMultiplayer.<LeaveSession>d__29:MoveNext()
+System.Runtime.CompilerServices.AsyncTaskMethodBuilder:Start(TStateMachine&)
+XRMultiplayer.SessionManager:LeaveSession()
+XRMultiplayer.<ShutDown>d__40:MoveNext()
+System.Runtime.CompilerServices.AsyncVoidMethodBuilder:Start(TStateMachine&)
+XRMultiplayer.XRINetworkGameManager:ShutDown()
+
+<color=#33FF64>[XRMultiplayer]</color> <color=#FAC00C>[Network Game Manager]</color> Error getting CurrentSessionType: Object reference not set to an instance of an object.
+UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+UnityEngine.Logger:Log(LogType, Object)
+UnityEngine.Debug:LogWarning(Object)
+XRMultiplayer.XRINetworkGameManager:get_CurrentSessionType()
+XRMultiplayer.VoiceChatManager:OnDestroy()
+
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+CodeReloadManager destroyed

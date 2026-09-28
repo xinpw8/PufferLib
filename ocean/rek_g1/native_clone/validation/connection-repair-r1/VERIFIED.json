@@ -1,0 +1,45 @@
+{
+  "utc": "2026-09-28T11:57:26.6399652Z",
+  "cause": "Four-hour helper lifetime expired",
+  "url": "http://127.0.0.1:18771/",
+  "httpStatus": 200,
+  "simulationHealthy": true,
+  "tick": 2137,
+  "paused": false,
+  "untilStopped": true,
+  "gameProcessUnchanged": true,
+  "files": [
+    {
+      "path": "passive-support-r2\\passive.py",
+      "sha256": "AA2D3AD86FD62448C713245379E45F420FEE0C6B481AA9A9C0DC2ADF95644F95"
+    },
+    {
+      "path": "passive-support-r2\\README.md",
+      "sha256": "FB2C394296B813466A147D6EDED6E413EACCF7FF5F9717F98061727863C1C7F3"
+    },
+    {
+      "path": "passive-support-r2\\test_passive.py",
+      "sha256": "3AEB09289B3206CFD7F0D26BFEEBF538A381ADC26690780FBA9DBFEFC4224E2E"
+    },
+    {
+      "path": "passive-support-r2\\tests.txt",
+      "sha256": "873D578372C52018A2C8FCA73F53038D61CB961ABB742F861256E61D3B7C6585"
+    },
+    {
+      "path": "restore_connection.ps1",
+      "sha256": "1DCC15C7852A1D58231D4AE7D57D4E8CF92C4FD0C54B8CED7CD9D23048C2C325"
+    },
+    {
+      "path": "reconnection-r1\\STARTED.json",
+      "sha256": "58AB94283CABDBCF2D19978334AE858BBAF0DD945922C77A1B1C9523E2162781"
+    },
+    {
+      "path": "reconnection-r1\\prior-tunnel-status.json",
+      "sha256": "DFEA2331F4FFF0FA07E353BB48CE9FA4F438802C6D819C0B0C7820D129A0AB9A"
+    },
+    {
+      "path": "reconnection-r1\\prior-mirror-status.json",
+      "sha256": "FBE53A45ECFAD72D513DB9069A5114BA207F19711B3B4FBD3F781341881DAC79"
+    }
+  ]
+}

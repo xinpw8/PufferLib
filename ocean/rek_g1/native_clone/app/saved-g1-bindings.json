@@ -1,0 +1,155 @@
+{
+  "source_receipt": {
+    "path": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-25\\human-imitation-session-r1\\spark-controls\\windows-controls.json",
+    "bytes": 7552,
+    "sha256": "118ab0ca87c5a2a37f985aaa03b8892198e92a22051b8e5bc38badce966f7d89"
+  },
+  "bindings": [
+    {
+      "commandId": "move:left_hook_processed",
+      "category": 20,
+      "codes": [
+        "KeyI"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:left_jab_processed",
+      "category": 21,
+      "codes": [
+        "KeyK"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:double_uppercut_processed",
+      "category": 22,
+      "codes": [
+        "Space",
+        "KeyJ"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:right_hook_processed",
+      "category": 23,
+      "codes": [
+        "KeyO"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:right_jab_processed",
+      "category": 24,
+      "codes": [
+        "KeyL"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:left_jab_right_uppercut_processed",
+      "category": 25,
+      "codes": [
+        "Space",
+        "KeyL"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:left_side_kick_processed",
+      "category": 16,
+      "codes": [
+        "KeyY"
+      ],
+      "doubleTap": true
+    },
+    {
+      "commandId": "move:left_front_kick_processed",
+      "category": 17,
+      "codes": [
+        "KeyH"
+      ],
+      "doubleTap": true
+    },
+    {
+      "commandId": "move:right_side_kick_processed",
+      "category": 18,
+      "codes": [
+        "KeyU"
+      ],
+      "doubleTap": true
+    },
+    {
+      "commandId": "move:right_knee_processed",
+      "category": 19,
+      "codes": [
+        "KeyJ"
+      ],
+      "doubleTap": true
+    },
+    {
+      "commandId": "move:6_punch_processed",
+      "category": 26,
+      "codes": [
+        "Space",
+        "KeyY"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:run_and_punch_processed",
+      "category": 27,
+      "codes": [
+        "Space",
+        "KeyU"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:left_right_jab_processed",
+      "category": 28,
+      "codes": [
+        "Semicolon"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:left_right_hook_processed",
+      "category": 29,
+      "codes": [
+        "Quote"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:left_hook_right_jab_processed",
+      "category": 30,
+      "codes": [
+        "Space",
+        "KeyK"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:double_hook_processed",
+      "category": 31,
+      "codes": [
+        "Space",
+        "KeyH"
+      ],
+      "doubleTap": false
+    },
+    {
+      "commandId": "move:butt_smack_emote_processed",
+      "category": 32,
+      "codes": [
+        "Space",
+        "KeyI"
+      ],
+      "doubleTap": false
+    }
+  ],
+  "double_tap_window_ms": 300,
+  "window_provenance": "Recovered KeyboardControlScheme constructor default; saved profile has no window field.",
+  "physical_key_source": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\Unity.InputSystem\\UnityEngine\\InputSystem\\Keyboard.txt"
+}

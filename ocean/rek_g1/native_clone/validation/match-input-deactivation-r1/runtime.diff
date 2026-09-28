@@ -1,0 +1,68 @@
+--- original/runtime.cu
++++ source/runtime.cu
+@@ -91,6 +91,7 @@
+     int* physics_stats;
+     bool pooled_physics_contacts;
+     uint8_t *suspended,*enabled,*row_mask,*union_mask,*completed,*terminal_rows;
++    uint8_t* match_input_active;
+     uint8_t *robot_dampened,*robot_resetting,*masks;
+     uint8_t* learner_masks;
+     const float* external_actions;
+@@ -375,6 +376,14 @@
+         v.actions[row]=-1; // Continuous command, no categorical label.
+     }
+ }
++__global__ void match_input_phase_edges(RuntimeView v) {
++    const int row=blockIdx.x*blockDim.x+threadIdx.x;if(row>=v.p.arenas*2)return;
++    const uint8_t active=v.c.states[row/2].combat.fight.phase==REK_G1_FIGHT_ROUND_ACTIVE;
++    // Original DeactivateControls runs once at round end. Keep ownership and
++    // command storage intact; this mask only drives the input component edge.
++    v.row_mask[row]=v.match_input_active[row]&&!active;
++    v.match_input_active[row]=active;
++}
+ __global__ void finish_bot(RuntimeView v) {
+     int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
+     const int row=a*2+1;if(!v.bot_enabled[row]||(v.external_direct&&v.external_direct[row]))return;
+@@ -501,6 +510,7 @@
+         physical_full(all_arenas,true);rek5::measurement_reset(measurement,stream);
+         auto& c=view.c;size_t a=view.p.arenas,rows=a*2;
+         cuda_check(rek_g1_cuda_native_combat_init(c.states,c.statuses,a,stream));
++        cuda_check(cudaMemsetAsync(view.match_input_active,1,rows,stream));
+         if(view.round_seconds>0)apply_round_duration<<<arena_grid(),128,0,stream>>>(view);
+         for(auto p:{c.fall_events})cuda_check(cudaMemsetAsync(p,0,rows*sizeof(uint32_t),stream));
+         for(auto p:{c.signals,c.referee,c.attributed,c.scored})cuda_check(cudaMemsetAsync(p,0,a*sizeof(uint32_t),stream));
+@@ -535,8 +545,13 @@
+             flags<<<rows_grid(),128,0,stream>>>(view,false);
+         }
+         prepare_external_direct<<<rows_grid(),128,0,stream>>>(view);
+-        motion->pre_direct(view.actions,view.bot_commands,view.bot_enabled,
+-            view.bot_results,view.local_velocity,view.suspended,stream);
++        if(view.match_mode){
++            match_input_phase_edges<<<rows_grid(),128,0,stream>>>(view);
++            motion->deactivate(view.row_mask,stream);
++            motion->pre_direct_match(view.actions,view.bot_commands,view.bot_enabled,
++                view.bot_results,view.local_velocity,view.suspended,stream,view.match_input_active);
++        }else motion->pre_direct(view.actions,view.bot_commands,view.bot_enabled,
++                view.bot_results,view.local_velocity,view.suspended,stream);
+         if(view.recovered_bot)finish_bot<<<arena_grid(),128,0,stream>>>(view);
+         flags<<<rows_grid(),128,0,stream>>>(view,false);cuda_check(robot_state_set_active(robot,view.enabled));
+         cuda_check(robot_state_prepare(robot,view.base,view.omega,view.joints,view.velocities,motion->heading,
+@@ -557,6 +572,10 @@
+                 motion->composers,c.routes,c.impacts,c.route_offsets,c.route_counts,c.contacts,c.fall_events,c.signals,c.referee,
+                 c.score_delta,c.attributed,c.scored,c.terminal,c.input_reset,c.dampened,c.begin,c.complete,c.clear,c.statuses,
+                 a,size_t(view.p.capacity)*2,stream));
++            if(view.match_mode){
++                match_input_phase_edges<<<rows_grid(),128,0,stream>>>(view);
++                motion->deactivate(view.row_mask,stream);
++            }
+             rek5::measurement_clear_contacts(m,c.clear,stream);
+             retain_dampening<<<rows_grid(),128,0,stream>>>(c.dampened,robot->dampened,rows);
+             cuda_check(robot_state_set_dampened(robot,c.dampened,robot->controls));
+@@ -672,6 +691,7 @@
+         v.pooled_physics_contacts=std::string(rek5::physics_backend_name(p)).rfind("mujoco_cuda",0)==0;
+         v.round_results=d.alloc<RekNative5RoundResult>(a);
+         v.suspended=d.alloc<uint8_t>(rows);v.enabled=d.alloc<uint8_t>(rows);v.row_mask=d.alloc<uint8_t>(rows);v.union_mask=d.alloc<uint8_t>(a);
++        v.match_input_active=d.alloc<uint8_t>(rows);
+         v.completed=d.alloc<uint8_t>(rows);v.terminal_rows=d.alloc<uint8_t>(rows);r->all_arenas=d.alloc<uint8_t>(a);cuda_check(cudaMemset(r->all_arenas,1,a));
+         r->tokens=d.alloc<float>(rows*64);r->raw_actions=d.alloc<float>(rows*29);auto& c=v.c;
+         c.states=d.alloc<RekG1CudaNativeCombatState>(a);c.contacts=d.alloc<RekG1HitContact>(size_t(v.p.capacity)*2);

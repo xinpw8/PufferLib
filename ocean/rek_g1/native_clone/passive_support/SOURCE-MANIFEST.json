@@ -1,0 +1,32 @@
+{
+  "schema": "rek.native_clone.passive_until_stop_revision.v1",
+  "utc": "2026-09-28T11:56:46.7161740Z",
+  "parent": "passive-support-r1",
+  "files": [
+    {
+      "path": "passive.py",
+      "bytes": 16037,
+      "sha256": "aa2d3ad86fd62448c713245379e45f420fee0c6b481aa9a9c0dc2adf95644f95"
+    },
+    {
+      "path": "test_passive.py",
+      "bytes": 7742,
+      "sha256": "3aeb09289b3206cfd7f0d26bfeebf538a381adc26690780fba9dbfefc4224e2e"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4688,
+      "sha256": "fb2c394296b813466a147d6eded6e413eaccf7ff5f9717f98061727863c1c7f3"
+    },
+    {
+      "path": "tests.txt",
+      "bytes": 1503,
+      "sha256": "873d578372c52018a2c8fca73f53038d61cb961abb742f861256e61d3b7c6585"
+    }
+  ],
+  "tests_passed": 11,
+  "independent_review": "GO on exact passive.py hash; independent11test rerun passed",
+  "helper_launched_by_preparer": false,
+  "active_copied": false,
+  "original_preserved": true
+}

@@ -1,0 +1,142 @@
+{
+  "schema": "rek.native_clone.graph_failure_analysis.v1",
+  "decision": "Keep cuda_graph_step disabled; no extra GPU run required for current clone release.",
+  "source_summary_sha256": "cca9e9844b2715dc039e15122624cfbe16d56ee07d6c79b24a2610521f66ac97",
+  "executed_driver_sha256": "c5272ed6ed02368731e7095054ff0c6f9ca42f5c6af2bb4cd41091f328c300cb",
+  "corrected_future_driver_sha256": "8be3dbd89870dfa344666a318979cb65402dd1ae23b8de9760c82d50bb467d7f",
+  "correction": "The executed SUMMARY scope string incorrectly said all values compared exactly. Its ok=false, mismatch count356 and strict assertion were correct. Original outputs remain unchanged; corrected future driver uses conditional outcome wording.",
+  "replies_compared": 365,
+  "differing_replies": 356,
+  "initial_and_reset_before_first_step_exact": true,
+  "array_comparisons": {
+    "qpos": {
+      "differing_replies": 356,
+      "differing_values": 25012,
+      "max_absolute_error": 0.1358044147491455,
+      "first": {
+        "request_index": 3,
+        "tick": 1,
+        "index": 1,
+        "eager": -6.565864168806e-05,
+        "graph": -6.565861986018717e-05,
+        "absolute_error": 2.182787282899775e-11
+      },
+      "maximum_at": {
+        "request_index": 278,
+        "tick": 276,
+        "index": 21,
+        "eager": 0.33531007170677185,
+        "graph": 0.47111448645591736
+      }
+    },
+    "qvel": {
+      "differing_replies": 356,
+      "differing_values": 24843,
+      "max_absolute_error": 5.523774743080139,
+      "first": {
+        "request_index": 3,
+        "tick": 1,
+        "index": 0,
+        "eager": -0.2890512943267822,
+        "graph": -0.28905126452445984,
+        "absolute_error": 2.9802322387695312e-08
+      },
+      "maximum_at": {
+        "request_index": 277,
+        "tick": 275,
+        "index": 12,
+        "eager": -4.034667015075684,
+        "graph": 1.4891077280044556
+      }
+    },
+    "raw": {
+      "differing_replies": 356,
+      "differing_values": 102052,
+      "max_absolute_error": 5.523774743080139,
+      "first": {
+        "request_index": 3,
+        "tick": 1,
+        "index": 1,
+        "eager": -6.565864168806e-05,
+        "graph": -6.565861986018717e-05,
+        "absolute_error": 2.182787282899775e-11
+      },
+      "maximum_at": {
+        "request_index": 277,
+        "tick": 275,
+        "index": 48,
+        "eager": -4.034667015075684,
+        "graph": 1.4891077280044556
+      }
+    },
+    "mask": {
+      "differing_replies": 0,
+      "differing_values": 0,
+      "max_absolute_error": 0,
+      "first": null
+    },
+    "score": {
+      "differing_replies": 0,
+      "differing_values": 0,
+      "max_absolute_error": 0,
+      "first": null
+    },
+    "falls": {
+      "differing_replies": 0,
+      "differing_values": 0,
+      "max_absolute_error": 0,
+      "first": null
+    },
+    "wins": {
+      "differing_replies": 0,
+      "differing_values": 0,
+      "max_absolute_error": 0,
+      "first": null
+    },
+    "completedPoints": {
+      "differing_replies": 0,
+      "differing_values": 0,
+      "max_absolute_error": 0,
+      "first": null
+    },
+    "actions": {
+      "differing_replies": 0,
+      "differing_values": 0,
+      "max_absolute_error": 0,
+      "first": null
+    },
+    "rewards": {
+      "differing_replies": 0,
+      "differing_values": 0,
+      "max_absolute_error": 0,
+      "first": null
+    }
+  },
+  "scalar_differing_reply_counts": {},
+  "command_event_differing_replies": 0,
+  "round_discrete_differing_replies": 0,
+  "eager_terminals": 8,
+  "graph_terminals": 8,
+  "eager_benchmark": {
+    "ticks": 512,
+    "arenas": 4,
+    "wall_seconds": 9.742656162,
+    "one_arena_control_sps": 52.552403727126425,
+    "aggregate_arena_control_sps": 210.2096149085057,
+    "rendering": false,
+    "includes_upload_status_snapshot_protocol": true
+  },
+  "graph_benchmark": {
+    "ticks": 512,
+    "arenas": 4,
+    "wall_seconds": 8.747244897,
+    "one_arena_control_sps": 58.53271584697465,
+    "aggregate_arena_control_sps": 234.1308633878986,
+    "rendering": false,
+    "includes_upload_status_snapshot_protocol": true
+  },
+  "speed_ratio": 1.113797118603755,
+  "interpretation": "The first differences occur in the first executed control tick, after matching initial/cold-reset snapshots. A single pair of fresh processes does not distinguish graph scheduling effects from ordinary parallel-physics nondeterminism. No tolerance was relaxed; no attribution to a specific kernel is established. The11.38% whole-worker speed increase does not justify enabling a feature that fails the specified strict equivalence gate.",
+  "no_new_gpu_runs": true,
+  "units_note": "qpos/raw aggregate maxima combine heterogeneous components; their maxima are diagnostic numeric differences, not position distances."
+}

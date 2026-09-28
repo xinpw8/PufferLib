@@ -1,0 +1,77 @@
+{
+  "schema": "rek.native_clone.controller_validation.v1",
+  "source_map_sha256": "66e88df9ebd11b3ec0070cf5273f0eadc553960c1e5a23f5b91ca7bc319204b7",
+  "patch_sha256": "a8ba6bb75c64124fc6269860595cf21c79133be48f9f675e202785a2c914ce6e",
+  "cpu_reset_checks": 216,
+  "cpu_existing_scheduler_checks": 21839,
+  "cpu_existing_dispatch_equivalence_ticks": 1200,
+  "original_decoder_values_compared": 27832,
+  "original_decoder_bit_mismatches": 0,
+  "original_heading_values_compared": 20,
+  "original_heading_bit_mismatches": 4,
+  "heading_exact_parity": false,
+  "heading_max_absolute_angle_error_radians": 1.1920928955078125e-07,
+  "heading_max_absolute_quaternion_component_error": 5.960464477539063e-08,
+  "original_reset_component_reference": "Original composer640-row comparison previously passed92800 mapped joint values and measured layer/reset states; this integration uses that same Reset extension.",
+  "callback_order_proven": false,
+  "callback_order_required_explicit": true,
+  "gpu_runs": 0,
+  "production_edits": 0,
+  "files": [
+    {
+      "path": "build-cpu-r1\\heading-native.f32",
+      "bytes": 80,
+      "sha256": "d7dd1bf719aa771993cf1e53a3953fe723f5d5b3f21ff5c3d3bae70856f37266"
+    },
+    {
+      "path": "build-cpu-r1\\history-native.f32",
+      "bytes": 55664,
+      "sha256": "a8d5da383f46673357c9b5547d129eb26c7d3494e24be20335def471fb830f24"
+    },
+    {
+      "path": "build-cpu-r1\\history_trace",
+      "bytes": 16464,
+      "sha256": "49cc1b6ffc7c207d6ece990a94586494835ad303e095ef356c4aed5c7bae27f9"
+    },
+    {
+      "path": "build-cpu-r1\\test_g1_semantic_direct_cpu",
+      "bytes": 60472,
+      "sha256": "9e9c49bf70accb919b352d0a35248a66d636a9c26fb761f594d9dcf7cbd7bb54"
+    },
+    {
+      "path": "build-cpu-r1\\test_g1_semantic_direct_cpu.jsonl",
+      "bytes": 145,
+      "sha256": "50621e3866be68b6f82bb0a03a032bc64e18f6b2a75ff79842f16ea0d56280ce"
+    },
+    {
+      "path": "build-cpu-r1\\test_ordered_reset",
+      "bytes": 55880,
+      "sha256": "b00eff2acd3e219e11ef5b3f2e9dc7cbfc7ebec54729e74793b9ca34f0ad618b"
+    },
+    {
+      "path": "build-cpu-r1\\test_ordered_reset.jsonl",
+      "bytes": 42,
+      "sha256": "133b5f697564a3b228f2cdca2ab57b79b700a1d9a9c8ca216603872d5142e700"
+    },
+    {
+      "path": "tests\\fixtures.json",
+      "bytes": 68579,
+      "sha256": "8d2461ca77f156ea479b72be1f10434777b3e5e500da3124d72d1c6feed9b2c0"
+    },
+    {
+      "path": "tests\\history-input.bin",
+      "bytes": 12044,
+      "sha256": "8160c1da48f74704037640b93b682f299091b4a7209cb92ae424fdff3c1a4e84"
+    },
+    {
+      "path": "tests\\test_g1_semantic_direct_cpu.cpp",
+      "bytes": 18002,
+      "sha256": "aef26f6b77aeba0d54e5cd324a5e9d5ddd8fa3a9e12e7baa747cb1e2ce0fd677"
+    },
+    {
+      "path": "tests\\test_ordered_reset.cpp",
+      "bytes": 10528,
+      "sha256": "822055a5fc38c76e9c56ff031cfeb3d984fd9dd102306df074087d1b61491afa"
+    }
+  ]
+}

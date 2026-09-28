@@ -1,0 +1,31 @@
+{
+  "gpu_runs_by_this_agent": 0,
+  "cpu_lifecycle_result": {
+    "checks": 23,
+    "failures": 0,
+    "gpu_calls": 0,
+    "scope": "mock CUDA lifecycle, no trajectory or throughput claim"
+  },
+  "python_checks": [
+    {
+      "argv": [
+        "python",
+        "test_source_contract.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"checks\": 10, \"failures\": 0, \"scope\": \"static bounded worker integration contracts; real graph equivalence still required\"}\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "test_compare_workers.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.001s\n\nOK\n"
+    }
+  ]
+}

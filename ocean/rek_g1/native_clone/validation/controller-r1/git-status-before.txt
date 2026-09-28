@@ -1,0 +1,40 @@
+ M ocean/rek_g1/league/public/app.js
+ M ocean/rek_g1/league/public/app.test.cjs
+ M ocean/rek_g1/league/public/index.html
+ M ocean/rek_g1/league/public/style.css
+ M ocean/rek_g1/native5/README.md
+ M ocean/rek_g1/native5/build_eval.sh
+ M ocean/rek_g1/native5/build_fast.sh
+ M ocean/rek_g1/native5/build_live_policy_worker.sh
+ M ocean/rek_g1/native5/eval_worker.cpp
+ M ocean/rek_g1/native5/fast_runtime.cu
+ M ocean/rek_g1/native5/live_policy_worker.cu
+ M ocean/rek_g1/native5/live_policy_worker.test.cjs
+ M ocean/rek_g1/native5/live_transfer/build_observable_encoder.sh
+ M ocean/rek_g1/native5/live_transfer/encode_observable_balance.cpp
+ M ocean/rek_g1/native5/live_transfer/observable_encoder_test.cjs
+ M ocean/rek_g1/native5/live_transfer_run.cjs
+ M ocean/rek_g1/native5/live_transfer_run.test.cjs
+ M ocean/rek_g1/native5/puffer_env.cu
+ M ocean/rek_g1/native5/runtime.cu
+?? ocean/rek_g1/native5/WILL_CONNECT.md
+?? ocean/rek_g1/native5/build_observable_prev_action.sh
+?? ocean/rek_g1/native5/build_score_head_probe.sh
+?? ocean/rek_g1/native5/observable_prev_action.h
+?? ocean/rek_g1/native5/observable_prev_action_migration.cu
+?? ocean/rek_g1/native5/observable_prev_action_test.cpp
+?? ocean/rek_g1/native5/score_head_data.cjs
+?? ocean/rek_g1/native5/score_head_data.test.cjs
+?? ocean/rek_g1/native5/score_head_probe.cu
+?? ocean/rek_g1/native5/test_will_connect.c
+?? ocean/rek_g1/native5/test_will_connect_replay.py
+?? ocean/rek_g1/native5/validation/human-contact-potential-20260918/
+?? ocean/rek_g1/native5/validation/human-score-head-20260918/
+?? ocean/rek_g1/native5/validation/observable-prev-action-cpu-20260921.md
+?? ocean/rek_g1/native5/validation/observable-prev-action-integration-20260921.md
+?? ocean/rek_g1/native5/will_connect.h
+?? ocean/rek_g1/native5/will_connect_diagnostics.h
+?? ocean/rek_g1/native5/will_connect_diagnostics_test.cpp
+?? ocean/rek_g1/native5/will_connect_json.h
+?? ocean/rek_g1/native5/will_connect_regression_test.c
+?? ocean/rek_g1/native5/will_connect_snapshot.cpp

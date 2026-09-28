@@ -1,0 +1,18 @@
+[Message: Preloader] BepInEx 6.0.0-be.785 - REK (9/28/2026 1:37:53 AM)
+[Message: Preloader] Built from commit 6abdba47eeebe08552282e7a58ef0f4a9ab60b62
+[Info   :   BepInEx] System platform: Windows 10 (Wine 11.13) 64-bit
+[Info   :   BepInEx] Process bitness: 64-bit (x64)
+[Info   :   BepInEx] Running under Unity 6000.5.8f1
+[Info   :   BepInEx] Runtime version: 6.0.7
+[Info   :   BepInEx] Runtime information: .NET 6.0.7
+[Warning:InteropManager] Interop assemblies are possibly out of date. To disable this message, create file Z:\session\game\BepInEx\interop\assembly-hash.txt with the following contents: 4bde4be3ee5c555e09a18ee0cfb6eadf
+[Info   : Preloader] 0 patcher plugins loaded
+[Info   : Preloader] 0 assemblies discovered
+[Message:AssemblyPatcher] Executing 0 patch(es)
+[Message:   BepInEx] Chainloader initialized
+[Info   :   BepInEx] 1 plugin to load
+[Info   :   BepInEx] Loading [REK Original History Oracle 0.1.0]
+[Warning:Il2CppInterop] Class::Init signatures have been exhausted, using a substitute!
+[Info   :Il2CppInterop] Registered mono type RekHistoryOracle.OracleBehaviour in il2cpp domain
+[Message:   BepInEx] Chainloader startup complete
+[Info   :REK Original History Oracle] History oracle closed: history_sequence_complete, success=True
