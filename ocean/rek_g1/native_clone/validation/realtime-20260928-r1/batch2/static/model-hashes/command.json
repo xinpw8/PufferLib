@@ -1,0 +1,8 @@
+{
+  "remote_argv": [
+    "python3",
+    "-c",
+    "from pathlib import Path; import hashlib,json; roots=[Path(\"/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z\"),Path(\"/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z\")]; print(json.dumps([{ \"path\":str(p),\"bytes\":p.stat().st_size,\"sha256\":hashlib.file_digest(p.open(\"rb\"),\"sha256\").hexdigest()} for r in roots for p in r.glob(\"*.onnx\")]))"
+  ],
+  "started_utc": "2026-09-28T23:25:25.869044+00:00"
+}

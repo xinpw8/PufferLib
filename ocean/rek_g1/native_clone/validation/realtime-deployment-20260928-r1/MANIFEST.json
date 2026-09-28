@@ -1,0 +1,102 @@
+{
+  "schema": "rek.realtime.deployment_proof.v1",
+  "utc": "2026-09-28T23:55:18.431023+00:00",
+  "local_repo_nas_hashes_equal": true,
+  "files": [
+    {
+      "path": "startup/identity.json",
+      "bytes": 4169,
+      "sha256": "d3ed5a8b4a00393566b01e12f3f6e0e865082c1622b636c2b115d29a03f4a703"
+    },
+    {
+      "path": "startup/preview.png",
+      "bytes": 583950,
+      "sha256": "eba4623196e2a011dd3fbd4ee61142ed4469cd86700c8f531ce6f0fc70101e20"
+    },
+    {
+      "path": "startup/server-process.json",
+      "bytes": 934,
+      "sha256": "6a17628974639c7ec7bd2efee15a0ae4e85daa445c05b2f74777a1e06a0fb999"
+    },
+    {
+      "path": "startup/server.json",
+      "bytes": 1611,
+      "sha256": "6f3a04522795b7351b8008ad7ad6b27afb18db5e362ef0206df8a8f7ed812163"
+    },
+    {
+      "path": "startup/STARTED.json",
+      "bytes": 13108,
+      "sha256": "5e5fa308bf787d42593b0bec57c4ffb1f0d7ecd02d2364185ee3cf07a55fafd3"
+    },
+    {
+      "path": "startup/startup-preview.png",
+      "bytes": 583950,
+      "sha256": "eba4623196e2a011dd3fbd4ee61142ed4469cd86700c8f531ce6f0fc70101e20"
+    },
+    {
+      "path": "startup/VERIFIED.json",
+      "bytes": 3915,
+      "sha256": "9b63e66e32eb5a8a7e4478976eab22ff097365913f6770405cbf92392edc0518"
+    },
+    {
+      "path": "startup/worker.json",
+      "bytes": 1307,
+      "sha256": "c6515a8167345de484aa2d80c009bf6954aa350cf12be6e417c6d4dd8b1d0d82"
+    },
+    {
+      "path": "tools/PREPARED.json",
+      "bytes": 752,
+      "sha256": "b00fac10c63965041ea777fef3ecd8802893f0d8a7a21daf799dcdcf99964f00"
+    },
+    {
+      "path": "tools/DEPLOYMENT-REVIEW-r2.json",
+      "bytes": 1326,
+      "sha256": "6c4cae8ea6193d02d8271855b9afe391c228a16e2d74e1314ece02420a898b9d"
+    },
+    {
+      "path": "tools/CLOSE-UNUSED-REVIEW-r2.json",
+      "bytes": 1247,
+      "sha256": "0168259a12d9bf204fed55d54b671addaf452dfb5bbf32a46ee71dca49e2337b"
+    },
+    {
+      "path": "tools/prepare_final.py",
+      "bytes": 3192,
+      "sha256": "54a6ac031235867856008f8845078431403e8234de8c8b4a62c5817e0ca33628"
+    },
+    {
+      "path": "tools/preserve_unused.py",
+      "bytes": 2248,
+      "sha256": "9833daf9ec09179ac95ba3824097a5452374008985ed81c415a5d3c94cc6bc2e"
+    },
+    {
+      "path": "tools/close_unused_viewer.py",
+      "bytes": 3596,
+      "sha256": "be8a00cc5c82447727d3b6503468d8b70d2744b58e8fe5938cbe5d5c7d0523e6"
+    },
+    {
+      "path": "tools/start_helpers.ps1",
+      "bytes": 3631,
+      "sha256": "6469092a39fe4373885cd044ee849dcb360941f71a064426de7493a806ad3909"
+    },
+    {
+      "path": "tools/verify_deployment.py",
+      "bytes": 4295,
+      "sha256": "d2622710a9152109056d6a3cc36555b881e83ff352cf138de437d8e45bd3bd62"
+    },
+    {
+      "path": "helpers/LAUNCHED.json",
+      "bytes": 1304,
+      "sha256": "4b1d466d143ea9c418e1fe88136e47fca5fde52e4ab76b1313f4102a2b4541df"
+    },
+    {
+      "path": "closed-unused/FULL-BACKUP-VERIFIED.json",
+      "bytes": 2430,
+      "sha256": "ca3ab9b6f6ad12835d1f4e5ba1e008db774c92a71470373e11d627aac9fb9291"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1889,
+      "sha256": "bb2cc923c6cbc5c95e18403415bcb2428d360b222aaecadb553049f49034f237"
+    }
+  ]
+}

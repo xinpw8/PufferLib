@@ -1,0 +1,23 @@
+{
+  "success": false,
+  "error": "HTTPError: HTTP Error 503: Service Unavailable",
+  "guard_failure": null,
+  "closed_recorder_health": {
+    "utc": "2026-09-28T23:34:45.854Z",
+    "pid": 3256820,
+    "sequence": 56,
+    "steps": 0,
+    "frames": 1,
+    "lastTick": 0,
+    "lastScore": [
+      0,
+      0
+    ],
+    "ok": true,
+    "recorderFailure": null,
+    "workerFailure": null,
+    "rendererFailure": null,
+    "lastRequestError": null,
+    "elapsedSeconds": 1.369157463
+  }
+}

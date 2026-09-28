@@ -1,0 +1,37 @@
+{
+  "schema": "rek.scheduler_independent_review.v1",
+  "reviewed_utc": "2026-09-28T23:45:23.445142+00:00",
+  "verdict": "GO for bounded private full-app measurement",
+  "reviewer": "research_pathways",
+  "files": [
+    {
+      "path": "C:\\rekagent\\work\\rek-playback-app-20260928-r7\\app\\league\\paced_loop.cjs",
+      "sha256": "6bc520a09fb3278b8db04b5416e47aa5f92e8701e38a95899e73d5d0bcd39227"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-playback-app-20260928-r7\\app\\league\\server.cjs",
+      "sha256": "b1812f8e15fdc9a4f2726066d99fe21a1f4e5d8b4da3f0d868e0accff021673d"
+    },
+    {
+      "path": "C:\\rekagent\\work\\rek-playback-app-20260928-r7\\app\\league\\paced_loop.test.cjs",
+      "sha256": "dd10e8c15fcb20cc0157f678858de4993406721fee807ceb4ad1be2fc352b74e"
+    }
+  ],
+  "focused_cpu_test_command": "node --test paced_loop.test.cjs",
+  "focused_tests": 13,
+  "passed": 13,
+  "failed": 0,
+  "gpu_or_live_process_interaction": false,
+  "findings": [
+    "Absolute deadline increments preserve20ms; callback lateness does not add to future deadlines.",
+    "One task and one queued callback; paused epoch cannot overwrite resumed deadline.",
+    "Early timer wake cannot advance a step before its deadline.",
+    "Large wall debt is disclosed and discarded, with no simulation steps fabricated or batch requests added.",
+    "Server pause/reset/select/finish/error/watchdog close scheduling; explicit play resumes.",
+    "Actual pace numerator and denominator unchanged."
+  ],
+  "limits": [
+    "CPU scheduling tests do not establish live1x throughput.",
+    "Pacer statistics accumulate over the server lifetime; gameplay pace resets with selection."
+  ]
+}

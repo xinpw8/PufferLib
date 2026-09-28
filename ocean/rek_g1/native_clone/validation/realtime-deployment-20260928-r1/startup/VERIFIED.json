@@ -1,0 +1,157 @@
+{
+  "utc": "2026-09-28T23:54:16.219733+00:00",
+  "url": "http://127.0.0.1:18772/",
+  "paused": true,
+  "tick": 0,
+  "frame_sha256": "eba4623196e2a011dd3fbd4ee61142ed4469cd86700c8f531ce6f0fc70101e20",
+  "frame_dimensions": [
+    1280,
+    720
+  ],
+  "processes": {
+    "new_processes": [
+      {
+        "pid": 3297624,
+        "start_ticks": 132749534,
+        "argv": [
+          "node",
+          "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app-stage-r7/app/launch_logged.cjs",
+          "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r6"
+        ],
+        "cpus": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      },
+      {
+        "pid": 3297634,
+        "start_ticks": 132749542,
+        "argv": [
+          "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/build-r1/rek-native-clone",
+          "--config",
+          "/tmp/rek-human-r0izAE/worker.json"
+        ],
+        "cpus": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      },
+      {
+        "pid": 3297635,
+        "start_ticks": 132749542,
+        "argv": [
+          "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/build-r1/rek-native-clone",
+          "--render-only",
+          "--config",
+          "/tmp/rek-human-r0izAE/worker.json"
+        ],
+        "cpus": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      }
+    ],
+    "old_viewer": {
+      "ok": true,
+      "paused": true,
+      "tick": 1762
+    },
+    "recorder": {
+      "utc": "2026-09-28T23:54:13.068Z",
+      "pid": 3297624,
+      "sequence": 7,
+      "steps": 0,
+      "frames": 1,
+      "lastTick": 0,
+      "lastScore": [
+        0,
+        0
+      ],
+      "ok": true,
+      "recorderFailure": null,
+      "workerFailure": null,
+      "rendererFailure": null,
+      "lastRequestError": null,
+      "elapsedSeconds": 110.03202575
+    }
+  },
+  "mirror": {
+    "utc": "2026-09-28T23:54:15.889049+00:00",
+    "pid": 13616,
+    "phase": "copying",
+    "current_file": "session.jsonl",
+    "source_latest_mtime": 1790639653,
+    "last_success_utc": "2026-09-28T23:54:12.396171+00:00",
+    "errors": []
+  },
+  "nas_last_success": {
+    "utc": "2026-09-28T23:54:12.396171+00:00",
+    "pid": 13616,
+    "phase": "watching",
+    "source": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r6",
+    "nas": "R:\\pufferlib\\rek-evidence\\2026-09-28\\rek-realtime-r1\\viewer-r6",
+    "source_latest_mtime": 1790639648,
+    "source_age_seconds": 4.396171569824219,
+    "last_success_utc": "2026-09-28T23:54:12.396171+00:00",
+    "errors": [],
+    "files_verified": 10,
+    "active_append_files_are_prefixes": true,
+    "source_recorder_health": {
+      "utc": "2026-09-28T23:54:08.068Z",
+      "pid": 3297624,
+      "sequence": 7,
+      "steps": 0,
+      "frames": 1,
+      "lastTick": 0,
+      "lastScore": [
+        0,
+        0
+      ],
+      "ok": true,
+      "recorderFailure": null,
+      "workerFailure": null,
+      "rendererFailure": null,
+      "lastRequestError": null,
+      "elapsedSeconds": 105.031975976
+    }
+  },
+  "tunnel": {
+    "utc": "2026-09-28T23:54:15.547042+00:00",
+    "pid": 159040,
+    "phase": "listening",
+    "local": "127.0.0.1:18772",
+    "remote": "127.0.0.1:18772",
+    "counts": {
+      "connections": 5,
+      "client_bytes": 121006,
+      "remote_bytes": 63065169
+    },
+    "errors": []
+  },
+  "performance_trial": "app60-result-r7-affinity",
+  "deployed_viewer_driven_by_agent": false
+}

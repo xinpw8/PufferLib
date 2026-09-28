@@ -1,0 +1,237 @@
+{
+  "success": true,
+  "whole_ratio": 0.9938047164118532,
+  "steady_after5s": {
+    "active_intervals": 2740,
+    "active_wall_ms": 55001.267979860306,
+    "real_time_ratio": 0.9963406665472875
+  },
+  "windows": [
+    {
+      "start_seconds": 0.0,
+      "end_seconds": 9.99974181,
+      "intervals": 490,
+      "active_wall_ms": 9970.43872499466,
+      "ratio": 0.9829055942576137
+    },
+    {
+      "start_seconds": 9.99974181,
+      "end_seconds": 19.999807351,
+      "intervals": 498,
+      "active_wall_ms": 9996.893610954285,
+      "ratio": 0.9963094924893611
+    },
+    {
+      "start_seconds": 19.999807351,
+      "end_seconds": 30.00040821,
+      "intervals": 497,
+      "active_wall_ms": 10007.458997011185,
+      "ratio": 0.9932591283130581
+    },
+    {
+      "start_seconds": 30.00040821,
+      "end_seconds": 40.000195687,
+      "intervals": 495,
+      "active_wall_ms": 9999.427393913269,
+      "ratio": 0.9900566912487617
+    },
+    {
+      "start_seconds": 40.000195687,
+      "end_seconds": 50.000229358,
+      "intervals": 500,
+      "active_wall_ms": 9996.166501998901,
+      "ratio": 1.0003834968135368
+    },
+    {
+      "start_seconds": 50.000229358,
+      "end_seconds": 60.0104543,
+      "intervals": 500,
+      "active_wall_ms": 10001.15547299385,
+      "ratio": 0.9998844660502508
+    }
+  ],
+  "step_rpc_ms": {
+    "n": 2981,
+    "mean": 19.19749028111372,
+    "median": 19.087093,
+    "p90": 21.807116,
+    "p99": 24.801702,
+    "min": 12.105368,
+    "max": 186.884872
+  },
+  "step_reply_interval_ms": {
+    "n": 2980,
+    "mean": 20.068025568456378,
+    "median": 19.9404515,
+    "p90": 23.014662,
+    "p99": 26.28997,
+    "min": 12.406954,
+    "max": 31.388062
+  },
+  "reply_interval_minus_current_rpc_ms": {
+    "n": 2980,
+    "mean": 0.9268062208053691,
+    "median": 0.2497790000000002,
+    "p90": 2.99305,
+    "p99": 6.242070999999999,
+    "min": 0.0897439999999996,
+    "max": 8.328855999999998
+  },
+  "render_ms": {
+    "n": 1208,
+    "mean": 23.648368011589405,
+    "median": 24.129736,
+    "p90": 29.333581,
+    "p99": 31.886066,
+    "min": 14.680126,
+    "max": 319.89672
+  },
+  "event_counts": {
+    "session_started": 1,
+    "worker_created": 2,
+    "worker_request": 4190,
+    "worker_reply": 2982,
+    "rendered_frame": 1208,
+    "human_input": 3001,
+    "resolved_input": 2981,
+    "human_release": 1,
+    "server_closed": 1,
+    "worker_exit": 2
+  },
+  "native_command_events": {
+    "attempted": 52,
+    "accepted": 41,
+    "rejected": 11,
+    "rejected_reason_3": 11,
+    "cancelled": 2
+  },
+  "ticks_contiguous": true,
+  "validated_full_states": 2981,
+  "frames_verified": 1208,
+  "frame_bytes": 732358525,
+  "frame_tick_range": [
+    0,
+    2978
+  ],
+  "input_held_counts": {
+    "W": 400,
+    "S": 400,
+    "A": 400,
+    "D": 400,
+    "Q": 350,
+    "E": 350,
+    "": 700
+  },
+  "move_categories": {
+    "16": 3,
+    "17": 3,
+    "18": 3,
+    "19": 3,
+    "20": 3,
+    "21": 3,
+    "22": 2,
+    "23": 2,
+    "24": 2,
+    "25": 2,
+    "26": 2,
+    "27": 2,
+    "28": 2,
+    "29": 2,
+    "30": 2,
+    "31": 2,
+    "32": 2
+  },
+  "worker_identities": {
+    "1": {
+      "role": "simulation",
+      "pid": 3283060
+    },
+    "2": {
+      "role": "renderer",
+      "pid": 3283061
+    }
+  },
+  "worker_exit_events": [
+    {
+      "sequence": 14368,
+      "utc": "2026-09-28T23:47:16.487Z",
+      "monotonicNs": "1327188853623324",
+      "kind": "worker_exit",
+      "worker": 1,
+      "code": 0,
+      "signal": null,
+      "expected": true
+    },
+    {
+      "sequence": 14369,
+      "utc": "2026-09-28T23:47:16.567Z",
+      "monotonicNs": "1327188933017240",
+      "kind": "worker_exit",
+      "worker": 2,
+      "code": 0,
+      "signal": null,
+      "expected": true
+    }
+  ],
+  "guard_failure": null,
+  "final": {
+    "tick": 2981,
+    "score": [
+      0,
+      7
+    ],
+    "falls": [
+      1,
+      0
+    ],
+    "wins": [
+      0,
+      0
+    ],
+    "round": null,
+    "phase": 2,
+    "fightResult": 0,
+    "fightWinner": -1,
+    "ties": 0,
+    "redos": 0,
+    "unclassified": 0
+  },
+  "health": {
+    "utc": "2026-09-28T23:47:16.567Z",
+    "pid": 3283048,
+    "sequence": 14369,
+    "steps": 2981,
+    "frames": 1208,
+    "lastTick": 2981,
+    "lastScore": [
+      0,
+      7
+    ],
+    "ok": true,
+    "recorderFailure": null,
+    "workerFailure": null,
+    "rendererFailure": null,
+    "lastRequestError": null,
+    "elapsedSeconds": 61.648707023
+  },
+  "caveat": "Reply interval minus current RPC includes timer scheduling and JavaScript recording/reporting; it is not solely sleep time.",
+  "outer_wall_ratio": 0.993464844219456,
+  "outer_elapsed_seconds": 60.012189003871754,
+  "scheduler": {
+    "invocations": 2981,
+    "completed": 2981,
+    "lateStarts": 2981,
+    "totalLatenessMs": 23521.006811857224,
+    "maxLatenessMs": 98.01459908485413,
+    "totalTaskMs": 57841.41670417786,
+    "maxTaskMs": 188.13697910308838,
+    "rebases": 3,
+    "discardedWallDebtMs": 370.7764220237732,
+    "periodMs": 20,
+    "maxDebtMs": 100,
+    "active": false,
+    "running": false,
+    "meanTaskMs": 19.40336018254876,
+    "meanLatenessMs": 7.89030755178035
+  }
+}

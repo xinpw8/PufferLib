@@ -1,0 +1,10 @@
+{
+  "remote_argv": [
+    "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/batch2-audit-20260928-r1/compare_batch",
+    "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx",
+    "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx",
+    "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_encoder.batch8.onnx",
+    "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_decoder.batch8.onnx"
+  ],
+  "started_utc": "2026-09-28T23:32:33.967942+00:00"
+}

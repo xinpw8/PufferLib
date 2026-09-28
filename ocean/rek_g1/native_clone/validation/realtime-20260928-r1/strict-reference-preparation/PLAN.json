@@ -1,0 +1,780 @@
+{
+  "schema": "rek.current_runtime_graph_reference_plan.v1",
+  "purpose": "One current uninstrumented evaluator with reviewed ordered-reference physics. Eager/eager/graph differ only by worker cuda_graph_step configuration. Diagnostic only; no shipping replacement.",
+  "executes_gpu": false,
+  "common_objects": [
+    {
+      "path": "/home/spark-advantage/rek-training/physical-measurement-integration-20260921-r1/build-r2/measurement.o",
+      "sha256": "7b29e3a37f4ae1b519d5522a67bc161d820a771bcc70de80c617204ab68a4864"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/cJSON.o",
+      "sha256": "eb41568eaa0dfee60e0b31cbc7b607365d4c93dfe46c0dafac6b131ec22b91a1"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_combat_cuda.o",
+      "sha256": "4aae9f5069468ffb8e8cf21e9917aead778e2f8911574796e24b4061a5416149"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_combat_tick.device.o",
+      "sha256": "00a36ea18eb2083ff2f8ac16c84af8b7df69f2072d46a630567aa19b1f27261e"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_fall_state.device.o",
+      "sha256": "d2f4572ef3f2344386742187abfa996e4fc994d7fe224d1a462cfc2ad7888630"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_fight_state.device.o",
+      "sha256": "2212c8ac76ad55ae6ccb6d07b8d2b72c928438194bf0c2a6577cf5248f771879"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_hit_detector.device.o",
+      "sha256": "c3add8f44337f0ee54e6c95d31d2c3992d243302ee87c9ff9c297ef3818e20c9"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_motion_cuda.o",
+      "sha256": "807b6276b48f55305a8741818ce5896d7d1b55afe3521573537de8632a990096"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_semantic_action_table.device.o",
+      "sha256": "b0e1a75056e9d07c542c16397f7f12155e3be16d842af6b12fbf88a8925ba5f5"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_strike_catalog.host.o",
+      "sha256": "5896261334c7003d79e04d6e50651e76aae2ae4c5010021db91fba83727a180d"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_collision_schedule.o",
+      "sha256": "d2a01f47566c87fbea836bc028b80d4b48a927d7aae5d4c3ce8e8384d88019bc"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_conditional_if.o",
+      "sha256": "da32dc58123ce53390347a63f0b52b3fb1b5ed17e025007bda74853a5727b066"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_conditional.o",
+      "sha256": "7df30ffd42ca73f86351d9494b0d77db93f1ec226f301305d89aeae7d1ce4730"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_constraint_schedule.o",
+      "sha256": "79a16da1933de0fa8146c469424faa138588472da667576ff99339fba37e7ffc"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/component-build-r1/mujoco_kernel_program.o",
+      "sha256": "4186a8a1293627538f2906d2f2bedf46483c2a36d74ec82f727dd8d29f2fb83f"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_model_data.o",
+      "sha256": "fedfb7bbd21bc83fc2af65b96b32817ca97db4bd8305dfe34b614504d7cf107a"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_native_module.o",
+      "sha256": "30219494060914803c5420b5e3d3a3d683dcaf71bfe7632f9c4c136b21ab110a"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_native_step.o",
+      "sha256": "2a75dbe7383033ec2f4be38c35369919a87100154fac14d2f947e83ea2308b6b"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/targeted-build-r1/mujoco_schedule.o",
+      "sha256": "d68559b1deb1463d3ef71f87566e26967a34f6c31c206beb96362273de95d9f6"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/component-build-r1/mujoco_solver_schedule.o",
+      "sha256": "906149b0592a0496b962ff4918b9e79d884d676544424f51a8a9daae33e68f71"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/native_locomotion_command.device.o",
+      "sha256": "9621d46788ea42aba380959766089e6001e63a6eb19fad9f7ad762ed60f27c5f"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/native_motion_routes.host.o",
+      "sha256": "d54e77aedfd8aa99eb58a69c7fd0038332173bcb367bac8ccb048d519b4a616a"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/physics.o",
+      "sha256": "bb513139b7bb6cc28ba0a660287580ec57d04c69645ade7e693e3b160277e24a"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/puffer_action_adapter.device.o",
+      "sha256": "a7b2e37cc89e90780f7d9cac92c7f7ec6ebea44f9f2c47fc3539e49322330aaa"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_controller.o",
+      "sha256": "22f87a417bd5ed43fabae1188ed3cd444571e55f6af26e0ea34ac085bdeb4bc4"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_motion_composer_libm_candidate.device.o",
+      "sha256": "cb401103831be80ecc1144314658a465afddb47125acd9815a8520fd1f786399"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_motion_entry_matcher_native.device.o",
+      "sha256": "80bcf24ff26384ddd1103a26d804bcdded6f699f456b712a957c978204eac2d7"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/build-r6/g1_native_combat_cuda.o",
+      "sha256": "3e151068aaf2c2fff89097f3654dce8efcc2e88af1e0598fce385cf01b808cdd"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/build-r6/g1_semantic_scheduler_cuda.o",
+      "sha256": "0ed66fbf5e0f6aa205e2e1fea45b8f2bcfd87adad957aa2eaf2fc5c6f275fea0"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/build-r6/motion_assets.o",
+      "sha256": "a87117776f155d009b7c0cf75650a7251b714aef75713b58f6f88861970e82b9"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/build-r6/native_policy.o",
+      "sha256": "a25d028f8274a63ade68bd3e961915e2531170f352a8cc7cff6e64c207743ddc"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/build-r6/robot_state.o",
+      "sha256": "bc18d0b637f46aa56f44e031167b6d263697480576d7f0ed240d15ac3dd787d8"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/build-r6/runtime.o",
+      "sha256": "7c484e56fc30fcd40463dcaeac27e4e3335203124b65e5261ae3e82acb948030"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/build-r6/sonic_motion_composer_native.device.o",
+      "sha256": "30cc87f600f86f3c4e94559d27bf9465b487a5d260b1ba1861991096d3681a0a"
+    }
+  ],
+  "replacements": [
+    {
+      "original": {
+        "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_schedule.o",
+        "sha256": "4d086f9c0e5ac0a982ef3f07e005b6738f42828242399a3e8f998d35e9c1ae4e"
+      },
+      "reference": {
+        "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/targeted-build-r1/mujoco_schedule.o",
+        "sha256": "d68559b1deb1463d3ef71f87566e26967a34f6c31c206beb96362273de95d9f6"
+      }
+    },
+    {
+      "original": {
+        "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_kernel_program.o",
+        "sha256": "d9ea3a6fe3b9479e13941fc3137dea9e180962ccbf224bde16959a9f79e96efa"
+      },
+      "reference": {
+        "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/component-build-r1/mujoco_kernel_program.o",
+        "sha256": "4186a8a1293627538f2906d2f2bedf46483c2a36d74ec82f727dd8d29f2fb83f"
+      }
+    },
+    {
+      "original": {
+        "path": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_solver_schedule.o",
+        "sha256": "9c06c8d78c8f8cd01258281f4d86d1ced22d62ed6dbed5629b7875844b5cfcf3"
+      },
+      "reference": {
+        "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/component-build-r1/mujoco_solver_schedule.o",
+        "sha256": "906149b0592a0496b962ff4918b9e79d884d676544424f51a8a9daae33e68f71"
+      }
+    }
+  ],
+  "workers": {
+    "current": {
+      "path": "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/build-r1/eval_worker.o",
+      "sha256": "1a884764389c4360093278b90cfbb7d5b85435c85c48a45c5530853fa848d8c6"
+    }
+  },
+  "environment": {
+    "REK_MUJOCO_ORDERED_SPARSE": "1",
+    "REK_MUJOCO_DETERMINISTIC_SCALAR": "1",
+    "REK_MUJOCO_KERNEL_CATALOG": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/targeted-build-r1/catalog.json"
+  },
+  "catalog": {
+    "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/targeted-build-r1/catalog.json",
+    "sha256": "335cbe84251b1514d60e7b1bb818471941c61c032b6a00bf03ed27aa17e83781"
+  },
+  "runtime_catalog_dependencies": [
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c.cu",
+      "sha256": "7e35a03b78dd51b1d5630e6abdf4b56f432dc868dad1b328877a8db89308ded6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c.sm121.ptx",
+      "sha256": "fbc9f7f6d44b16388866e5d9b5c0f7ccf6fdaeb00bd59fbd417d1af2a0303a69"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c/wp__nxn_broadphase__locals__kernel_c763f4cb_c763f4c.meta",
+      "sha256": "ec00709e3d1a55dfaed24e6809d4817d416bb4dfdab0105782019a97bad9a515"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630.cu",
+      "sha256": "09cc65175cec23b7337baf9eff519327bd8ef4bdeeaa2504ae38c6dc1bbb5b06"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630.sm121.ptx",
+      "sha256": "31b76e384c287e76bd6ad00ddab529c9284f8bded69557bd07718c83f9d0dd39"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630/wp__primitive_narrowphase__locals__primitive_narrowphase_aae36309_aae3630.meta",
+      "sha256": "d56589138db8ec5de59636a2d8e1f27d85eec27f48868d2eeaecf20a3c886e41"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/ordered_sparse_solve.cu",
+      "sha256": "061f2e6a1eb18e0e29c89f9e7126f4a381d156614c7866144ee5c8bc4a3b16d2"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/ordered-sparse-solve.ptx",
+      "sha256": "3d6140b486b00d13106ceea005143714cf5b962a59be54eaf6cfaee829750e9d"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__solve_LD_sparse_fused__locals__kernel_8d11feb4_ba43376/wp__solve_LD_sparse_fused__locals__kernel_8d11feb4_ba43376.meta",
+      "sha256": "c755f88e58cbf96b0ba8e260f617f69d0f336e6a414ad41ea66b7492c5cb1e2f"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f.cu",
+      "sha256": "f782ec06c9c43ef5f9ebca45eef6957d6af27a4572956fd52c2b73f93cf9a4e6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f.sm121.ptx",
+      "sha256": "5097fedb9417f2ba263d46583498515a547db440380321a4aaa093c5dee0a869"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f/wp__tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_c1407308_b1d557f.meta",
+      "sha256": "89c5ce6f46661cbaa83eb85176433f1c0bdca6cb30045dbe29bc0c2e44e09ede"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_build_inverse_positions_1c785915_1c78591/wp_build_inverse_positions_1c785915_1c78591.cu",
+      "sha256": "1e847db747c8d2c5a0ae88e666562194bbf33b860b2cf03b7bfa7358c941d2f0"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_build_inverse_positions_1c785915_1c78591/wp_build_inverse_positions_1c785915_1c78591.sm121.ptx",
+      "sha256": "5375cfb011fa352577ed324a1dc425e90064f625dd5166f1b80a67e1578045e0"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_build_inverse_positions_1c785915_1c78591/wp_build_inverse_positions_1c785915_1c78591.meta",
+      "sha256": "418b7b101ed88a230410d29844187fcf698725bd9de468d3e32c9efe214235a1"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99.cu",
+      "sha256": "fc203a20166eb56e149244095055d07ba2f6348af849ff1b63fee6f6c396662c"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99.sm121.ptx",
+      "sha256": "b80291223024ac8678c1ec53de3587b51785022eae63309cedc3af27f7ceeec9"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99/wp_candidate_kernel__locals__kernel_87ffdb00_0b0be99.meta",
+      "sha256": "76222633bbcf3599a18aa091c8ec08626e2d9b953d0d55e18b1c4e48a837ae3c"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb.cu",
+      "sha256": "1df2393a74197a59f087817b38f0fc29e2e3db4cf69f860dfb635b0b4e14a2b6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb.sm121.ptx",
+      "sha256": "ccf7f314ede299be7e374f37026966e16dd0e7f685f2d5ca6a77319de172d104"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb/wp_ccd_kernel_builder__locals__ccd_kernel_156d2fb1_156d2fb.meta",
+      "sha256": "dd7511f29f4fdcdb895e52da47a5f39323d08a3cea6f7f30f53c827655dc0974"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d.cu",
+      "sha256": "b6b46875ab252ccb7e882868d84a17378f31fc0b6de9a6b88b5e88a99863ff30"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d.sm121.ptx",
+      "sha256": "c8128d0a4b2fb536320c356409427daf3e96e678bcbdfd5395f2a47505201290"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d/wp_ccd_kernel_builder__locals__ccd_kernel_5c6dd5d1_5c6dd5d.meta",
+      "sha256": "567f539335e654861a9dcc4fd8d5789b51aa64e058d0667dcd35273c7e8f6da3"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360.cu",
+      "sha256": "0b5d8bf700f72b8fb008247d1d8ca505d1867cc7de4d823db3aaeb1541cad9a2"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360.sm121.ptx",
+      "sha256": "005637e57e4ed737bfec4a13284c9bb6a95e89f260e0bdbb07fb901d1153091a"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360/wp_ccd_kernel_builder__locals__ccd_kernel_895b360e_895b360.meta",
+      "sha256": "7322c780b0de4f09596528f15ece26a88448f3a86e13de6663fdcc0fe15d5138"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67.cu",
+      "sha256": "a1ec6adf5fe4fd003c0d7a1a2142d9797ad777eb6c5202db45ad30573a62dd37"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67.sm121.ptx",
+      "sha256": "0ae82f1e17333959905adfa4e439d54b466d3f36a7dbec1d8c3bcbdaa507d890"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67/wp_ccd_kernel_builder__locals__ccd_kernel_d288f67b_d288f67.meta",
+      "sha256": "d252f0f878ea17282a34d66b7278c0b631034934c202ad91e4eb3c6f337a6b04"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_classify_589db79d_bd60ae8/wp_classify_589db79d_bd60ae8.cu",
+      "sha256": "cc53685033c178f255b9e520b42afaf1d2941957d65d5bcfda97a4afda5fe853"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_classify_589db79d_bd60ae8/wp_classify_589db79d_bd60ae8.sm121.ptx",
+      "sha256": "3d509cf6a54a89799c2057adf7a232227c450ad0c6b63c44fe35635ff6801713"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_classify_589db79d_bd60ae8/wp_classify_589db79d_bd60ae8.meta",
+      "sha256": "8c488385ecb9684b29dd3222530043f72163990958e3c6eeacc3f9e87cf6e0f0"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_cone_coefficients_5a177e1/wp_cone_coefficients_5a177e1.cu",
+      "sha256": "67252f8b9547119ece6eca10690912c27d79f76a589b5df829047fc33cfa2842"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_cone_coefficients_5a177e1/wp_cone_coefficients_5a177e1.sm121.ptx",
+      "sha256": "0a95e9e6e14a354edc069d9bafc4bbf47d0403c992d09ef162b64302a4442f0f"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_cone_coefficients_5a177e1/wp_cone_coefficients_5a177e1.meta",
+      "sha256": "3961b789fdc2b4a6a590e908af62a97138eae17e044f7c4ea8f81c65d678e57a"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62.cu",
+      "sha256": "09e5f29758a502f66c357b09668a4db5cbab0a11f452c18d6b9cde172e94cbda"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62.sm121.ptx",
+      "sha256": "35518f510fa2eef8bd9c1d7db719c25e510331665a991700eb7d950a127d5d41"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62/wp_fallback_kernel__locals__kernel_b27b9f4b_4c27b62.meta",
+      "sha256": "e7233d0099c5d3a0d7d89cf732cf17b7026fe3c9a1ccd42dcc07a7460589a6b3"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_inverse_fb4f63f/wp_generated_inverse_fb4f63f.cu",
+      "sha256": "c8c5ec7354ccda6c85d204e62034a5f1e5ab1776fa7dbd059ba1fb70a8550757"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_inverse_fb4f63f/wp_generated_inverse_fb4f63f.sm121.ptx",
+      "sha256": "e5fea255fe889150e1b7d5081b84afeac8170836c6a443de77498693b7e6c018"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_inverse_fb4f63f/wp_generated_inverse_fb4f63f.meta",
+      "sha256": "9d369462a6c35b89f1b6260d7597e54b3febd6022fef9d61613f5aefab8bab03"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_sparse_pair_dde3097/wp_generated_sparse_pair_dde3097.cu",
+      "sha256": "a17b7bb46b8f80e24473d81a8c868c05e4a6f92b2e1305f5704460ea6b0171d1"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_sparse_pair_dde3097/wp_generated_sparse_pair_dde3097.sm121.ptx",
+      "sha256": "0ad5229b96a16e4974155029f3f24bd3e584cf60eebae9e35bc550487136dbbf"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_generated_sparse_pair_dde3097/wp_generated_sparse_pair_dde3097.meta",
+      "sha256": "bc9dbc8e831f9ddff5be10e9c1adccc8753eddd1512f6fc43537c0a66c26e43e"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_gpu_physics_capacity_9059e27/wp_gpu_physics_capacity_9059e27.cu",
+      "sha256": "ef9c6e4d0f0938739a7d2da7505079cfd12f1ba801584db05a3d2f561ddb57b6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_gpu_physics_capacity_9059e27/wp_gpu_physics_capacity_9059e27.sm121.ptx",
+      "sha256": "5339d778b617aae851b9d657242be1ec104237a14fb91d1493737bd7738f415a"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_gpu_physics_capacity_9059e27/wp_gpu_physics_capacity_9059e27.meta",
+      "sha256": "7d747161bec714a359d58a1973a16b320abaeb78025c16e6cf0044f66e7aa4ad"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_inspect_rectangle_37106e69_86f8721/wp_inspect_rectangle_37106e69_86f8721.cu",
+      "sha256": "df66791d234a5c24595b9e4ec2ab1e52b65945d8be3cf6f45ad765021b314a9e"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_inspect_rectangle_37106e69_86f8721/wp_inspect_rectangle_37106e69_86f8721.sm121.ptx",
+      "sha256": "5de9c1ce260fd2ac23da43de509e12025b247349c527071086a351f0324ba032"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_inspect_rectangle_37106e69_86f8721/wp_inspect_rectangle_37106e69_86f8721.meta",
+      "sha256": "3300ba39ce204b030899423f415d4e1666b202182defd6087e0d80c24d5649a0"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26.cu",
+      "sha256": "7b2cfb22454f79a7963be6b673006a3c643ba499ecdfb320889208af12834593"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26.sm121.ptx",
+      "sha256": "83750a308ba3e6be991d3f452eeed66ad61d361a6c655dfc68cbc5534222dcd8"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26/wp_linesearch_iterative__locals__kernel_a4af0200_d13ae26.meta",
+      "sha256": "5ba76cf7f45f5a22800af815332c8439e5669481cc337f39b2d59f654800cc20"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a.cu",
+      "sha256": "a2d63474fdc10fef8b8329bc08d87b4e7c58df6d99bcadce8e8ac8a4fdf4a408"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a.sm121.ptx",
+      "sha256": "fe68562c23cbdacefe17e827b7fa727cc276b2ae9d90084bdc65373451e5451b"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a/wp_linesearch_iterative__locals__kernel_f06aeca4_ba08f5a.meta",
+      "sha256": "09e86ea0edbb32605e58e31f2286105a96c5aeaf39452f0ec7e1fb8676afcf39"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30.cu",
+      "sha256": "41b1c7c7dfe7a4261b9664b742a504578f9601cc0a57e11732631db4c1a78a33"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30.sm121.ptx",
+      "sha256": "dfaff35d84dac3b800e3d3135c1095f0bbc68de22a0a8b9ddbef7699c154c9e1"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30/wp_linesearch_jv_fused__locals__kernel_00e1d30c_00e1d30.meta",
+      "sha256": "32cec44fa9b2229a2e86e9fb6d0ec6f143de78e15e321ad69c1c3f0248b52fd1"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1.cu",
+      "sha256": "0be1d7bb09bbccb3449103c365eb2e1acfe9bab0362295e9a62e63bf99dde49f"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1.sm121.ptx",
+      "sha256": "5b1199494710f78a9d15fc187fa6b02d475eb21e1418c6307690240b3f12ccc6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1/wp_linesearch_jv_fused__locals__kernel_b495af1b_b495af1.meta",
+      "sha256": "f61b8c0bc213d291504dd115437de4133c2a88b0bb95aa9d897d496f93c94143"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e.cu",
+      "sha256": "67561c060b262492f6e16029c0693e4158fb0952d6d6baf98710471b32339716"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e.sm121.ptx",
+      "sha256": "82f170ece56b8c49ea244148b7d5106d701cedd58153958d65a6da6509d07408"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e/wp_main__locals__clone_factory__locals__clone_ae83494a_a50788e.meta",
+      "sha256": "d184102a488da464d2501eb1c72e21102558d0f559091fb354e0f99fba9a2418"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.collision_driver_88f7770/wp_mujoco_warp._src.collision_driver_88f7770.cu",
+      "sha256": "f15036054c44b7975473db7cde2596ae0db8376da9d6e89ca1424990d59f794d"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.collision_driver_88f7770/wp_mujoco_warp._src.collision_driver_88f7770.sm121.ptx",
+      "sha256": "58e03804dd369c851097632f79fffc1d024eb284a000f7906191cf94e0d3539b"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.collision_driver_88f7770/wp_mujoco_warp._src.collision_driver_88f7770.meta",
+      "sha256": "f4ba7a550dd73428bcedc1bc228ab88917ed4e44ce585bf87328d6be9b38e7a5"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.constraint_c567367/wp_mujoco_warp._src.constraint_c567367.cu",
+      "sha256": "94aa33c25579c1590a312411b30288bd8f6a4679cfd6ad1fa63d0bb47ed15e81"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.constraint_c567367/wp_mujoco_warp._src.constraint_c567367.sm121.ptx",
+      "sha256": "99d185fe2b04afac3f9d606c2a4a5a303a28662cc7db249d84f5e450626142ae"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.constraint_c567367/wp_mujoco_warp._src.constraint_c567367.meta",
+      "sha256": "dbc33b495a8113cf0126b021c6d6b501c6dc327074e14027a18281485fb7b157"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.derivative_7ba27fe/wp_mujoco_warp._src.derivative_7ba27fe.cu",
+      "sha256": "7eb493c0257bbe2b4a91a8daca432fe3d584b699bdeaaf859a61f93377f52f59"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.derivative_7ba27fe/wp_mujoco_warp._src.derivative_7ba27fe.sm121.ptx",
+      "sha256": "adcd00fcc2e28150366bf71f82120af028e062a429d9da27ba6f2181c7044f93"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.derivative_7ba27fe/wp_mujoco_warp._src.derivative_7ba27fe.meta",
+      "sha256": "1483fd0ef2613c552282b3c186931ca1733fc10a22d4449abdbe89500b9f7086"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.cu",
+      "sha256": "722a0f5a24dd51502f2b8554b2a3995b1adac7a6eabdbab098959dba430f7ce0"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.sm121.ptx",
+      "sha256": "332d80eed8635021b2fa7f4651d3ea909f50d32e169549260c73e6e4db8d5d19"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.meta",
+      "sha256": "9f1e16bfdd055c23cb5b4ec7fa0cc0f71cb92ec43ace39701b0ccf58c4508830"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_8f5355c/wp_mujoco_warp._src.forward_8f5355c.cu",
+      "sha256": "1e9bec9c303e88948dc32edd71ea64495377695a46872cb824ddb28b18f38e47"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_8f5355c/wp_mujoco_warp._src.forward_8f5355c.sm121.ptx",
+      "sha256": "01a9b27a77a2d01bcb28b8dd0bb3cd835ec8f651b800aaffbe704183a47426f6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_8f5355c/wp_mujoco_warp._src.forward_8f5355c.meta",
+      "sha256": "9f1e16bfdd055c23cb5b4ec7fa0cc0f71cb92ec43ace39701b0ccf58c4508830"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.passive_8bfe11c/wp_mujoco_warp._src.passive_8bfe11c.cu",
+      "sha256": "25b3f745c883360bc1a69d6e89a0ced728bff48e57ae1b5b79080e349207bca2"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.passive_8bfe11c/wp_mujoco_warp._src.passive_8bfe11c.sm121.ptx",
+      "sha256": "9f8afe95cd27d90dfa5c61efc22a59ba6d509663636dd4133b97bea42597c2e4"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.passive_8bfe11c/wp_mujoco_warp._src.passive_8bfe11c.meta",
+      "sha256": "d0362f19fa9bd08098070ceb3eecb275002714feb59198e0c9cbb4cf96a743de"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.sensor_18a78e5/wp_mujoco_warp._src.sensor_18a78e5.cu",
+      "sha256": "b92dfa8d9c7ccbd781edf57d9633c03571f209ece32a6c095fb7aed0643e30e0"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.sensor_18a78e5/wp_mujoco_warp._src.sensor_18a78e5.sm121.ptx",
+      "sha256": "cba1d4ee7b48c725b66601835f43917fdfa374273877f2dc93622fb33dafc114"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.sensor_18a78e5/wp_mujoco_warp._src.sensor_18a78e5.meta",
+      "sha256": "d9ed57bc765e66c7e33e1a8a437bd26f9a6571ac384475f7662912f1576f32cc"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.smooth_26bbc02/wp_mujoco_warp._src.smooth_26bbc02.cu",
+      "sha256": "1293786dc081745e32ce4e467f6b98d61c9d7c55de10567c6c38b9135460f147"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.smooth_26bbc02/wp_mujoco_warp._src.smooth_26bbc02.sm121.ptx",
+      "sha256": "dfa4c2670af4354fdbf26fa3fec8311553cac67745aeff00ca4dba8478d26938"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.smooth_26bbc02/wp_mujoco_warp._src.smooth_26bbc02.meta",
+      "sha256": "cd70651f3b14dc158b5d8b6f489b0699a4b56ab0283a3eee3013554e532ca347"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.solver_b116efb/wp_mujoco_warp._src.solver_b116efb.cu",
+      "sha256": "fbc05f45cc26dd5f65402c8df42b297e6e56c67202da2c2fcfc754f11f422d6e"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.solver_b116efb/wp_mujoco_warp._src.solver_b116efb.sm121.ptx",
+      "sha256": "053f02d2af01113ec572d9368bf5cd85d2bc31b60f0356c0b441026e55d3bfa7"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.solver_b116efb/wp_mujoco_warp._src.solver_b116efb.meta",
+      "sha256": "222dad9fd923678edea0eaaba5c441545d7c08e7dd3f152892bd25029b52dd58"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.support_dd3f924/wp_mujoco_warp._src.support_dd3f924.cu",
+      "sha256": "2809be30b0972a4f92f4caf6b36e1832f60216d934f6116a27bcaaf7ca4d1deb"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.support_dd3f924/wp_mujoco_warp._src.support_dd3f924.sm121.ptx",
+      "sha256": "ea664c7aa52fb3c4f6c49f7cb9f1f3b5c186cd557cbdf98bc93fb90382322a8b"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.support_dd3f924/wp_mujoco_warp._src.support_dd3f924.meta",
+      "sha256": "1f7b82e9c1c876835c79709f9fe479de42ed1e3b3d1fe09f42fb61f11103f430"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2.cu",
+      "sha256": "a5b560118b1c2ddcb5d4e9aff371e7c39d3456538bdf6f8aa5ab29f219219b18"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2.sm121.ptx",
+      "sha256": "23c4619a81f5bc07dcd8e03b6cfcd8e0f43bfa1d38fa3a23e6e6632849dfa1bd"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2/wp_mul_m_dense__locals___mul_m_dense_6bf3fd2d_6bf3fd2.meta",
+      "sha256": "2d7bd37ed8503e0f022653a58691545ce2e48877982c30cc171cac911bb30cf5"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4.cu",
+      "sha256": "fc686d946346aa0039435892214dc2344faa8bf765a7845fd02972f9c6e45d08"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4.sm121.ptx",
+      "sha256": "8216b45ec81d329272c3bb62b4dfb842807e83d2465b930c58b828e315c6b62b"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4/wp_mul_m_sparse__locals___mul_m_sparse_aa423e43_aa423e4.meta",
+      "sha256": "fe926dc372216d095e4014617268628640418f6503036f3bff3a1654c5be5ed2"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_observe_construction_7928f696_7928f69/wp_observe_construction_7928f696_7928f69.cu",
+      "sha256": "0d377d537b9dd59ef20c1809cff67033aa5e3c8a6da5c4fa4d85cd550c64a2ba"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_observe_construction_7928f696_7928f69/wp_observe_construction_7928f696_7928f69.sm121.ptx",
+      "sha256": "bf261860b9309f27925be7cc224e72ebdaa848767833ced04d3d61bb8a2ee65c"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_observe_construction_7928f696_7928f69/wp_observe_construction_7928f696_7928f69.meta",
+      "sha256": "541dc3f402c22ce1df722fedf27e3fa3b692c29205d8b721170f62ce9a86dbdc"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_cone_cache_generated_1f8500a/wp_rek_cone_cache_generated_1f8500a.cu",
+      "sha256": "1cc6b0b609ae1610d2700631f72c7c15eccd10cee426aebd081623a01372dbc9"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_cone_cache_generated_1f8500a/wp_rek_cone_cache_generated_1f8500a.sm121.ptx",
+      "sha256": "15615f1fc28ed5ee54e989daf43069543b54bd00177a43c0f8a9087c240f60d8"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_cone_cache_generated_1f8500a/wp_rek_cone_cache_generated_1f8500a.meta",
+      "sha256": "d32fb20422eff09c94df4688878912cb0f74f872301c2607cfea649abaf9cfbf"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_jtcj_inverse_experiment_fb4f63f/wp_rek_jtcj_inverse_experiment_fb4f63f.cu",
+      "sha256": "c8c5ec7354ccda6c85d204e62034a5f1e5ab1776fa7dbd059ba1fb70a8550757"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_jtcj_inverse_experiment_fb4f63f/wp_rek_jtcj_inverse_experiment_fb4f63f.sm121.ptx",
+      "sha256": "29d53d1a24c2c7ec6fcc372eddc4b4c623d7825c02d823db7a113dedf794bbd9"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_jtcj_inverse_experiment_fb4f63f/wp_rek_jtcj_inverse_experiment_fb4f63f.meta",
+      "sha256": "9d369462a6c35b89f1b6260d7597e54b3febd6022fef9d61613f5aefab8bab03"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_sparse_pair_experiment_dde3097/wp_rek_sparse_pair_experiment_dde3097.cu",
+      "sha256": "a17b7bb46b8f80e24473d81a8c868c05e4a6f92b2e1305f5704460ea6b0171d1"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_sparse_pair_experiment_dde3097/wp_rek_sparse_pair_experiment_dde3097.sm121.ptx",
+      "sha256": "eccd27c9defb986e7bc786e2f6ca8cc0b269dd3ad928c242b52e6ee37c015be6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_rek_sparse_pair_experiment_dde3097/wp_rek_sparse_pair_experiment_dde3097.meta",
+      "sha256": "bc9dbc8e831f9ddff5be10e9c1adccc8753eddd1512f6fc43537c0a66c26e43e"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1.cu",
+      "sha256": "d490a8800708203fb058b6a22b41f5cacd2764c00bdb392180b9a8e1261528d8"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1.sm121.ptx",
+      "sha256": "f46ce2b7835bafd8bd6a84cfb92df505fdea3ab4b30f03f6a46e317d82b9bab6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1/wp_solve_init_jaref__locals__kernel_67555d1c_67555d1.meta",
+      "sha256": "a488381f5401a3a85c8cc4dd8cf79d68fbfd81ee6412603e0453d4329878a2f3"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2.cu",
+      "sha256": "03886572782cbbacc71c0718ff9c02aaa4010c7d9def9bc0256365acb2cd757d"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2.sm121.ptx",
+      "sha256": "c3eb9b0bf2d1d2fa58c3b96e6b87b8195081fd2e7522a5cf2b5cb593fd83cf91"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2/wp_solve_init_jaref__locals__kernel_95afaf28_95afaf2.meta",
+      "sha256": "fabecf13bf90de01b332bbd0ff58ca0b70c49f34c3cb785c56aca4a1936e8e42"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_sparse_pair_replay_factory_f6475ee/wp_sparse_pair_replay_factory_f6475ee.cu",
+      "sha256": "711fced31f1804d9cff62abeeb081a28d51617be93abb8baf0433c678ef7a162"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_sparse_pair_replay_factory_f6475ee/wp_sparse_pair_replay_factory_f6475ee.sm121.ptx",
+      "sha256": "c27c9fbeffe3130611201e38594635f68b4feecbf01c60ab2f40881675114779"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_sparse_pair_replay_factory_f6475ee/wp_sparse_pair_replay_factory_f6475ee.meta",
+      "sha256": "d2c73d6784913cfdff7f5194143dde7a4461e4923cd691be1dade97d9f7d5d63"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_efc__locals__kernel_81015163_8101516/wp_update_constraint_efc__locals__kernel_81015163_8101516.cu",
+      "sha256": "1d2642372a5522004ac21ba1f88e499dc5eb0db0a4ff833376b5aa0ee1ae3c77"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_efc__locals__kernel_81015163_8101516/wp_update_constraint_efc__locals__kernel_81015163_8101516.sm121.ptx",
+      "sha256": "4eee2fd9cf0eadd9e23f6813922b6cb80288aab14b91716dbac1ea39e899c196"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_efc__locals__kernel_81015163_8101516/wp_update_constraint_efc__locals__kernel_81015163_8101516.meta",
+      "sha256": "49329f3dac3226d67f817d37ec837674b538587fdbe5e494fe04fbab0f5f8b29"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7.cu",
+      "sha256": "ff3a01de1863047d3ca8eec501d1a6bef45f999dad816c718ca49bce45dd12eb"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7.sm121.ptx",
+      "sha256": "ee16815aca2fbd8e7b870a9f5d44cc1b787de98a65b01d82a4967d565fce7e82"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7/wp_update_constraint_gauss_cost__locals__kernel_b7364b7d_b7364b7.meta",
+      "sha256": "995a947152be6908bf18c4271e804307a71015291812613ee20ee597919ec54c"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d.cu",
+      "sha256": "8e1ec4d5ad7d66587365c7dcdbfbe8a84fc86f8623eb239f78b43e704b1cc166"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d.sm121.ptx",
+      "sha256": "2c2150a33f2d25afd9806640116401188ea7c90dfb08d39b835c3bbd39797ef4"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d/wp_update_gradient_cholesky_blocked__locals__kernel_d7c8d7e5_4145b3d.meta",
+      "sha256": "523503726e250470b1217c8542e27b24a7f6ddc6e8219b2ca7ca63a4f976ec70"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2.cu",
+      "sha256": "980800d5d7656f84e17b06738239daf2f7ada6cda0f281478823a4031f02ad6e"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2.sm121.ptx",
+      "sha256": "bb0e4ec851c88d393a7c1d2afdc3f2e9e3de0ef2963480a76d508b4596230548"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2/wp_update_gradient_JTDAJ_dense_tiled__locals__kernel_776fe208_45bccc2.meta",
+      "sha256": "18ec538815959a08b15e77b9e0ae24ee9edfe1a89b2edf88b3b2e3e7724f3bb6"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_zero_kernel__locals__kernel_62b805ca_25fc91d/wp_zero_kernel__locals__kernel_62b805ca_25fc91d.cu",
+      "sha256": "fb0492da4de20b167c41ad76452b878c838b7c9c2ac83a01c42e887034c0b256"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_zero_kernel__locals__kernel_62b805ca_25fc91d/wp_zero_kernel__locals__kernel_62b805ca_25fc91d.sm121.ptx",
+      "sha256": "41a63f8c2c3008123d940ae9dfde3785b947127d4c06dba3a829b9cf4840e39e"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_zero_kernel__locals__kernel_62b805ca_25fc91d/wp_zero_kernel__locals__kernel_62b805ca_25fc91d.meta",
+      "sha256": "c728df3d251b631c76c1830639b0070c5cba3d671afcd290068f8e5e9d088f91"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/ordered_qld_acc.cu",
+      "sha256": "16771adebe61cd830506657db80d300469884266a0e0b946b838340a303bab02"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/rek-difference-resolution-20260927-r1/targeted-build-r1/ordered-qld-acc.ptx",
+      "sha256": "187560c5001c6f30c9a8a26d5dd9391abad9beda5d36196954eb1f52cd3c41c2"
+    },
+    {
+      "path": "/home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.smooth_26bbc02/wp_mujoco_warp._src.smooth_26bbc02.meta",
+      "sha256": "cd70651f3b14dc158b5d8b6f489b0699a4b56ab0283a3eee3013554e532ca347"
+    }
+  ],
+  "output_root": "/home/spark-advantage/rek-training/rek-native-runtime-speed-20260928-r1/strict-graph-build-r1",
+  "linker": "/usr/local/cuda/bin/nvcc",
+  "flags": [
+    "-arch=sm_121"
+  ],
+  "link_tail": [
+    "-L/home/spark-advantage/rek-training/gpu-runtime-20260910/deps/mujoco",
+    "-L/usr/local/cuda/lib64",
+    "-L/usr/local/cuda/lib64/stubs",
+    "-Xlinker=-rpath",
+    "-Xlinker=/home/spark-advantage/rek-training/gpu-runtime-20260910/deps/mujoco",
+    "-Xlinker=-rpath",
+    "-Xlinker=/usr/local/cuda/lib64",
+    "-lcudart",
+    "-lcuda",
+    "-lcublas",
+    "-lcrypto",
+    "-l:libmujoco.so.3.7.0",
+    "-lEGL",
+    "-lGL",
+    "-lz",
+    "-lm",
+    "-lpthread"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "rek.app.genuine_model_cpu_test.v1",
+  "started_utc": "2026-09-28T23:30:59.468004+00:00",
+  "finished_utc": "2026-09-28T23:31:00.204959+00:00",
+  "exit_code": 0,
+  "args": [
+    "node",
+    "--test",
+    "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app-stage-r6-pretest/app/league/prepare_batch2.test.cjs"
+  ],
+  "genuine_models": {
+    "REK_TEST_ENCODER_BATCH2": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx",
+    "REK_TEST_DECODER_BATCH2": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx",
+    "REK_TEST_ENCODER_BATCH8": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_encoder.batch8.onnx",
+    "REK_TEST_DECODER_BATCH8": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_decoder.batch8.onnx"
+  },
+  "source_archive_sha256": "c006ca3b1a0a58c039f366e84510a212d245d3a401ef70bf23bd3696967bb9e6",
+  "prepare_sha256": "199a198ad2d319590444acd8bbb40bd1346c9ef513c016ba495057b2f149dd0b",
+  "test_sha256": "fe8c9d35fd167e558d217db8132a64dd3d9ad22c8041c070c22e3933b31345dc",
+  "stdout": {
+    "path": "tests-r6-real-models.txt",
+    "bytes": 1467,
+    "sha256": "e99722d2aa6236a56c9ded71d83b6bbc802e3ab926336ad56832af9da77a0493"
+  },
+  "no_native_gpu_or_live_viewer": true
+}

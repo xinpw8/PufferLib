@@ -1,0 +1,62 @@
+[
+  {
+    "path": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/crossbatch-result-r1/stdout.txt",
+    "package_path": "closed/stdout.jsonl",
+    "bytes": 28851,
+    "sha256": "9cabc2a5338af7ff0e050657cdf767ae50fcb31aa98c1a81bae37e74d5e226a7"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/crossbatch-result-r1/summary.json",
+    "package_path": "closed/summary.json",
+    "bytes": 848,
+    "sha256": "337ce348e5e8a4f83d007b7dfe1dcec230d1bb6eb64b23c1f90fbb20934fdea4"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/crossbatch-result-r1/guard.json",
+    "package_path": "closed/guard.json",
+    "bytes": 896,
+    "sha256": "1b70b83c22881e1425746b1077ece889ab76768d47cba3d4cb9ab339330f07d9"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/crossbatch-result-r1/MANIFEST.json",
+    "package_path": "closed/remote-manifest.json",
+    "bytes": 695,
+    "sha256": "5c6bf4c982bdd10f41d1a318f42715874baef7703eb4bc2c2c499c9412b3a6d2"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-native-runtime-speed-20260928-r1/crossbatch-r1/build-r1/inputs.sha256",
+    "package_path": "build/inputs.sha256",
+    "bytes": 511,
+    "sha256": "1adfad7471fdc0862d02b9b930a7afa41c24d57ced971488b26e20172cbc1aea"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-native-runtime-speed-20260928-r1/crossbatch-r1/build-r1/outputs.sha256",
+    "package_path": "build/outputs.sha256",
+    "bytes": 172,
+    "sha256": "1c3a49fb69835cc8c1df7fd4bdc379e505fff48a244283b2e46437606ac0681d"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-native-runtime-speed-20260928-r1/crossbatch-r1/build-r1/cpu-self-test.json",
+    "package_path": "build/cpu-self-test.json",
+    "bytes": 52,
+    "sha256": "fb7554ea61b1d8690c9af1a8337ce668adbb3011df660c972399f3aa8cbb51fc"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-native-runtime-speed-20260928-r1/crossbatch-r1/build-r1/compile.stderr.txt",
+    "package_path": "build/compile.stderr.txt",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-native-runtime-speed-20260928-r1/crossbatch-r1/build-r1/crossbatch",
+    "package_path": "bin/crossbatch",
+    "bytes": 154912,
+    "sha256": "6c2f46f64215726a1258ed854d1bc430ed47b9fbebc30a0e8884e20dd74a9a39"
+  },
+  {
+    "path": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/batch2-audit-20260928-r1/compare_batch",
+    "package_path": "bin/compare_batch",
+    "bytes": 79312,
+    "sha256": "f71924b0b4e647fc83bb216d3d6641bd8aaefb981c0952f07ab1f09307fc602f"
+  }
+]

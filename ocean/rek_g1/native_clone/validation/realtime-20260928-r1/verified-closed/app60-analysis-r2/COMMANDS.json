@@ -1,0 +1,17 @@
+{
+  "command_events_by_side": {
+    "0": {
+      "attempted": 40,
+      "accepted": 27,
+      "rejected": 13,
+      "reason_3": 13
+    },
+    "1": {
+      "attempted": 12,
+      "accepted": 12,
+      "cancelled": 1
+    }
+  },
+  "side0": "50 Hz synthetic human command stream",
+  "side1": "native Bot1"
+}

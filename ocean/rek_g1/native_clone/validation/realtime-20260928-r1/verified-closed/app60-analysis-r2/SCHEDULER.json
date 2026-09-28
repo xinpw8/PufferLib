@@ -1,0 +1,37 @@
+{
+  "steady_excludes_first_cold_tick": true,
+  "rpc_ms": {
+    "n": 2867,
+    "mean": 19.679518409836067,
+    "median": 19.50228,
+    "p90": 22.694884,
+    "p99": 26.356163,
+    "minimum": 11.888934,
+    "maximum": 33.614865
+  },
+  "reply_to_next_request_ms": {
+    "n": 2867,
+    "mean": 1.1794992889474816,
+    "median": 1.1713550090789795,
+    "p90": 2.6263420581817627,
+    "p99": 5.479614973068237,
+    "minimum": 0.08300900459289551,
+    "maximum": 10.406008958816528
+  },
+  "rpc_above20ms": 1132,
+  "rpc_at_or_below20ms": 1735,
+  "mean_positive_rpc_overrun_ms": 0.772557140216254,
+  "idealized_phase_reset_cost_ms": 20.772557140216254,
+  "idealized_phase_reset_ratio": 0.9628087608568633,
+  "actual_mean_start_interval_ms": 20.92293478447176,
+  "recorded_frame_interval_ms": {
+    "n": 1207,
+    "mean": 49.71383816640834,
+    "median": 49.54986596107483,
+    "p90": 53.23436093330383,
+    "p99": 59.38295793533325,
+    "minimum": 36.64881086349487,
+    "maximum": 230.38300490379333
+  },
+  "caveat": "max(20,RPC) is a lower-bound timing model for r6 per-tick phase reset. Measured gap includes trace/report work and scheduling. No separate CPU profiler was inserted."
+}

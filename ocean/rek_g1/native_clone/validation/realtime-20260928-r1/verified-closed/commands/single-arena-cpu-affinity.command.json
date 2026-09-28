@@ -1,0 +1,7 @@
+{
+  "command": "python3 /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/single_arena_cpu_affinity.py --out /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/single-arena-cpu-affinity-r1 --execute",
+  "started_utc": "2026-09-28T23:42:54.797899+00:00",
+  "finished_utc": "2026-09-28T23:42:58.388072+00:00",
+  "exit_code": 0,
+  "runner_sha256": "2fe22700a1e0d9287538645752c1474720e06bc57bf065d8993202a136523cab"
+}

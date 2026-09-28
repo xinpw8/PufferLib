@@ -1,0 +1,29 @@
+{
+  "schema": "rek.app.cpu_tests.v1",
+  "started_utc": "2026-09-28T23:22:52.476776+00:00",
+  "finished_utc": "2026-09-28T23:22:54.321382+00:00",
+  "exit_code": 0,
+  "args": [
+    "C:\\Users\\Daniel\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+    "--test",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\controls.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\frame_payload.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\heartbeat_gate.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\human_session.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\input.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\logged_recording.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\native_phase.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\paced_loop.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\protocol.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\render_decoupling.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\render_queue.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\server.test.cjs",
+    "C:\\rekagent\\work\\rek-playback-app-20260928-r5\\app\\league\\worker.test.cjs"
+  ],
+  "stdout": {
+    "path": "tests-r5.txt",
+    "bytes": 4879,
+    "sha256": "af6f0d9a44899c5c008cad432362994fe7ca8201d8df7792efaeb3d7e4fc3821"
+  },
+  "no_native_gpu_or_live_viewer": true
+}

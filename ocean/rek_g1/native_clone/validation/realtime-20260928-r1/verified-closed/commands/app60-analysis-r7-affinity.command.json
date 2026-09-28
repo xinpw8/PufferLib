@@ -1,0 +1,7 @@
+{
+  "command": "python3 /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/analyze_app60_r7_affinity.py",
+  "started_utc": "2026-09-28T23:50:48.367117+00:00",
+  "finished_utc": "2026-09-28T23:50:49.141999+00:00",
+  "exit_code": 0,
+  "runner_sha256": "c776709cf0c69aff5286bca976f007fb1943b85b73f30d2e320cf96cedfb2c05"
+}

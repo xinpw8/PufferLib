@@ -1,0 +1,68 @@
+✔ all seventeen saved bindings produce corresponding one-shot native move index (11.0743ms)
+✔ saved chords take priority and double taps require a released edge within300ms (1.3324ms)
+✔ recorder and server reuse the same decoded bytes/hash without changing wire reply (2.558ms)
+✔ distinct or changed replies never return an older PNG (1.0326ms)
+✔ 50 Hz step health writes coalesce to 250 ms while every trace record remains (2.6989ms)
+✔ reset, snapshot, error and exit health force the current state immediately (0.3262ms)
+✔ failed write propagates and does not suppress the next attempted status (0.6483ms)
+✔ human durations are explicit and default to 300 seconds (2.0954ms)
+✔ human config changes only round_seconds and never modifies original assets or config (62.7767ms)
+✔ human config reports legacy training duration default without rewriting source (15.6297ms)
+✔ invalid durations and malformed configs are rejected (24.7513ms)
+✔ human config cleanup never recursively removes an unexpected sibling (24.8801ms)
+✔ session records native points winners and deduplicates exact terminal snapshots (0.6958ms)
+✔ KO winner remains authoritative even with fewer points (0.2852ms)
+✔ draws count as valid rounds while replay and unknown results are invalid (0.276ms)
+✔ missing valid native winner does not become a score-derived win or draw (0.3391ms)
+✔ new native round streams preserve scoreboard while reset clears the session (0.3887ms)
+✔ snapshot is detached and malformed terminal states do not mutate session (0.6106ms)
+✔ only authoritative native match terminal determines match W/L and is counted once (0.4196ms)
+✔ continuous diagonal and yaw survive without magnitude normalization (2.1941ms)
+✔ native scheduler receives attack while moving and busy, once per edge (0.5972ms)
+✔ stale packets cannot resurrect held controls or edges; release clears pending (0.3039ms)
+✔ fractional commands validated verbatim and nonfinite refused (0.5967ms)
+✔ actual logger preserves every input/request/state and reports reset/error with coalesced health (1716.5741ms)
+{"ready":true,"url":"http://127.0.0.1:64593"}
+✔ native phase labels do not invent a timer or treat round terminal as match complete (2.046ms)
+✔ launched zero-intermission server continues stepping native between-round phase without an extra browser timer (274.1725ms)
+✔ 24 ms fake worker loses no 20 ms interval opportunities after completing (13.9342ms)
+✔ fast worker remains capped at one fixed 20 ms simulation step per 20 ms (3.034ms)
+✔ step plus frame is serial and lateness never accumulates a catch-up burst (5.9536ms)
+✔ stop during an in-flight request lets it complete without scheduling another (0.7373ms)
+✔ stop before the first tick cancels all work (0.3533ms)
+✔ a 500 ms pause does not create deferred simulation work (1.8714ms)
+✔ overdue work uses a cancellable I/O yield without the one millisecond timer clamp (0.9739ms)
+✔ stop cancels an already queued immediate successor (0.4874ms)
+✔ absolute deadlines remove persistent one millisecond callback lateness without advancing early (2.774ms)
+✔ an early timer callback cannot execute a physics task before its absolute deadline (0.6138ms)
+✔ large compute overrun reports and discards wall debt without fabricating skipped simulation steps (1.2257ms)
+✔ pause cancels future work and resume starts a fresh clock without paused-time debt (0.9512ms)
+✔ pause and resume during an in-flight request preserve the new deadline and never overlap (0.6444ms)
+﹣ real batch-2 preparation binds one arena, rejects wrong models, and preserves four-arena support (0.997ms) # Requires the four genuine exported ONNX paths; synthetic hashes are not substituted
+{"ready":true,"url":"http://127.0.0.1:64595"}
+✔ paused protocol preserves continuous inputs, native events and exclusive requests across delayed HTTP bodies (306.1719ms)
+{"ready":true,"url":"http://127.0.0.1:64594"}
+✔ blocked renderer permits physics progress, pause and reset, and stale generation never publishes (412.2185ms)
+{"ready":true,"url":"http://127.0.0.1:64612"}
+✔ reset waits for delayed physics step before changing render generation and tick-zero publication (152.329ms)
+{"ready":true,"url":"http://127.0.0.1:64615"}
+✔ paused frame:true waits for exact frame, renderer failures remain isolated and next capture recovers (206.1687ms)
+{"ready":true,"url":"http://127.0.0.1:64619"}
+✔ closed renderer is latched without repeated requests while physics keeps advancing (171.4389ms)
+✔ slow renderer retains only newest immutable snapshot and never overlaps requests (7.5148ms)
+✔ generation change discards in-flight frame and pending exact capture, then accepts reset tick zero (2.5155ms)
+✔ paused exact capture is retained over live offers and resolves only its identified frame (1.0243ms)
+✔ failed renders leave queue usable, invalid snapshots fail before renderer and close drops pending work (2.8292ms)
+✔ reply identity mismatch fails exact capture without publishing another tick (1.1687ms)
+{"ready":true,"url":"http://127.0.0.1:64597"}
+✔ human server pauses, extends rounds, retains results and leaves league fixtures unchanged (554.4898ms)
+✔ renderer role is requested and mismatched ready fails before any rendering request (5.9319ms)
+✔ renderer timeout closes only that transport and cannot accumulate later queued work (15.8189ms)
+ℹ tests 53
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 1886.8069

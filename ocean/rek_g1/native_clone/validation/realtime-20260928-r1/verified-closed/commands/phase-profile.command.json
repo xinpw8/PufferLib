@@ -1,0 +1,6 @@
+{
+  "command": "python3 /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/phase_profile.py --out /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/phase-profile-result-r1 --execute",
+  "started_utc": "2026-09-28T23:24:32.870448+00:00",
+  "finished_utc": "2026-09-28T23:24:40.609837+00:00",
+  "exit_code": 0
+}

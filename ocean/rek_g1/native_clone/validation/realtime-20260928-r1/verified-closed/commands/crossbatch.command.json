@@ -1,0 +1,7 @@
+{
+  "command": "python3 /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/crossbatch.py --out /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/crossbatch-result-r1 --execute",
+  "started_utc": "2026-09-28T23:28:10.284569+00:00",
+  "finished_utc": "2026-09-28T23:28:11.650736+00:00",
+  "exit_code": 1,
+  "runner_sha256": "131881a815683afacf23f59142bf755f0b5dbfa40cfa7df77a3602ab81a290a4"
+}

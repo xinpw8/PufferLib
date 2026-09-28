@@ -1,0 +1,9 @@
+{
+  "schema": "rek.agent_review_message_receipt.v1",
+  "recorded_utc": "2026-09-28T23:47:36.208658+00:00",
+  "reviewer": "/root/training_audit",
+  "delivery": "collaboration message",
+  "assessment_sha256": "0490b9632aea694f258576200dfb38d6ebf4b9c85a89e071b0f2de9ea8141e2d",
+  "verdict": "PASS",
+  "statement": "Independently recomputed all128 comparison records grouped32perlabel. Totals, unequal bits/values, maxima and counts above2e-5 match ASSESSMENT. Header modelpins match;4096encoder values exact; raw decoder max9.05990600586e-6, connected9.53674316406e-6. Closed summary retains successfalse/exit1 and binary6c2f46f6; footer bit_exact_allfalse. Numerical compatibility wording accurate; no exact or physical parity claim. No GPU run."
+}

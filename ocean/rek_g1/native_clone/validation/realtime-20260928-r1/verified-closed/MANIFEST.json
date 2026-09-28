@@ -1,0 +1,277 @@
+{
+  "schema": "rek.playback.speed.compact.v1",
+  "created_utc": "2026-09-28T23:51:46.925474+00:00",
+  "files": [
+    {
+      "path": "phase-profile-result-r1/summary.json",
+      "bytes": 6672,
+      "sha256": "94bb93ece708bb3876fb96962b8b34b0483effc706191b8397cc2f4cc777a895",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/phase-profile-result-r1/summary.json"
+    },
+    {
+      "path": "batch2-controller-r1/summary.json",
+      "bytes": 591,
+      "sha256": "55e8b3e2fca67366d08207cfbbf813c4975c9aeba46d5feb5c3c89aa5917f654",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/batch2-controller-r1/summary.json"
+    },
+    {
+      "path": "single-arena-r1/summary.json",
+      "bytes": 2147,
+      "sha256": "ed03526c90c0c5b7a5cb9644857676acf191b54c084c461a0947986ac4cf8063",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/single-arena-r1/summary.json"
+    },
+    {
+      "path": "cpu-reference-r1/summary.json",
+      "bytes": 924,
+      "sha256": "7b568c06ace4caad913d9ccbf899b363fe404d8f800787c2a8aa0ab199110f88",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/cpu-reference-r1/summary.json"
+    },
+    {
+      "path": "crossbatch-result-r1/summary.json",
+      "bytes": 848,
+      "sha256": "337ce348e5e8a4f83d007b7dfe1dcec230d1bb6eb64b23c1f90fbb20934fdea4",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/crossbatch-result-r1/summary.json"
+    },
+    {
+      "path": "single-arena-cpu-r1/summary.json",
+      "bytes": 2220,
+      "sha256": "a5bcb8dc2cce3a892334225d56cddcd35edb0ff3468dd4b192fc3f69721ebca3",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/single-arena-cpu-r1/summary.json"
+    },
+    {
+      "path": "single-arena-cpu-affinity-r1/summary.json",
+      "bytes": 2454,
+      "sha256": "299cdb7a4702b2c12424307fa69039fbbe8cd5ac437adb1785ad49e4df8991a1",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/single-arena-cpu-affinity-r1/summary.json"
+    },
+    {
+      "path": "app60-result-r1/summary.json",
+      "bytes": 483,
+      "sha256": "590d80e68cf9650688cdd6081a87f2c72845a438609bfab1a07fe649b10ae882",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-result-r1/summary.json"
+    },
+    {
+      "path": "app60-result-r2/summary.json",
+      "bytes": 21110,
+      "sha256": "5b7c74adfb8d94ef8ee775a107c78b6d275117d96db333b05e3d360edcc6a1f8",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-result-r2/summary.json"
+    },
+    {
+      "path": "app60-result-r7/summary.json",
+      "bytes": 22154,
+      "sha256": "f85a44b7c53f747154abd74000c5cc421b31cbd0026ffb9a929883f09dca2916",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-result-r7/summary.json"
+    },
+    {
+      "path": "app60-result-r7-affinity/summary.json",
+      "bytes": 22796,
+      "sha256": "a861671601fc7beaba684a087e390c292f4f8db65b5adb93ae22dd124a40dfd7",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-result-r7-affinity/summary.json"
+    },
+    {
+      "path": "app60-analysis-r2/ANALYSIS.json",
+      "bytes": 4556,
+      "sha256": "fe7dd901c8fef1806a2f5f0f9424f609471e2df39754032cf7131d90e0b135f5",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-analysis-r2/ANALYSIS.json"
+    },
+    {
+      "path": "app60-analysis-r2/SCHEDULER.json",
+      "bytes": 1178,
+      "sha256": "9c460106f4bcc32e390235be9649d2c1922687aec3d03c992a17b41b84b6caa6",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-analysis-r2/SCHEDULER.json"
+    },
+    {
+      "path": "app60-analysis-r2/COMMANDS.json",
+      "bytes": 304,
+      "sha256": "9624293a746aa5d8faa16b619cac852a161a354bfc72ab5f4e0c54bbdf0df8bd",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-analysis-r2/COMMANDS.json"
+    },
+    {
+      "path": "app60-analysis-r7/ANALYSIS.json",
+      "bytes": 5109,
+      "sha256": "41b4ecd2683fd05fb806193e6cca93e4ecbd9c5e8e6e0dab70f07f6adc566cbb",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-analysis-r7/ANALYSIS.json"
+    },
+    {
+      "path": "app60-analysis-r7-affinity/ANALYSIS.json",
+      "bytes": 5103,
+      "sha256": "6af16e76aaf48d75bb3f8e313ca9023e8b0d07f3acea34c4017b045d6446af95",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-analysis-r7-affinity/ANALYSIS.json"
+    },
+    {
+      "path": "app-stage-r7/app/SOURCE-MANIFEST.json",
+      "bytes": 29876,
+      "sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app-stage-r7/app/SOURCE-MANIFEST.json"
+    },
+    {
+      "path": "app60-run-r7-affinity/identity.json",
+      "bytes": 4130,
+      "sha256": "e291b991f9931d5d56ebde77f64f5b41c210e6494d10b404edf8135d970815bf",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-run-r7-affinity/identity.json"
+    },
+    {
+      "path": "app60-run-r7-affinity/worker.json",
+      "bytes": 1307,
+      "sha256": "c6515a8167345de484aa2d80c009bf6954aa350cf12be6e417c6d4dd8b1d0d82",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-run-r7-affinity/worker.json"
+    },
+    {
+      "path": "app60-run-r7-affinity/server.json",
+      "bytes": 1662,
+      "sha256": "d4a8cd93f8e7569bca69a49cda634c14a147a7b9db224ad915e66a915bb68ab6",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-run-r7-affinity/server.json"
+    },
+    {
+      "path": "app60-run-r7-affinity/recorder-health.json",
+      "bytes": 258,
+      "sha256": "c08d9f02c938f58ea9d997214efcb575627fc302444d0144dcbb08a303ae6774",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-run-r7-affinity/recorder-health.json"
+    },
+    {
+      "path": "harness-r1/app60_r2.py",
+      "bytes": 8254,
+      "sha256": "e5b31fa89dbea5fdcb68b9f46ece8ad10b480b3a46bb73cfe5797769c2398cca",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/app60_r2.py"
+    },
+    {
+      "path": "harness-r1/app60_r7_affinity.py",
+      "bytes": 8856,
+      "sha256": "ba7545f1f75f9a722c7ddfb7f5f4769f3dc53b387f9360e0f63b5deb39197959",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/app60_r7_affinity.py"
+    },
+    {
+      "path": "harness-r1/dual_guard.py",
+      "bytes": 1012,
+      "sha256": "ca326f94f3e20b4118c6bcbbcfc2e152f146e4b6aa25604fc2fdc6d80947e4d0",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/dual_guard.py"
+    },
+    {
+      "path": "harness-r1/analyze_app60_r7.py",
+      "bytes": 4176,
+      "sha256": "f4118b693e621e36ad08a07067b3819ede7b19d32722715d07aa890bfe3c4b18",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/analyze_app60_r7.py"
+    },
+    {
+      "path": "harness-r1/analyze_app60_r7_affinity.py",
+      "bytes": 4203,
+      "sha256": "c776709cf0c69aff5286bca976f007fb1943b85b73f30d2e320cf96cedfb2c05",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/analyze_app60_r7_affinity.py"
+    },
+    {
+      "path": "harness-r1/analyze_schedule_r6.py",
+      "bytes": 1716,
+      "sha256": "61a7a670206ae3958d83c55bf0ae0276a4430ed645577acf09fbcdbcda5ce83f",
+      "source": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/analyze_schedule_r6.py"
+    },
+    {
+      "path": "commands/app60-analysis-r2.command.json",
+      "bytes": 340,
+      "sha256": "ea2d7803fc5446ce19e99984d4ab788b8bdf2998a73705d9ddc7d5b82f034c8f",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-analysis-r2.command.json"
+    },
+    {
+      "path": "commands/app60-analysis-r7-affinity.command.json",
+      "bytes": 352,
+      "sha256": "cb991886c51bb8e13651ddee3e4f7af42d935979edaba1c969beb112a9d0c2f3",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-analysis-r7-affinity.command.json"
+    },
+    {
+      "path": "commands/app60-analysis-r7.command.json",
+      "bytes": 343,
+      "sha256": "f95d7c2756f24850b6e07c7b4e103ad55506e83cbd0ad09273c2fe88fb825f50",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-analysis-r7.command.json"
+    },
+    {
+      "path": "commands/app60-commands-r6.command.json",
+      "bytes": 346,
+      "sha256": "c1d8e0d80bcc1d1b1f3a47ada4362ae9c7b1663df5c15688323fc542a34d09a1",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-commands-r6.command.json"
+    },
+    {
+      "path": "commands/app60-r2.command.json",
+      "bytes": 710,
+      "sha256": "a9d6be3434a2a583a62239669e18e22d22dab70bb6b947f1538bfbe4039ba7ed",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-r2.command.json"
+    },
+    {
+      "path": "commands/app60-r7-affinity-prepare.command.json",
+      "bytes": 350,
+      "sha256": "f29e3e71990a01cbc12ed4c8f8579a52086bfcadc9e8834a26c960b9fd89e0a4",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-r7-affinity-prepare.command.json"
+    },
+    {
+      "path": "commands/app60-r7-affinity.command.json",
+      "bytes": 737,
+      "sha256": "f6e7c7a9878e3401dee3faf8c8ba2586cb5a7e34b0cd56cc20c9656d7bb4b891",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-r7-affinity.command.json"
+    },
+    {
+      "path": "commands/app60-r7-prepare.command.json",
+      "bytes": 341,
+      "sha256": "aa66f4bb3dc482ac7c00e1b0987c2cc0bb513f91864677dd25088f4cec4bc19a",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-r7-prepare.command.json"
+    },
+    {
+      "path": "commands/app60-r7.command.json",
+      "bytes": 710,
+      "sha256": "27c712263a138ab96413fb7dc835bd637622ddee46a2a248511b1d86ecbb7004",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-r7.command.json"
+    },
+    {
+      "path": "commands/app60-scheduler-r6.command.json",
+      "bytes": 346,
+      "sha256": "85d03031459cfe9a72da638eb8f48448e68a3100b04a4edf5ed4696a1598410e",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60-scheduler-r6.command.json"
+    },
+    {
+      "path": "commands/app60.command.json",
+      "bytes": 619,
+      "sha256": "22ee6d5bb59e018721ef2292bbbfbf9fc69c155e6a468f5a3d6db2c8e8ef2779",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\app60.command.json"
+    },
+    {
+      "path": "commands/batch2-controller.command.json",
+      "bytes": 359,
+      "sha256": "b7f6d8b3f214b62acaeee5b1c1ba2252f62c155a5c3d456ae63d5bb27c0da9ce",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\batch2-controller.command.json"
+    },
+    {
+      "path": "commands/cpu-reference.command.json",
+      "bytes": 351,
+      "sha256": "d515dfbb206c7af1c428aa40e2a34643638dd072d69c318795dbd4023d55d0b1",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\cpu-reference.command.json"
+    },
+    {
+      "path": "commands/crossbatch.command.json",
+      "bytes": 440,
+      "sha256": "84c13d3533966d7ef72b3cdce0f4ead605a68ff6da2a11ed8309d2c63a25d277",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\crossbatch.command.json"
+    },
+    {
+      "path": "commands/phase-profile.command.json",
+      "bytes": 358,
+      "sha256": "6941c562911e9ded884ea545cfaf2485930a9fec940898bbc5789113f73732d5",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\phase-profile.command.json"
+    },
+    {
+      "path": "commands/single-arena-cpu-affinity.command.json",
+      "bytes": 463,
+      "sha256": "66123bdf4ca8cfac5674f5cc53b4691100e17c133e4ebbc80ff044423d712d2c",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\single-arena-cpu-affinity.command.json"
+    },
+    {
+      "path": "commands/single-arena-cpu.command.json",
+      "bytes": 445,
+      "sha256": "d5a61d5dd66de2ce383b4f3ce334a724d8afc959d9e23aabd46ea10ca8c6e6af",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\single-arena-cpu.command.json"
+    },
+    {
+      "path": "commands/single-arena.command.json",
+      "bytes": 349,
+      "sha256": "07b2a83608f558479d86db35a83aa0ac541dac6986effb7c20a7692ba8a7b6ab",
+      "source": "C:\\rekagent\\work\\rek-playback-speed-20260928-r2\\single-arena.command.json"
+    }
+  ],
+  "scope": "Closed synthetic diagnostics, frozen input/source pins and aggregate measurements. Raw existing-human-viewer observations are excluded. Full synthetic trajectories and frame PNGs preserved in separate NAS packages."
+}

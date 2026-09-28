@@ -1,0 +1,19 @@
+{
+  "schema": "rek.close_unused_viewer.source_review.v2",
+  "utc": "2026-09-28T23:36:35.727812+00:00",
+  "source_sha256": "be8a00cc5c82447727d3b6503468d8b70d2744b58e8fe5938cbe5d5c7d0523e6",
+  "verdict": "GO after external full-speed gate and root authorization",
+  "resolved": [
+    "Cumulative recorder PID/steps verified; every actual JSONL row is parsed and any worker step request rejects closure, even after reset or reselection",
+    "Closed inventory enumerates all remaining run files recursively and refuses symlinks; new receipt explicitly excluded from its own manifest"
+  ],
+  "retained_guards": [
+    "Exact process start identities checked before and after pidfd acquisition",
+    "Both viewer endpoints must be healthy and paused; replacement also tick0/pace0/no held input",
+    "Expected launch script and run directory checked on Node command line",
+    "Only Node pidfd receives SIGTERM; waits for all three owned process descriptors; no escalation",
+    "Port18771 receives snapshot reads only; never signaled"
+  ],
+  "scope": "Read-only source review; no execution or process interaction; 1x measurement is an external prerequisite and is not certified by this helper",
+  "no_new_blocking_findings": true
+}

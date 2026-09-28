@@ -1,0 +1,24 @@
+{
+  "schema": "rek.realtime_cutover.source_review.v1",
+  "utc": "2026-09-28T23:48:57.391989+00:00",
+  "files": {
+    "prepare_final.py": "54a6ac031235867856008f8845078431403e8234de8c8b4a62c5817e0ca33628",
+    "preserve_unused.py": "9833daf9ec09179ac95ba3824097a5452374008985ed81c415a5d3c94cc6bc2e",
+    "start_helpers.ps1": "6469092a39fe4373885cd044ee849dcb360941f71a064426de7493a806ad3909",
+    "close_unused_viewer.py": "be8a00cc5c82447727d3b6503468d8b70d2744b58e8fe5938cbe5d5c7d0523e6"
+  },
+  "verdict": "GO for the stated ordered flow after external performance proof",
+  "reviewed": [
+    "Fresh run-r6 prepare and exact model/binary/app binding",
+    "Closure restricted to exact unused run-r5 Node pidfd after cumulative/log history checks",
+    "Full closed file inventory copied exclusively and source/local/NAS hashes verified",
+    "Partial new helper startup handled by fresh-directory STOP and exact process-handle wait; no escalation"
+  ],
+  "external_preconditions": [
+    "Root accepts actual full-app1x benchmark and final candidate pins",
+    "Run-r5 remains unplayed and both HTTP viewers remain healthy/paused at closure",
+    "Root verifies paused new viewer/API/PNG after launch before handoff"
+  ],
+  "live_18771_preserved": true,
+  "no_execution_or_process_interaction": true
+}

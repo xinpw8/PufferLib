@@ -1,0 +1,11 @@
+# Current whole-control graph investigation
+
+The prior fast eager/graph comparison had identical initial and cold-reset snapshots, zero command/terminal discrepancies, and its first floating difference at tick 1. It did not include eager/eager. Fresh fast eager/eager also diverges at tick 1, so the old run alone cannot establish a capture defect. Graph remains disabled pending this test.
+
+Source audit: Worker binds persistent external/direct input arrays before capture. Every step writes those same arrays, invokes any high-level policy outside capture, and launches exactly one runtime graph. Host tick, status checks, snapshots and terminal events stay outside. Reset destroys and rebuilds capture; replacing a policy calls reset. Runtime step has no host RNG or host-incremented simulation state. Runtime binding is unchanged; SONIC stream binding short-circuits when the same stream is supplied. Original native physics inserts its schedule directly into active capture and explicitly supports conditional solver/reset nodes. No warm-up step is executed during capture.
+
+This plan uses the same current runtime/controller/match objects and changes exactly the three documented ordering objects for all runs. No CPU physics wrapper is linked. The actual alternate catalog is targeted-build-r1/catalog.json, hash335cbe84, not the nonexistent combined catalog named by old usage text.
+
+Required test gates: fresh eager A, fresh eager B, fresh graph; identical fixed command stream and initial/cold-reset snapshots; exact all-field state, command-event and round-event equality. Include changed persistent velocity axes, attack/cancel one-shot edges, one-tick and batch requests, a short-round boundary, neutral then input change, and cold reset/re-capture. Eager A/B must first prove repeatability. If either exact comparison fails, preserve it and stop; similar drift or relaxed tolerances do not count as validation. This fixture proves only tested control/capture semantics under reference physics, not general fast-physics or official-server parity.
+
+relink_reference.py defaults to hash verification and a printed command. --link creates one new executable but never runs it. GPU execution belongs to the coordinated Spark lane and live-pause guard.

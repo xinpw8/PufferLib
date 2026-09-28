@@ -1,0 +1,27 @@
+[
+  {
+    "path": "guard.json",
+    "bytes": 896,
+    "sha256": "1b70b83c22881e1425746b1077ece889ab76768d47cba3d4cb9ab339330f07d9"
+  },
+  {
+    "path": "stdout.txt",
+    "bytes": 28851,
+    "sha256": "9cabc2a5338af7ff0e050657cdf767ae50fcb31aa98c1a81bae37e74d5e226a7"
+  },
+  {
+    "path": "summary.json",
+    "bytes": 848,
+    "sha256": "337ce348e5e8a4f83d007b7dfe1dcec230d1bb6eb64b23c1f90fbb20934fdea4"
+  },
+  {
+    "path": "worker/protocol.jsonl",
+    "bytes": 41590,
+    "sha256": "27f2204e0e709a8cd5a46525d8ec97c18cd44c2cde6b9984acb7cee6c13db089"
+  },
+  {
+    "path": "worker/stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+]

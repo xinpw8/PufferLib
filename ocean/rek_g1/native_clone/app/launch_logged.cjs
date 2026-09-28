@@ -1,6 +1,8 @@
 'use strict';
 // Only transport observation and a fixed human-side guard. Simulation is unchanged.
-const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const fs=require('node:fs'),path=require('node:path');
+const {heartbeatGate}=require('./league/heartbeat_gate.cjs');
+const {framePayload}=require('./league/frame_payload.cjs');
 const root=__dirname,run=path.resolve(process.argv[2]||''),source=path.join(root,'league');
 if(!process.argv[2]||!fs.existsSync(path.join(run,'identity.json')))throw Error('Prepared run directory required');
 for(const key of Object.keys(process.env))if(key.startsWith('REK_'))delete process.env[key];
@@ -13,15 +15,17 @@ function append(kind,data={}){
     monotonicNs:process.hrtime.bigint().toString(),kind,...data})+'\n');}
   catch(error){recorderFailure=error.message;throw error;}
 }
-function heartbeat(){
+const heartbeat=heartbeatGate(()=>{
   const status={utc:new Date().toISOString(),pid:process.pid,sequence,steps,frames,
     lastTick:lastState?.tick??null,lastScore:lastState?.score??null,
     ok:recorderFailure===null&&workerFailure===null&&(lastState?.ok??false),recorderFailure,workerFailure,rendererFailure,lastRequestError,
     elapsedSeconds:Number(process.hrtime.bigint()-origin)/1e9};
   const temporary=path.join(run,'recorder-health.tmp');
-  fs.writeFileSync(temporary,JSON.stringify(status)+'\n',{mode:0o600});
-  fs.renameSync(temporary,path.join(run,'recorder-health.json'));
-}
+  try{
+    fs.writeFileSync(temporary,JSON.stringify(status)+'\n',{mode:0o600});
+    fs.renameSync(temporary,path.join(run,'recorder-health.json'));
+  }catch(error){recorderFailure=error.message;throw error;}
+});
 const inputModule=require(path.join(source,'input.cjs'));
 const OriginalInput=inputModule.HumanInput;
 inputModule.HumanInput=class extends OriginalInput{
@@ -38,9 +42,9 @@ class RecordedWorker extends NativeWorker{
       config:JSON.parse(fs.readFileSync(options.config,'utf8')),env:options.env});
     this.child.on('exit',(code,signal)=>{
       if(!this.expectedClose){if(this.renderOnly)rendererFailure=`Renderer exited (${code??signal})`;else workerFailure=`Native worker exited (${code??signal})`;}
-      append('worker_exit',{worker:this.recordingId,code,signal,expected:this.expectedClose});heartbeat();
+      append('worker_exit',{worker:this.recordingId,code,signal,expected:this.expectedClose});heartbeat(true);
     });
-    this.child.on('error',error=>{if(this.renderOnly)rendererFailure=error.message;else workerFailure=error.message;append('worker_process_error',{worker:this.recordingId,message:error.message});heartbeat();});
+    this.child.on('error',error=>{if(this.renderOnly)rendererFailure=error.message;else workerFailure=error.message;append('worker_process_error',{worker:this.recordingId,message:error.message});heartbeat(true);});
   }
   async close(){this.expectedClose=true;await super.close();}
   async request(op,args={},timeout){
@@ -55,31 +59,32 @@ class RecordedWorker extends NativeWorker{
       if(op==='frame'){
         if(!this.renderOnly||result.snapshotTick!==args.snapshotTick||result.generation!==args.generation)
           throw Error('Renderer frame identity mismatch');
-        const png=Buffer.from(result.png,'base64');
+        const {png,sha256}=framePayload(result);
         const filename=String(++frames).padStart(8,'0')+'.png';
         try{await fs.promises.writeFile(path.join(frameDirectory,filename),png,{flag:'wx',mode:0o600});}
         catch(error){recorderFailure=error.message;throw error;}
         append('rendered_frame',{worker:this.recordingId,requestId:result.id,durationMs,
           tick:args.snapshotTick,generation:args.generation,path:'frames/'+filename,bytes:png.length,
-          sha256:crypto.createHash('sha256').update(png).digest('hex')});
+          sha256});
         rendererFailure=null;
       }else{
         append('worker_reply',{worker:this.recordingId,op,durationMs,result});
         if(result.state)lastState=result.state;
         if(op==='step')steps++;
       }
-      if(op==='step'||op==='snapshot'||op==='reset')heartbeat();
+      if(op==='step')heartbeat();
+      else if(op==='snapshot'||op==='reset')heartbeat(true);
       return result;
     }catch(error){lastRequestError={op,message:error.message,utc:new Date().toISOString()};
       if(this.renderOnly)rendererFailure=error.message;else if(this.closed)workerFailure=error.message;
-      append('worker_error',{worker:this.recordingId,op,message:error.message,workerClosed:this.closed});heartbeat();throw error;}
+      append('worker_error',{worker:this.recordingId,op,message:error.message,workerClosed:this.closed});heartbeat(true);throw error;}
   }
 }
 append('session_started',{schema:'rek.native_clone.session.v1',role:'human_evaluation',
   note:'Manual continuous command control and explicit paused stepping. Native adjudication, recorded inputs/states/frames. Full parity unverified.'});
 const {serve}=require(path.join(source,'server.cjs'));
 serve(path.join(run,'server.json'),{Worker:RecordedWorker,Renderer:RecordedWorker,intermissionMs:0}).then(({server})=>{
-  server.on('close',()=>{append('server_closed');fs.fsyncSync(trace);});
-  heartbeat();
-  setInterval(heartbeat,5000).unref();
+  server.on('close',()=>{append('server_closed');fs.fsyncSync(trace);heartbeat(true);});
+  heartbeat(true);
+  setInterval(()=>heartbeat(true),5000).unref();
 }).catch(error=>{append('startup_failure',{message:error.message});console.error(error);process.exitCode=1;});

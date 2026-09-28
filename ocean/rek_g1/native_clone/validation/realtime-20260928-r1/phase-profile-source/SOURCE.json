@@ -1,0 +1,279 @@
+{
+  "schema": "rek.runtime_phase_source.v1",
+  "reverse_byte_parity": true,
+  "insertions": 11,
+  "default_off": true,
+  "new_synchronization": false,
+  "files": [
+    {
+      "path": "build.sh",
+      "bytes": 2307,
+      "sha256": "bb2c514aa06801aee15833b51b1c300794d738fc4b8640b0b9c08eea459a5f2f"
+    },
+    {
+      "path": "runtime.diff",
+      "bytes": 4877,
+      "sha256": "177a5fcb83c9895e25cab9d04ff039d29756efb604227a0837afb5515209491f"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_combat_tick.h",
+      "bytes": 2472,
+      "sha256": "045c2e456f95c60113a4922502ec12c0dae9f51faca046d39e0c71d557ce8690"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_combat_types.h",
+      "bytes": 1484,
+      "sha256": "8f8311cd792f6950df51009f859b5d83174f34faaa6963dd21e2ce9b06a1808d"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_cuda_device.cu",
+      "bytes": 133,
+      "sha256": "6517ddea9ff1bc8c3dc58a91cb02beb12b27e4e30f042b9b1fd11e1d22b7de2e"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_cuda_qualifiers.h",
+      "bytes": 581,
+      "sha256": "d6576fd9d12c7d1f8b96fed8a5842a804e8139de8755407d4a85d0bb307a9a35"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_fall_state.h",
+      "bytes": 4771,
+      "sha256": "68db7b255485ba933b67a32407368eaae0ebeb6f30aeb98d621c3f0dd4c32327"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_fight_state.h",
+      "bytes": 9467,
+      "sha256": "b2d02c3daa0ab40eeae00b8d77a4ce696029ed49b0fa459cbe460f9f1ceb0b1b"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_heading_native.h",
+      "bytes": 1420,
+      "sha256": "cc3de5757a0dde84bc8ebbf9f3e150e4d98df48b8455aa75ca1c0522f0790995"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_hit_detector.h",
+      "bytes": 3380,
+      "sha256": "f2b8163f04b3ad9102376b46f4230b4148ac5182263eabacfa80c1bc5c9eb758"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_match_lifecycle.h",
+      "bytes": 2987,
+      "sha256": "8565738466387221a76ceba4a9f766fc882339a3ac0c4446bf37e2fcdb278190"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_motion_cuda.h",
+      "bytes": 3285,
+      "sha256": "8c5b40ecca3e4ffab184daed5055f697ad76cd588b0855774df7a024ce8e134a"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_native_combat_cuda.cu",
+      "bytes": 44113,
+      "sha256": "c7d2f0fb28e18805b785459d93e19b20f13c06ddfa6750a7596bb3dd6d9d4b89"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_native_combat_cuda.h",
+      "bytes": 7769,
+      "sha256": "fba13d48a7af91afc72f2a6c49bff97485d21c5f7f4aa32cac1022dbff4141cf"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_semantic_action_table.h",
+      "bytes": 1002,
+      "sha256": "c0d3c973d4451416062759eb48b19d63bd10d98fea1eefd9d1ff37ea09324419"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_semantic_scheduler_cuda.cu",
+      "bytes": 27511,
+      "sha256": "beea0fa369afca02138f7806aa511562d8918c181a19e006fb762dc0fd63d69b"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_semantic_scheduler_cuda.h",
+      "bytes": 7024,
+      "sha256": "d31933796698939fefbbdbb9517c7febecabc69073fde662e10c844860ef5fd7"
+    },
+    {
+      "path": "source/ocean/rek_g1/g1_strike_catalog.h",
+      "bytes": 2457,
+      "sha256": "a17761726489287bffcc382315485a663662e82b5c6b8d5fccd4ca7cd3f0a837"
+    },
+    {
+      "path": "source/ocean/rek_g1/held_input.h",
+      "bytes": 7363,
+      "sha256": "6ed2d4f3256c4bc1c1aa2c80a33d4f7abb2596e2384609621f126caa25668453"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/device_storage.cuh",
+      "bytes": 1018,
+      "sha256": "98998fca02173dd596f4aabab338d905d3e544d44de0ff265e9cddaef826e880"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/eval_render_request.h",
+      "bytes": 1842,
+      "sha256": "cc220f05e5b10e9b8a4a4cd4fc1533081fb4e39605c393ad7832ab8b1334915a"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/eval_renderer.h",
+      "bytes": 6190,
+      "sha256": "d2a111559498339db43b97329fff4cb338bb1fc71cb895bcb739fdcdf040217f"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/eval_step_graph.h",
+      "bytes": 2169,
+      "sha256": "039c67b7355ad7d5ded81c771f81f876bc905dbb3bd57fe6522d30a348ca39b5"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/eval_worker.cpp",
+      "bytes": 25041,
+      "sha256": "6e0acbafe2987411cb3c8480ac31b968c4330165b10611708085ae683b6d9cf0"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/fast_mode_config.h",
+      "bytes": 2804,
+      "sha256": "35748f3e1b0e9fbf977e36e8f4d410023b7d97553db213400f22dbd0954bb169"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/measurement.cuh",
+      "bytes": 1379,
+      "sha256": "bf736deae56f8a472587ab9a8007bc756c6782f854c35cbfc0aa0e7f79a6b02f"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/motion_assets.cu",
+      "bytes": 25268,
+      "sha256": "0095b2f0eef99c39fe74bfd496bd9a42269f2e5c19a1c441160510de45b5a964"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/motion_assets.cuh",
+      "bytes": 3096,
+      "sha256": "1333736eaec60fa72c5c1e3d52dee9a1205cccf0ee574df6f831588e656534d0"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/native_bot1.cuh",
+      "bytes": 10819,
+      "sha256": "bfe81887df99a25975bacee225eeb415c869651f4894137b01d08016cd8a886d"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/native_policy.cu",
+      "bytes": 13370,
+      "sha256": "236a7077034367ed3a6d521d86cbd1d2bdb863eb092e946d53ebe46a2d4dc048"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/native_policy.h",
+      "bytes": 2495,
+      "sha256": "cae13ff2b816efba918e1c1d2321f99581fc16c5123071bbf6f19de4bf2344c2"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/normalized_reward.h",
+      "bytes": 1841,
+      "sha256": "14cc963f8b07230da3c0390d0c0ff9e6d671bba3d762ee157056211d95745981"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/observable_balance.h",
+      "bytes": 11467,
+      "sha256": "4b651a2f02b7a335cb781bb886b048d83025acc88dca4a522f62bc4cea7a0d3a"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/observable_prev_action.h",
+      "bytes": 3851,
+      "sha256": "42d79bd6d453085b11058b5679b11aadec5175a2a060c534b71463282d4a28fa"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/physical_bot1_geometry.h",
+      "bytes": 2147,
+      "sha256": "e7f850ab9a378ccc949e496d78aedcb1ae959ed67398f02b7c938d8507512077"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/physics.cuh",
+      "bytes": 3638,
+      "sha256": "9d591703ccc756daa8520727298dd3421e94375eacb3640e79c80d066fa8e922"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/robot_history.h",
+      "bytes": 757,
+      "sha256": "40a63385a4718b13820dedaaa58a1c721267c17b274a92ee5435cde2d0372a55"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/robot_state.cu",
+      "bytes": 15331,
+      "sha256": "72e3e345870d3e4eb85b10700cc4e3230faec6f8d5954486de3dde08646acfa4"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/robot_state.cuh",
+      "bytes": 3648,
+      "sha256": "6fc3f530f866f9d0f65b235e8dcc478260f8d5ae59ebc7c09d8dc1006a67671d"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/runtime.cu",
+      "bytes": 53260,
+      "sha256": "eeda866d1d1e80d7ad90c16dda3f38b5ca3ce055a3221d90cd0411e352a4f422"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/runtime_api.h",
+      "bytes": 7421,
+      "sha256": "06a498bf9304d17832b6e377e5af3b513cfde4ff4203197e9a70622dba34aa88"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/runtime_phase_profile.h",
+      "bytes": 3199,
+      "sha256": "1a60672670a71957abe903e942e15f202beec126adaa8d19f54616db3a6c974b"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/sonic_controller.cuh",
+      "bytes": 2378,
+      "sha256": "a16c7120a48246859a24904a25cf6f9bfbb1373778a2708c436095d6697f2ee4"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/will_connect.h",
+      "bytes": 24426,
+      "sha256": "993b3bd70d7cae122ea8ce9c82c5c4e5a0310fbdf2dc58a5497a4086149651a5"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/will_connect_diagnostics.h",
+      "bytes": 4847,
+      "sha256": "23dc2d406eb134180233036b4b61c7fdb6d7d55a42661219fdd82981b654d057"
+    },
+    {
+      "path": "source/ocean/rek_g1/native5/will_connect_json.h",
+      "bytes": 3818,
+      "sha256": "f54c6bb783e2f5b9163cca252346c88d3d8ddea4f38fc312fd16b1aace273ef8"
+    },
+    {
+      "path": "source/ocean/rek_g1/native_locomotion_command.h",
+      "bytes": 6453,
+      "sha256": "da36f24025ac19d917a97d2ac3380d684773698e8f834002bd07f2863e1263af"
+    },
+    {
+      "path": "source/ocean/rek_g1/native_motion_routes.h",
+      "bytes": 3925,
+      "sha256": "adbdf468dd4c445ae206b33a305f62040824a2d26156bb70a5175c47e34a588d"
+    },
+    {
+      "path": "source/ocean/rek_g1/puffer_action_adapter.h",
+      "bytes": 4261,
+      "sha256": "2cff96ee01fc083244f09330d1c4df99e9aab53d7e72dddcd4f54068062fd633"
+    },
+    {
+      "path": "source/ocean/rek_g1/semantic_action.h",
+      "bytes": 8392,
+      "sha256": "c6c82b4fd06559e1423d74de111726ba4ee988d839d96b006c2e308e755a4ddb"
+    },
+    {
+      "path": "source/ocean/rek_g1/sonic_motion_composer_native.c",
+      "bytes": 55072,
+      "sha256": "a6bb4ca63b833085d8e10f5a5970e060a884644185b0b0e8a1a0500425c3ee1a"
+    },
+    {
+      "path": "source/ocean/rek_g1/sonic_motion_composer_native.h",
+      "bytes": 9626,
+      "sha256": "e5e13a32438e34331224e215019655b61edb72c31bd736f47b8ec60842aa834f"
+    },
+    {
+      "path": "source/ocean/rek_g1/sonic_motion_entry_matcher_native.h",
+      "bytes": 6213,
+      "sha256": "a0d10bf32f103a436a7af3fd7365f2d8e16f5c1b9e2534fdc6b009309d420151"
+    },
+    {
+      "path": "source/vendor/cJSON.h",
+      "bytes": 16394,
+      "sha256": "25b0145150d500498e4d209cec69c18c42cf818bffcc54690be3b895a2a16dee"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+native_onnx_inspection batch=2 coefficients=14415581 float32_bytes=57662324 wrong_batch_rejected=1 truncated_rejected=1
+encoder_vs_ort_cpu max_abs=0 outside_tolerance=0 tolerance=2e-05
+decoder_vs_ort_cpu max_abs=4.88758087e-06 outside_tolerance=0 tolerance=2e-05
+packed_vs_full_encoder max_abs=0 outside_tolerance=0 tolerance=0
+graph_vs_eager_encoder max_abs=0 outside_tolerance=0 tolerance=0
+graph_vs_eager_decoder max_abs=0 outside_tolerance=0 tolerance=0
+native_sonic_pass batch=2 resident_bytes=57700212 ort_version=1.24.4 python_used=0 inference_backend=cublas_fp32_pedantic
+
+{"success": true, "binary_sha256": "64dff303062d1dd64f3202e8a7c934a02375e493c15b603a498f5ac820628b25", "exit_code": 0, "identity": {"pid": 3234413, "start_ticks": "132587499", "argv": ["/home/spark-advantage/rek-training/native5-controller-build-20260913/test_sonic_controller", "2", "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx", "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx"]}, "guard_failure": null}

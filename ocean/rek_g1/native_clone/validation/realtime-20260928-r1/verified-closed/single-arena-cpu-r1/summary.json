@@ -1,0 +1,54 @@
+{
+  "success": true,
+  "diagnostic": "Single-arena CPU physics/batch2 diagnostic",
+  "env_overrides": {
+    "REK_PHYSICS_BACKEND": "mujoco_cpu_eval",
+    "REK_ALLOW_CPU_EVALUATION": "1"
+  },
+  "binary_sha256": "ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975",
+  "ticks": 150,
+  "elapsed_seconds": 3.1122703929431736,
+  "control_sps": 48.19632649531773,
+  "step_rpc_ms": {
+    "n": 150,
+    "mean": 20.47074148,
+    "median": 16.0275215,
+    "p90": 32.894282,
+    "p99": 38.651899,
+    "min": 7.89626,
+    "max": 182.909682
+  },
+  "identity": {
+    "pid": 3244844,
+    "start_ticks": "132611899",
+    "argv": [
+      "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/build-r1/rek-native-clone",
+      "--config",
+      "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/single-arena-cpu-r1/worker.json"
+    ]
+  },
+  "guard_failure": null,
+  "config_delta": {
+    "arenas": {
+      "before": 4,
+      "after": 1
+    },
+    "controller_encoder_path": {
+      "before": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_encoder.batch8.onnx",
+      "after": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx"
+    },
+    "controller_decoder_path": {
+      "before": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_decoder.batch8.onnx",
+      "after": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx"
+    }
+  },
+  "model_pins": {
+    "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx": "0e1cf37a7c1bafe870741b8a3de2560ae7a2b0cfe14c5ac8cef4d8a34d78207f",
+    "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx": "20b49c9df1a54dc3a211d0d86c2ebe3ccc1de67883a984a7b227af76af7aacb3"
+  },
+  "stderr_backend_lines": [
+    "physics_backend=mujoco_cpu_eval cpu_physics=1 training_backend=0 arenas=1",
+    "native5 runtime: physics_backend=mujoco_cpu_eval arenas=1 fighters=2 controller_bytes=57700212"
+  ],
+  "actual_cpu_backend_marker": true
+}

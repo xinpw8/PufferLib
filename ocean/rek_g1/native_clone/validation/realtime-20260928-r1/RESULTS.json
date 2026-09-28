@@ -1,0 +1,69 @@
+{
+  "schema": "rek.realtime_final_proof.v1",
+  "created_utc": "2026-09-28T23:54:46.052911+00:00",
+  "selected": "r7_one_arena_batch2_gpu_cpu_affinity_5-9_15-19",
+  "native_sha256": "ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975",
+  "app_manifest_sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca",
+  "compact_closed_manifest_sha256": "5aebab4ecee4583fd7e8bc1be23145e2fbdc13a29287b317e317cb830b96e611",
+  "description": "Approximately1x steady-state playback; whole cold-start trial remains below literal1x.",
+  "control_step_seconds": 0.02,
+  "physics_step_seconds": 0.002,
+  "physics_substeps": 10,
+  "graph_enabled": false,
+  "new_physics_math_or_solver_change": false,
+  "cold_start_inclusive": {
+    "actual_steps": 2991,
+    "outer_wall_seconds": 60.007963452953845,
+    "outer_simulated_seconds_per_wall_second": 0.9968676915172899,
+    "app_active_interval_ratio": 0.997277157409461,
+    "app_active_intervals": 2990,
+    "app_active_wall_ms": 59963.27054691315
+  },
+  "steady_after_first_5_seconds": {
+    "active_intervals": 2750,
+    "active_wall_ms": 55000.839357852936,
+    "real_time_ratio": 0.9999847391810246,
+    "control_steps_per_second": 49.99923695905123
+  },
+  "scheduler": {
+    "invocations": 2991,
+    "completed": 2991,
+    "lateStarts": 2991,
+    "totalLatenessMs": 40413.308626651764,
+    "maxLatenessMs": 83.04445791244507,
+    "totalTaskMs": 58083.64177894592,
+    "maxTaskMs": 181.9146249294281,
+    "rebases": 1,
+    "discardedWallDebtMs": 162.6199550628662,
+    "periodMs": 20,
+    "maxDebtMs": 100,
+    "active": false,
+    "running": false,
+    "meanTaskMs": 19.419472343345344,
+    "meanLatenessMs": 13.51163778891734
+  },
+  "inputs": 3000,
+  "png_gets": 1200,
+  "recorded_frames": 1207,
+  "ticks_contiguous": true,
+  "errors": 0,
+  "guard_failure": null,
+  "comparison_unpinned_r7": {
+    "overall_app_ratio": 0.9938047164118532,
+    "after5s_ratio": 0.9963406665472875
+  },
+  "prior_r6_app_ratio": 0.9558830809073361,
+  "operational_gate": {
+    "source": "Parent fixed acceptance gate",
+    "minimum_ratio": 0.99,
+    "passed": true
+  },
+  "literal_entire_trial_ratio_at_least_one": false,
+  "limits": [
+    "One closed60s synthetic interactive workload; not a guarantee for every contact load or future run.",
+    "Full cold-start wall ratio and app active-interval ratio use different stated denominators.",
+    "Batch2 decoder is numerically compatible on tested inputs, not bit-identical to batch8.",
+    "Original Unity/official-server physical parity and fighting ability remain unproven.",
+    "Strict-reference graph binary is a staged fallback; no graph experiment or deployment occurred."
+  ]
+}

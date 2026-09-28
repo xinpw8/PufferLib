@@ -1,0 +1,17 @@
+{
+  "success": false,
+  "binary_sha256": "6c2f46f64215726a1258ed854d1bc430ed47b9fbebc30a0e8884e20dd74a9a39",
+  "exit_code": 1,
+  "identity": {
+    "pid": 3242044,
+    "start_ticks": "132604344",
+    "argv": [
+      "/home/spark-advantage/rek-training/rek-native-runtime-speed-20260928-r1/crossbatch-r1/build-r1/crossbatch",
+      "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx",
+      "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx",
+      "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_encoder.batch8.onnx",
+      "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_decoder.batch8.onnx"
+    ]
+  },
+  "guard_failure": null
+}

@@ -1,0 +1,6 @@
+{
+  "command": "python3 /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/cpu_reference.py --out /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/cpu-reference-r1 --execute",
+  "started_utc": "2026-09-28T23:26:21.672283+00:00",
+  "finished_utc": "2026-09-28T23:26:27.005206+00:00",
+  "exit_code": 0
+}

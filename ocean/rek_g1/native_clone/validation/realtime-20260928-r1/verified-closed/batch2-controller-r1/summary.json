@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "binary_sha256": "64dff303062d1dd64f3202e8a7c934a02375e493c15b603a498f5ac820628b25",
+  "exit_code": 0,
+  "identity": {
+    "pid": 3234413,
+    "start_ticks": "132587499",
+    "argv": [
+      "/home/spark-advantage/rek-training/native5-controller-build-20260913/test_sonic_controller",
+      "2",
+      "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx",
+      "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx"
+    ]
+  },
+  "guard_failure": null
+}

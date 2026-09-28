@@ -1,0 +1,7 @@
+{
+  "command": "python3 /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/harness-r1/app60_r2.py --run /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-run-r7 --launcher /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app-stage-r7/app/launch_logged.cjs --launcher-sha 1cb64b5d22a98e89aa6e4bc1236f3f2e7760f23ea566e19304b44822e9a18a95 --out /home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app60-result-r7 --execute",
+  "started_utc": "2026-09-28T23:46:14.405750+00:00",
+  "finished_utc": "2026-09-28T23:47:16.390184+00:00",
+  "exit_code": 0,
+  "runner_sha256": "e5b31fa89dbea5fdcb68b9f46ece8ad10b480b3a46bb73cfe5797769c2398cca"
+}

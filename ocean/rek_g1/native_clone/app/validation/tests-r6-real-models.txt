@@ -1,0 +1,17 @@
+TAP version 13
+# {"event":"genuine_model_fixture","paths":{"encoder2":"/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx","decoder2":"/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx","encoder8":"/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_encoder.batch8.onnx","decoder8":"/home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_decoder.batch8.onnx"},"sha256":{"encoder2":"0e1cf37a7c1bafe870741b8a3de2560ae7a2b0cfe14c5ac8cef4d8a34d78207f","decoder2":"20b49c9df1a54dc3a211d0d86c2ebe3ccc1de67883a984a7b227af76af7aacb3","encoder8":"2befe0f7be8e72a33824f04fd39c191287e1e9aab05807012d6ceeb3f688ff40","decoder8":"7f4cb9a01bd21bbd0ef96e3c82d2ee1fc015e7a31dfb032d5e844719af3e9de2"}}
+# {"event":"prepare_contract_pass","one_arena_genuine":true,"four_arena_genuine":true,"rejected":["wrong encoder","wrong decoder","swapped models","arena2","arena0","string arena1","CPU environment"],"native_executed":false}
+# Subtest: real batch-2 preparation binds one arena, rejects wrong models, and preserves four-arena support
+ok 1 - real batch-2 preparation binds one arena, rejects wrong models, and preserves four-arena support
+  ---
+  duration_ms: 556.521291
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 661.876244

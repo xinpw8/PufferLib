@@ -1,0 +1,78 @@
+{
+  "source": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r5",
+  "local": "C:\\rekagent\\work\\rek-realtime-20260928-r1\\closed-unused-run-r5",
+  "nas": "R:\\pufferlib\\rek-evidence\\2026-09-28\\rek-realtime-r1\\closed-unused-run-r5",
+  "source_local_nas_hashes_equal": true,
+  "files": [
+    {
+      "path": "STARTED.json",
+      "bytes": 12775,
+      "sha256": "3daa16ee777c21665df65eb222de77f2f2e10f8b3c0f5af91ad92538ee3a81a1"
+    },
+    {
+      "path": "frames/00000001.png",
+      "bytes": 583950,
+      "sha256": "eba4623196e2a011dd3fbd4ee61142ed4469cd86700c8f531ce6f0fc70101e20"
+    },
+    {
+      "path": "identity.json",
+      "bytes": 3906,
+      "sha256": "8812db849d89a2d226fb22d3a380d52d8ca6c7b43c3596435f5f532b86f463de"
+    },
+    {
+      "path": "league.json",
+      "bytes": 420,
+      "sha256": "be584dd9d7eab9cfffc47ec77c8c2744679b5d9866d0dcd66c53a4cf8f109942"
+    },
+    {
+      "path": "recorder-health.json",
+      "bytes": 252,
+      "sha256": "7df491017c497bb07fe5c772087cb0842e6726b1c08894d4df0ea05d25fdacbd"
+    },
+    {
+      "path": "server-process.json",
+      "bytes": 1009,
+      "sha256": "4868760bdb1d570db19116227e35c05a2505484114e4ba4ac492cc4150f8fd01"
+    },
+    {
+      "path": "server.json",
+      "bytes": 1611,
+      "sha256": "0f4b68bb778cecd4e95bcede9fbb02eed82cdaa3d1215f807041cb8a51115584"
+    },
+    {
+      "path": "server.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server.stdout.log",
+      "bytes": 46,
+      "sha256": "88612c5796e632bf053df7941688d30ee0da36713e13c56405dff636968eb539"
+    },
+    {
+      "path": "session.jsonl",
+      "bytes": 43594746,
+      "sha256": "542f9acacec6361213a4cf15b4b9c9c57fbbaf4236bc2c765664baf8a8a37357"
+    },
+    {
+      "path": "startup-preview.png",
+      "bytes": 583950,
+      "sha256": "eba4623196e2a011dd3fbd4ee61142ed4469cd86700c8f531ce6f0fc70101e20"
+    },
+    {
+      "path": "worker.json",
+      "bytes": 1323,
+      "sha256": "d29a031d1526307378d1d63b0527884464083d3d7bb5799f1fe1fb3fb9614be1"
+    },
+    {
+      "path": "worker.stderr.log",
+      "bytes": 2179,
+      "sha256": "01a868e4b8d2f2d0afc55248ef704e201562bb1a3b73df7992ceb5976668abf5"
+    },
+    {
+      "path": "CLOSED-UNPLAYED.json",
+      "bytes": 2237,
+      "sha256": "a90376f48fc82f7fbcb30820cdbd2c90eb0678659b381424377591e9a79903fe"
+    }
+  ]
+}

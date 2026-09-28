@@ -1,0 +1,45 @@
+{
+  "schema": "rek.app_r7.review_and_mechanism.v1",
+  "utc": "2026-09-28T23:47:39.629738+00:00",
+  "manifest_sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca",
+  "archive_sha256": "d46ee32f572ea2838bb3a647bda750eb563b7af0709213aec6c468b92e2304f5",
+  "cpu_tests_passed": 52,
+  "real_model_local_repeat_skipped": 1,
+  "real_model_spark_prior_pass_retained": true,
+  "independent_review": "Researcher read production delta and reran13pacing tests:GO; root reviewed source:GO",
+  "r6_evidence": {
+    "path": "R6-SCHEDULER.json",
+    "sha256": "9c460106f4bcc32e390235be9649d2c1922687aec3d03c992a17b41b84b6caa6",
+    "n": 2867,
+    "mean_rpc_ms": 19.679518409836067,
+    "above20ms": 1132,
+    "at_or_below20ms": 1735,
+    "idealized_completion_based_cost_ms": 20.772557140216254,
+    "idealized_completion_based_ratio": 0.9628087608568633,
+    "observed_mean_start_interval_ms": 20.92293478447176,
+    "interpretation": "The previous algorithm starts each next period from the actual prior start, retaining slow-step delay but not faster-step capacity. These recorded durations explain a lower-bound completion-paced cost near measured throughput; they do not prove scheduling is the sole overhead. The new full-app run is the performance discriminator."
+  },
+  "r7_contract": {
+    "absolute_period_ms": 20,
+    "max_retained_wall_debt_ms": 100,
+    "overload_rebase_reported": true,
+    "step_dt_or_physics_changed": false,
+    "maximum_inflight_tasks": 1,
+    "maximum_scheduled_callbacks": 1,
+    "pause_resume_rebase": true,
+    "original_measured_pace_formula_unchanged": true,
+    "input_and_state_records_dropped": false
+  },
+  "runtime_1x_verified": false,
+  "staged_remote": {
+    "schema": "rek.app.frozen_stage.v1",
+    "created_utc": "2026-09-28T23:45:14.991545+00:00",
+    "app": "/home/spark-advantage/rek-training/rek-playback-speed-20260928-r2/app-stage-r7/app",
+    "archive_sha256": "d46ee32f572ea2838bb3a647bda750eb563b7af0709213aec6c468b92e2304f5",
+    "manifest_sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca",
+    "verified_files": 168,
+    "tests_local_passed": 52,
+    "real_model_contract_passed": true,
+    "native_gpu_app_executed": false
+  }
+}

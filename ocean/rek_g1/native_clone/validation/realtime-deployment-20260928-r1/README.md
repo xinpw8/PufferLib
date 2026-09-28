@@ -1,0 +1,9 @@
+# Realtime viewer deployment
+
+The revision 7 viewer is available on loopback port 18772 through its owned SSH tunnel. It was verified paused at tick 0, with a decoded 1280 by 720 PNG and matching native/server/transport image hash. This startup check did not drive the human viewer. Detailed inputs, states, native outcomes and sampled rendered frames are recorded. The passive NAS mirror and tunnel use explicit STOP markers without a timed expiry.
+
+The deployed app manifest is `6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca`. Native binary `ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975` runs one GPU arena with the verified batch-2 motor pair and CPU affinity 5 through 9 and 15 through 19, inherited by Node, simulation and presentation. The control interval remains 20 ms with ten 2 ms physics substeps. Graphs remain disabled. [Closed performance trials](../realtime-20260928-r1/RESULTS.md) contain the independent 1x measurement and its cold-start limitation; this tick-zero startup is not a performance test.
+
+The previous port-18772 run had zero cumulative steps and no step request anywhere in its trace. Its exact three process identities were verified, Node received scoped SIGTERM, and all files were closed and copied to the physical server with matching source/local/NAS hashes. The original port-18771 human session was preserved at tick 1762. Raw session files are excluded here.
+
+The tools in this proof directory are historical, process-specific cutover scripts. Use the current app preparation and reviewed generic launcher under `tools/playback` for a new deployment. The first read-only verification attempt encountered the mirror's healthy `copying` phase. The successful check accepts a fresh copying cycle and independently verifies the last completed NAS cycle, recorder health and freshness. No collection outage occurred.

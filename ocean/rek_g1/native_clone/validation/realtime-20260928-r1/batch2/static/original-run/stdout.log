@@ -1,0 +1,7 @@
+{"model":"encoder"}
+{"group":"initializers","identical":30,"leading_int64_2_vs_8":0,"float32_coefficients":12339392}
+{"group":"constants","identical":77,"leading_int64_2_vs_8":20,"float32_coefficients":388}
+{"model":"decoder"}
+{"group":"initializers","identical":14,"leading_int64_2_vs_8":0,"float32_coefficients":10184221}
+{"group":"constants","identical":15,"leading_int64_2_vs_8":0,"float32_coefficients":0}
+{"passed":true,"gpu_used":false,"inference_tested":false}

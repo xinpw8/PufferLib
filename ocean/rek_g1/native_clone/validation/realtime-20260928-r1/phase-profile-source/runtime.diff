@@ -1,0 +1,76 @@
+--- baseline/runtime.cu
++++ profile/runtime.cu
+@@ -1,4 +1,5 @@
+ #include "runtime_api.h"
++#include "runtime_phase_profile.h"
+ #include "physics.cuh"
+ #include "motion_assets.cuh"
+ #include "measurement.cuh"
+@@ -479,6 +480,7 @@
+     uint8_t* all_arenas=nullptr;
+     cudaStream_t stream=nullptr;
+     char controller_error[1024]{};
++    RuntimePhaseProfile phase_profile;
+     RekG1CudaResetOrder reset_order=REK_G1_RESET_RUNNER_THEN_INPUT;
+     ~RekNative5Runtime(){
+         sonic_controller_destroy(controller);robot_state_destroy(robot);delete measurement;delete motion;rek5::physics_close(physics);
+@@ -529,6 +531,7 @@
+         export_observation<<<arena_grid(),128,0,stream>>>(view,false);cuda_check(cudaGetLastError());
+     }
+     void step(){
++        phase_profile.mark(0,stream);
+         auto& c=view.c;auto* m=measurement;int a=view.p.arenas,rows=a*2;
+         choose_actions<<<arena_grid(),128,0,stream>>>(view);
+         if(view.match_mode)cuda_check(rek_g1_cuda_native_combat_begin_tick_match(c.states,c.fall_events,c.signals,c.referee,c.score_delta,
+@@ -554,17 +557,26 @@
+                 view.bot_results,view.local_velocity,view.suspended,stream);
+         if(view.recovered_bot)finish_bot<<<arena_grid(),128,0,stream>>>(view);
+         flags<<<rows_grid(),128,0,stream>>>(view,false);cuda_check(robot_state_set_active(robot,view.enabled));
++        phase_profile.mark(1,stream);
+         cuda_check(robot_state_prepare(robot,view.base,view.omega,view.joints,view.velocities,motion->heading,
+             motion->positions,motion->next_positions,motion->rotations));
++        phase_profile.mark(2,stream);
+         if(!sonic_controller_encode(controller,robot->encoder_observations,tokens,controller_error,sizeof(controller_error)))throw std::runtime_error(controller_error);
++        phase_profile.mark(3,stream);
+         cuda_check(robot_state_decoder_input(robot,tokens));
++        phase_profile.mark(4,stream);
+         if(!sonic_controller_decode(controller,robot->decoder_observations,raw_actions,controller_error,sizeof(controller_error)))throw std::runtime_error(controller_error);
++        phase_profile.mark(5,stream);
+         cuda_check(robot_state_apply_actions(robot,raw_actions));
++        phase_profile.mark(6,stream);
+         for(int substep=0;substep<10;substep++){
+             if(substep)gather<<<rows_grid(),128,0,stream>>>(view,false);
+             cuda_check(robot_state_drive_prepare(robot,view.joints,view.velocities,substep));
+             scatter_controls<<<rows_grid(),128,0,stream>>>(view,robot->controls,physics->ctrl);
+-            rek5::physics_step(physics,physics->ctrl);rek5::measurement_sample(m,substep,stream);
++            phase_profile.mark(7+3*substep,stream);
++            rek5::physics_step(physics,physics->ctrl);
++            phase_profile.mark(8+3*substep,stream);
++            rek5::measurement_sample(m,substep,stream);
+             flags<<<rows_grid(),128,0,stream>>>(view,false);
+             const auto post_step=view.match_mode?rek_g1_cuda_native_combat_post_step_deferred_match:rek_g1_cuda_native_combat_post_step_deferred;
+             cuda_check(post_step(c.states,m->fall_floats,m->fall_integers,m->fall_valid,
+@@ -587,6 +599,7 @@
+             cuda_check(robot_state_complete_reset(robot,view.row_mask));
+             gather<<<rows_grid(),128,0,stream>>>(view,true);
+             motion->reset_ordered(view.row_mask,view.base,reset_order,true,stream);
++            phase_profile.mark(9+3*substep,stream);
+         }
+         gather<<<rows_grid(),128,0,stream>>>(view,true);
+         rek5::measurement_sample_reset_fall(m,view.completed,stream);observe();
+@@ -595,6 +608,7 @@
+         observation_pack<<<rows_grid(),128,0,stream>>>(view,motion->observation12);
+         if(view.observable_balance)observable_pack<<<arena_grid(),128,0,stream>>>(view,true);
+         export_observation<<<arena_grid(),128,0,stream>>>(view,true);cuda_check(cudaGetLastError());
++        phase_profile.mark(37,stream);
+     }
+ };
+ 
+@@ -784,6 +798,7 @@
+ extern "C" int rek_native5_check_status(RekNative5Runtime* r,cudaStream_t s){
+     try{
+         if(!r)throw std::runtime_error("Null native5 runtime");cuda_check(cudaStreamSynchronize(s));
++        r->phase_profile.collect();
+         std::vector<int> status(r->view.p.arenas);cuda_check(cudaMemcpy(status.data(),r->view.failures,status.size()*sizeof(int),cudaMemcpyDeviceToHost));
+         for(size_t i=0;i<status.size();i++)if(status[i])throw std::runtime_error("Native5 arena "+std::to_string(i)+" sticky failure bits="+std::to_string(status[i])+" (1=finite/encoding,2=combat,4=scheduler,8=physics,16=action,32=dummy,64=physical_bot1)");
+         rek5::physics_check_status(r->physics);r->motion->check_status(s);return 0;

@@ -1,0 +1,197 @@
+--- r6/league/paced_loop.cjs
++++ r7/league/paced_loop.cjs
+@@ -1,27 +1,52 @@
+ 'use strict';
+ const {performance}=require('node:perf_hooks');
+ 
+-// At most one invocation is pending. Late work starts its successor after it
+-// completes; elapsed timer opportunities do not accumulate a catch-up backlog.
++// One invocation and one scheduled callback maximum. Deadlines advance by the
++// fixed period, independently of callback lateness. Large wall-clock debt is
++// explicitly rebased; no physics step is fabricated, batched, or skipped here.
+ function startPacedLoop(task,{periodMs=20,now=()=>performance.now(),
+-  setTimer=setTimeout,clearTimer=clearTimeout,setSoon=setImmediate,clearSoon=clearImmediate}={}){
+-  let stopped=false,timer=null,immediate=false;
++  setTimer=setTimeout,clearTimer=clearTimeout,setSoon=setImmediate,clearSoon=clearImmediate,
++  startPaused=false,maxDebtMs=100}={}){
++  if(!(Number.isFinite(periodMs)&&periodMs>0&&Number.isFinite(maxDebtMs)&&maxDebtMs>=periodMs))
++    throw Error('Invalid pacing period or debt limit');
++  let stopped=false,active=!startPaused,timer=null,immediate=false,running=false,epoch=0;
++  let deadline=now()+periodMs;
++  const stats={invocations:0,completed:0,lateStarts:0,totalLatenessMs:0,maxLatenessMs:0,
++    totalTaskMs:0,maxTaskMs:0,rebases:0,discardedWallDebtMs:0};
++  function cancel(){if(timer!==null)(immediate?clearSoon:clearTimer)(timer);timer=null;}
++  function schedule(){
++    if(stopped||!active||running||timer!==null)return;
++    const remaining=deadline-now();immediate=remaining<=0;
++    timer=immediate?setSoon(run):setTimer(run,Math.ceil(remaining));
++  }
+   async function run(){
+     timer=null;
+-    if(stopped)return;
+-    const started=now();
++    if(stopped||!active)return;
++    // Timer precision is not an authorization to advance simulated time early.
++    if(now()<deadline){schedule();return;}
++    running=true;const generation=epoch,started=now(),late=Math.max(0,started-deadline);
++    stats.invocations++;if(late>0)stats.lateStarts++;
++    stats.totalLatenessMs+=late;stats.maxLatenessMs=Math.max(stats.maxLatenessMs,late);
+     try{await task();}
+     finally{
+-      if(!stopped){
+-        const remaining=periodMs-(now()-started);
+-        // Overdue work still yields to I/O, without the timer's minimum delay.
+-        // It starts one successor only; missed periods never become work.
+-        immediate=remaining<=0;
+-        timer=immediate?setSoon(run):setTimer(run,remaining);
++      const finished=now(),cost=finished-started;running=false;stats.completed++;
++      stats.totalTaskMs+=cost;stats.maxTaskMs=Math.max(stats.maxTaskMs,cost);
++      if(!stopped&&active&&generation===epoch){
++        deadline+=periodMs;
++        const debt=finished-deadline;
++        if(debt>maxDebtMs){stats.rebases++;stats.discardedWallDebtMs+=debt;deadline=finished;}
+       }
++      schedule();
+     }
+   }
+-  timer=setTimer(run,periodMs);
+-  return {stop(){stopped=true;if(timer!==null)(immediate?clearSoon:clearTimer)(timer);timer=null;}};
++  schedule();
++  return {
++    pause(){if(active){active=false;epoch++;}cancel();},
++    resume(){if(stopped||active)return;active=true;epoch++;deadline=now()+periodMs;schedule();},
++    stop(){stopped=true;active=false;epoch++;cancel();},
++    snapshot(){return {...stats,periodMs,maxDebtMs,active,running,
++      meanTaskMs:stats.completed?stats.totalTaskMs/stats.completed:null,
++      meanLatenessMs:stats.invocations?stats.totalLatenessMs/stats.invocations:null};},
++  };
+ }
+ module.exports={startPacedLoop};
+--- r6/league/server.cjs
++++ r7/league/server.cjs
+@@ -29,7 +29,7 @@
+   const runtimeState=()=>({...state,active,switching,paused,
+     frame:frameState?{...frameState,ageMs:Math.max(0,Date.now()-frameState.publishedAtMs)}:null,renderFailure,
+     intermissionSeconds:Math.max(0,(roundRestartAt-Date.now())/1000),session:session.snapshot(),
+-    pace:{...pace,simulationStepSeconds:.02,realTimeRatio:pace.activeWallMs>0?pace.activeIntervals*20/pace.activeWallMs:null}});
++    pace:{...pace,scheduler:timer.snapshot(),simulationStepSeconds:.02,realTimeRatio:pace.activeWallMs>0?pace.activeIntervals*20/pace.activeWallMs:null}});
+   const renderQueue=new LatestFrameQueue({
+     render:snapshot=>{
+       if(renderer.closed)throw Error('Native renderer unavailable; select a backend to recreate it');
+@@ -55,7 +55,7 @@
+     state=result.state;
+     for(const completed of result.rounds||[]){session.record(completed);session.recordFight(completed);}
+     if(state.terminal){session.record(state);input.release();roundRestartAt=Date.now()+intermissionMs;}
+-    if(state.fightResult>0){session.recordFight(state);paused=true;input.release();}
++    if(state.fightResult>0){session.recordFight(state);paused=true;timer.pause();input.release();}
+     state.moveDisposition=state.commandResults?.[active.humanSide]??null;state.held=[...input.held];
+   }
+   function options(backend){
+@@ -81,7 +81,7 @@
+     if(humanSide!==0&&humanSide!==1)throw new Error('Human side must be 0 or 1');
+     const roundSeconds=value.roundSeconds??DEFAULT_HUMAN_ROUND_SECONDS;
+     if(!HUMAN_ROUND_SECONDS.includes(roundSeconds))throw new Error('Human round duration must be 20, 120 or 300 seconds');
+-    switching=true;workerGeneration++;input.reset();
++    switching=true;workerGeneration++;timer.pause();input.reset();
+     try{
+       while(busy)await new Promise(resolve=>setTimeout(resolve,5));
+       invalidateFrames();
+@@ -116,8 +116,10 @@
+     finally{switching=false;}
+   }
+   async function tick(){
+-    if(Date.now()-lastClient>2000){input.release();paused=true;lastStepStart=null;return;}
+-    if(paused||Date.now()<roundRestartAt||busy||switching||!worker||!state.ok){lastStepStart=null;return;}
++    if(Date.now()-lastClient>2000){input.release();paused=true;timer.pause();lastStepStart=null;return;}
++    if(paused||Date.now()<roundRestartAt||busy||switching||!worker||!state.ok){
++      if(paused||!state.ok)timer.pause();lastStepStart=null;return;
++    }
+     busy=true;
+     try{
+       const started=performance.now();
+@@ -126,10 +128,10 @@
+       const result=await worker.request('step',{command:input.next(state,active.humanSide),humanSide:active.humanSide,steps:1});
+       pace.lastStepMs=performance.now()-started;pace.steps++;recordResult(result);
+       offerFrame();
+-    }catch(error){state={...state,ok:false,failure:error.message};input.release();}
++    }catch(error){state={...state,ok:false,failure:error.message};timer.pause();input.release();}
+     finally{busy=false;}
+   }
+-  const timer=startPacedLoop(tick,{periodMs:20});
++  const timer=startPacedLoop(tick,{periodMs:20,startPaused:true});
+   async function body(req){
+     let data='';for await(const chunk of req){data+=chunk;if(data.length>8192)throw new Error('Request too large');}
+     return JSON.parse(data||'{}');
+@@ -181,7 +183,7 @@
+         if(switching||!worker||generation!==workerGeneration)return json(409,{error:'Evaluator not ready'});
+         if(typeof value.paused!=='boolean')throw new Error('Paused must be a boolean');
+         if(!value.paused&&state.fightResult>0)return json(409,{error:'Match finished. Reset to begin another match.'});
+-        paused=value.paused;if(paused){input.release();lastStepStart=null;}lastClient=Date.now();
++        paused=value.paused;if(paused){timer.pause();input.release();lastStepStart=null;}else timer.resume();lastClient=Date.now();
+         // A step already in flight may finish. Once this reply arrives the
+         // paused snapshot is stable and no subsequent step can start.
+         while(paused&&busy)await new Promise(resolve=>setTimeout(resolve,5));
+@@ -210,7 +212,7 @@
+       }
+       if(req.method==='POST'&&url.pathname==='/api/reset'){
+         if(switching||!worker)return json(409,{error:'Evaluator not ready'});
+-        switching=true;workerGeneration++;try{
++        switching=true;workerGeneration++;timer.pause();try{
+           while(busy)await new Promise(resolve=>setTimeout(resolve,5));
+           invalidateFrames();
+           session.abandonFight(state);input.reset();paused=true;roundRestartAt=0;session.newRoundStream();lastStepStart=null;
+--- r6/league/paced_loop.test.cjs
++++ r7/league/paced_loop.test.cjs
+@@ -98,7 +98,51 @@
+   const loop=startPacedLoop(async()=>{calls++;time+=24;},{now:()=>time,
+     setTimer:fn=>{next=fn;return 1;},clearTimer:()=>{},setSoon:fn=>{next=fn;return 2;},
+     clearSoon:id=>{assert.equal(id,2);next=null;cancelled++;}});
+-  await next();assert.equal(calls,1);loop.stop();assert.equal(cancelled,1);assert.equal(next,null);
++  time=20;await next();assert.equal(calls,1);loop.stop();assert.equal(cancelled,1);assert.equal(next,null);
++});
++test('absolute deadlines remove persistent one millisecond callback lateness without advancing early',async()=>{
++  const clock=new Clock(),starts=[];
++  const loop=startPacedLoop(async()=>{starts.push(clock.now());await clock.sleep(18);},{...clock,
++    now:clock.now,setTimer:(fn,ms)=>clock.setTimer(fn,ms+1),clearTimer:clock.clearTimer,
++    setSoon:clock.setSoon,clearSoon:clock.clearSoon});
++  await clock.advance(1000);loop.stop();await clock.advance(1100);
++  assert.equal(starts.length,49);
++  assert.deepEqual(starts.slice(0,5),[21,41,61,81,101]);
++  assert.equal(starts.at(-1)-starts[0],48*20);
++  assert.equal(loop.snapshot().maxLatenessMs,1);assert.equal(loop.snapshot().rebases,0);
++});
++test('an early timer callback cannot execute a physics task before its absolute deadline',async()=>{
++  let time=0,next,waits=[];let calls=0;
++  const loop=startPacedLoop(async()=>{calls++;},{now:()=>time,setTimer:(fn,ms)=>{next=fn;waits.push(ms);return 1;},clearTimer:()=>{}});
++  time=19.4;await next();assert.equal(calls,0);assert.equal(waits.at(-1),1);
++  time=20;await next();assert.equal(calls,1);loop.stop();
++});
++test('large compute overrun reports and discards wall debt without fabricating skipped simulation steps',async()=>{
++  const clock=new Clock(),starts=[];let calls=0;
++  const loop=startPacedLoop(async()=>{starts.push(clock.now());calls++;await clock.sleep(calls===1?200:0);},clock);
++  await clock.advance(260);loop.stop();await clock.advance(300);
++  assert.deepEqual(starts,[20,220,240,260]);assert.equal(calls,4);
++  const info=loop.snapshot();assert.equal(info.rebases,1);assert.equal(info.discardedWallDebtMs,180);
++  assert.equal(info.completed,4);assert.equal(info.maxTaskMs,200);
++});
++test('pause cancels future work and resume starts a fresh clock without paused-time debt',async()=>{
++  const clock=new Clock(),starts=[];
++  const loop=startPacedLoop(async()=>{starts.push(clock.now());await clock.sleep(5);},{...clock,startPaused:true});
++  await clock.advance(100);assert.equal(starts.length,0);
++  loop.resume();await clock.advance(121);assert.deepEqual(starts,[120]);
++  loop.pause();await clock.advance(700);assert.deepEqual(starts,[120]);
++  assert.equal(clock.queue.size,0);assert.equal(loop.snapshot().running,false);
++  loop.resume();loop.resume();await clock.advance(741);assert.deepEqual(starts,[120,720,740]);
++  loop.pause();await clock.advance(1000);assert.equal(starts.length,3);
++  loop.stop();loop.resume();await clock.advance(2000);assert.equal(starts.length,3);
++  assert.equal(loop.snapshot().rebases,0);
++});
++test('pause and resume during an in-flight request preserve the new deadline and never overlap',async()=>{
++  const clock=new Clock(),starts=[];let active=0,maxActive=0;
++  const loop=startPacedLoop(async()=>{starts.push(clock.now());maxActive=Math.max(maxActive,++active);await clock.sleep(24);active--;},clock);
++  await clock.advance(21);loop.pause();await clock.advance(25);loop.resume();
++  await clock.advance(46);loop.pause();await clock.advance(100);
++  assert.deepEqual(starts,[20,45]);assert.equal(maxActive,1);loop.stop();
+ });
+ 
+ if(process.env.REK_PACING_EVIDENCE){

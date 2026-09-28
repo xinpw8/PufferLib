@@ -1,0 +1,69 @@
+{
+  "schema": "rek.native_crossbatch_closed_assessment.v1",
+  "source_sha256": "9cabc2a5338af7ff0e050657cdf767ae50fcb31aa98c1a81bae37e74d5e226a7",
+  "model_sha256": {
+    "encoder2": "0e1cf37a7c1bafe870741b8a3de2560ae7a2b0cfe14c5ac8cef4d8a34d78207f",
+    "decoder2": "20b49c9df1a54dc3a211d0d86c2ebe3ccc1de67883a984a7b227af76af7aacb3",
+    "encoder8": "2befe0f7be8e72a33824f04fd39c191287e1e9aab05807012d6ceeb3f688ff40",
+    "decoder8": "7f4cb9a01bd21bbd0ef96e3c82d2ee1fc015e7a31dfb032d5e844719af3e9de2"
+  },
+  "synthetic_fixture_pairs": 32,
+  "common_rows": 64,
+  "measurements": {
+    "encoder_tokens": {
+      "fixture_pairs": 32,
+      "values": 4096,
+      "unequal_bits": 0,
+      "unequal_values": 0,
+      "max_abs": 0,
+      "worst_fixture": 0,
+      "fixture_pairs_over_existing_2e_5_criterion": 0
+    },
+    "decoder_identical_raw_input": {
+      "fixture_pairs": 32,
+      "values": 1856,
+      "unequal_bits": 1740,
+      "unequal_values": 1740,
+      "max_abs": 9.05990600586e-06,
+      "worst_fixture": 19,
+      "fixture_pairs_over_existing_2e_5_criterion": 0
+    },
+    "connected_own_tokens": {
+      "fixture_pairs": 32,
+      "values": 1856,
+      "unequal_bits": 1774,
+      "unequal_values": 1774,
+      "max_abs": 9.53674316406e-06,
+      "worst_fixture": 14,
+      "fixture_pairs_over_existing_2e_5_criterion": 0
+    },
+    "decoder_identical_batch8_tokens": {
+      "fixture_pairs": 32,
+      "values": 1856,
+      "unequal_bits": 1774,
+      "unequal_values": 1774,
+      "max_abs": 9.53674316406e-06,
+      "worst_fixture": 14,
+      "fixture_pairs_over_existing_2e_5_criterion": 0
+    }
+  },
+  "exact_test_passed": false,
+  "expected_exact_test_exit_code": 1,
+  "sampled_numerical_compatibility": true,
+  "criterion_origin": "Existing decoder native-versus-ORT absolute error criterion; applied here as a bounded compatibility judgment, not a new exact-test pass.",
+  "limits": [
+    "Synthetic fixed inputs, not a closed-loop physical rollout.",
+    "No universal guarantee near untested encoder quantization boundaries.",
+    "Contact-sensitive future trajectories may diverge.",
+    "No Unity, official-server physics, fight-performance, or real-time app claim.",
+    "Paired-fixture output stores aggregate errors and the first mismatch, not every raw decoder value."
+  ],
+  "static_coefficient_audit": {
+    "initializer_tensors": 44,
+    "identical_initializer_float32_values": 22523613,
+    "identical_constant_float32_values": 388,
+    "constant_leading_int64_2_to_8_differences": 20,
+    "original_and_independent_cpu_repeat_stdout_equal": true,
+    "graph_semantics_equivalence_claimed": false
+  }
+}
