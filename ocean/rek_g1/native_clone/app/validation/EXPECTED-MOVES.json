@@ -1,0 +1,392 @@
+{
+  "schema": "rek.saved_controls.native_move_contract.v1",
+  "sources": {
+    "windows_export": {
+      "path": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-25\\human-imitation-session-r1\\spark-controls\\windows-controls.json",
+      "bytes": 7552,
+      "sha256": "118ab0ca87c5a2a37f985aaa03b8892198e92a22051b8e5bc38badce966f7d89"
+    },
+    "saved_browser_bindings": {
+      "path": "C:\\rekagent\\work\\rek-playback-app-20260928-r7\\app\\saved-g1-bindings.json",
+      "bytes": 3441,
+      "sha256": "bab3a376dc0f71e08629f6b952a57e557f011bab3915ecf881466c1614bba185"
+    },
+    "original_key_getters": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\Unity.InputSystem\\UnityEngine\\InputSystem\\Keyboard.txt",
+      "bytes": 195676,
+      "sha256": "371e60fcd8c0e646064b3c3a80d4d1ec936a18f324c90a68c66534c07269f0a3"
+    },
+    "original_keyboard_scheme": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\KeyboardControlScheme.txt",
+      "bytes": 66510,
+      "sha256": "16e03df273b8e55d3b805653038074c03dd4aae3e8c166e8bbcb92f653f8c553"
+    },
+    "original_chord_resolver": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\ControlScheme.txt",
+      "bytes": 54485,
+      "sha256": "b460d03c33e21acdf32ae118a971932eb5b258d7257bb735c7f89444f17f0d0a"
+    },
+    "original_move_dispatch": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\RobotInputController.txt",
+      "bytes": 350697,
+      "sha256": "f248df08449e3ff0706ce15ea07e4d58517f2fc9ed3f3143473fa48c4323bc21"
+    },
+    "native_move_assets": {
+      "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\validation\\original-slerp-20260928\\native\\assets\\semantic_duel_assets_manifest.json",
+      "bytes": 36015,
+      "sha256": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28"
+    },
+    "policy_translation": {
+      "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\dependency_source\\rek-training\\native-mujoco-gpu-20260914\\native-source\\ocean\\rek_g1\\g1_semantic_action_table.c",
+      "bytes": 3525,
+      "sha256": "bedaa79fb970cc60707e6aabe1415ea7a2c0743ed41ffeeea63cbd4bbcf2a03f"
+    },
+    "native_direct_dispatch": {
+      "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\source\\ocean\\rek_g1\\g1_semantic_scheduler_cuda.cu",
+      "bytes": 27511,
+      "sha256": "beea0fa369afca02138f7806aa511562d8918c181a19e006fb762dc0fd63d69b"
+    },
+    "native_asset_parser": {
+      "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\source\\ocean\\rek_g1\\native5\\motion_assets.cu",
+      "bytes": 25268,
+      "sha256": "0095b2f0eef99c39fe74bfd496bd9a42269f2e5c19a1c441160510de45b5a964"
+    },
+    "buggy_browser_to_native": {
+      "path": "C:\\rekagent\\work\\rek-playback-app-20260928-r7\\app\\league\\input.cjs",
+      "bytes": 2332,
+      "sha256": "d098118cabfd1319ae62f27a0cd474ea9bf7f687feecbae90deefe6dc5f1c51a"
+    },
+    "old_keyboard_gestures": {
+      "path": "C:\\rekagent\\work\\rek-playback-app-20260928-r7\\app\\league\\public\\controls.js",
+      "bytes": 4144,
+      "sha256": "283f9707affe1d85b4a068123c2d8b26fb0e45198bd2ab9e9f90b22228e98251"
+    }
+  },
+  "derivation": "Original saved commandId and numeric keys joined to original Keyboard getters and native routes/clip source names; independently cross-checked against policy category table. No corrected app source used.",
+  "category16Through32NativeMoveIndices": [
+    6,
+    7,
+    8,
+    9,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "bindings": [
+    {
+      "commandId": "move:left_hook_processed",
+      "codes": [
+        "KeyI"
+      ],
+      "numericKeys": [
+        23
+      ],
+      "doubleTap": false,
+      "category": 20,
+      "nativeMoveIndex": 0,
+      "routeId": 11,
+      "npzPathId": 381,
+      "npzSourceSha256": "c8840cffa87d5d30ba1117ea404d5cea7644154e538aed1afffc2280cfc964f5",
+      "oldIncorrectIndex": 4,
+      "oldIncorrectCommandId": "move:right_jab_processed"
+    },
+    {
+      "commandId": "move:left_jab_processed",
+      "codes": [
+        "KeyK"
+      ],
+      "numericKeys": [
+        25
+      ],
+      "doubleTap": false,
+      "category": 21,
+      "nativeMoveIndex": 1,
+      "routeId": 12,
+      "npzPathId": 379,
+      "npzSourceSha256": "936f697e75f5c364878e7866851fb062b71e9f59bf57e783fbd55be9dee259d3",
+      "oldIncorrectIndex": 5,
+      "oldIncorrectCommandId": "move:left_jab_right_uppercut_processed"
+    },
+    {
+      "commandId": "move:double_uppercut_processed",
+      "codes": [
+        "Space",
+        "KeyJ"
+      ],
+      "numericKeys": [
+        1,
+        24
+      ],
+      "doubleTap": false,
+      "category": 22,
+      "nativeMoveIndex": 2,
+      "routeId": 13,
+      "npzPathId": 374,
+      "npzSourceSha256": "46ff89648c44cbd49093a7639ffea2893f87700a0d42aa50eb623439b3639211",
+      "oldIncorrectIndex": 6,
+      "oldIncorrectCommandId": "move:left_side_kick_processed"
+    },
+    {
+      "commandId": "move:right_hook_processed",
+      "codes": [
+        "KeyO"
+      ],
+      "numericKeys": [
+        29
+      ],
+      "doubleTap": false,
+      "category": 23,
+      "nativeMoveIndex": 3,
+      "routeId": 14,
+      "npzPathId": 373,
+      "npzSourceSha256": "c3a8bf701955601023bdd4e3828c0fcccc25b071da550b78bcb9246452a69da4",
+      "oldIncorrectIndex": 7,
+      "oldIncorrectCommandId": "move:left_front_kick_processed"
+    },
+    {
+      "commandId": "move:right_jab_processed",
+      "codes": [
+        "KeyL"
+      ],
+      "numericKeys": [
+        26
+      ],
+      "doubleTap": false,
+      "category": 24,
+      "nativeMoveIndex": 4,
+      "routeId": 15,
+      "npzPathId": 387,
+      "npzSourceSha256": "8d27051db4a7ba054e8fcedb7957c9d64883faa33a9d6f720a63e181767c5393",
+      "oldIncorrectIndex": 8,
+      "oldIncorrectCommandId": "move:right_side_kick_processed"
+    },
+    {
+      "commandId": "move:left_jab_right_uppercut_processed",
+      "codes": [
+        "Space",
+        "KeyL"
+      ],
+      "numericKeys": [
+        1,
+        26
+      ],
+      "doubleTap": false,
+      "category": 25,
+      "nativeMoveIndex": 5,
+      "routeId": 16,
+      "npzPathId": 376,
+      "npzSourceSha256": "0d160f588307b494a4f9609cbe06b59154741944fff07ba41e57f0cb53c0ac07",
+      "oldIncorrectIndex": 9,
+      "oldIncorrectCommandId": "move:right_knee_processed"
+    },
+    {
+      "commandId": "move:left_side_kick_processed",
+      "codes": [
+        "KeyY"
+      ],
+      "numericKeys": [
+        39
+      ],
+      "doubleTap": true,
+      "category": 16,
+      "nativeMoveIndex": 6,
+      "routeId": 7,
+      "npzPathId": 392,
+      "npzSourceSha256": "854e5bbf91b325288ed0f63e43f65355aa5b1a15fe43a8fd940b4efb6ed6a465",
+      "oldIncorrectIndex": 0,
+      "oldIncorrectCommandId": "move:left_hook_processed"
+    },
+    {
+      "commandId": "move:left_front_kick_processed",
+      "codes": [
+        "KeyH"
+      ],
+      "numericKeys": [
+        22
+      ],
+      "doubleTap": true,
+      "category": 17,
+      "nativeMoveIndex": 7,
+      "routeId": 8,
+      "npzPathId": 371,
+      "npzSourceSha256": "3db29034517acc376c16ce5bc04f923803a48367ad58a5c65a314123639815c1",
+      "oldIncorrectIndex": 1,
+      "oldIncorrectCommandId": "move:left_jab_processed"
+    },
+    {
+      "commandId": "move:right_side_kick_processed",
+      "codes": [
+        "KeyU"
+      ],
+      "numericKeys": [
+        35
+      ],
+      "doubleTap": true,
+      "category": 18,
+      "nativeMoveIndex": 8,
+      "routeId": 9,
+      "npzPathId": 372,
+      "npzSourceSha256": "4d16c2d07848713713f8252e21fc2893462052f6ee3e157e9c364c03769de6a6",
+      "oldIncorrectIndex": 2,
+      "oldIncorrectCommandId": "move:double_uppercut_processed"
+    },
+    {
+      "commandId": "move:right_knee_processed",
+      "codes": [
+        "KeyJ"
+      ],
+      "numericKeys": [
+        24
+      ],
+      "doubleTap": true,
+      "category": 19,
+      "nativeMoveIndex": 9,
+      "routeId": 10,
+      "npzPathId": 380,
+      "npzSourceSha256": "08bba86c004d99e61d53997cd31223b8cfde67c019506267339e146dd771097f",
+      "oldIncorrectIndex": 3,
+      "oldIncorrectCommandId": "move:right_hook_processed"
+    },
+    {
+      "commandId": "move:6_punch_processed",
+      "codes": [
+        "Space",
+        "KeyY"
+      ],
+      "numericKeys": [
+        1,
+        39
+      ],
+      "doubleTap": false,
+      "category": 26,
+      "nativeMoveIndex": 10,
+      "routeId": 17,
+      "npzPathId": 378,
+      "npzSourceSha256": "451cbfb3c66bcff13cf34ae7624f8f8d006121545f73422390d79bfc1ead1a8f",
+      "oldIncorrectIndex": 10,
+      "oldIncorrectCommandId": "move:6_punch_processed"
+    },
+    {
+      "commandId": "move:run_and_punch_processed",
+      "codes": [
+        "Space",
+        "KeyU"
+      ],
+      "numericKeys": [
+        1,
+        35
+      ],
+      "doubleTap": false,
+      "category": 27,
+      "nativeMoveIndex": 11,
+      "routeId": 18,
+      "npzPathId": 383,
+      "npzSourceSha256": "c22ce12336de948cecde43876cb8fb5d9a9d82aa0784f65b34426cd86f01b596",
+      "oldIncorrectIndex": 11,
+      "oldIncorrectCommandId": "move:run_and_punch_processed"
+    },
+    {
+      "commandId": "move:left_right_jab_processed",
+      "codes": [
+        "Semicolon"
+      ],
+      "numericKeys": [
+        6
+      ],
+      "doubleTap": false,
+      "category": 28,
+      "nativeMoveIndex": 12,
+      "routeId": 19,
+      "npzPathId": 386,
+      "npzSourceSha256": "80ec1171c29f0e2e77a9abeec573321aa3d8abc110f2693a5661d0a02b2a7658",
+      "oldIncorrectIndex": 12,
+      "oldIncorrectCommandId": "move:left_right_jab_processed"
+    },
+    {
+      "commandId": "move:left_right_hook_processed",
+      "codes": [
+        "Quote"
+      ],
+      "numericKeys": [
+        5
+      ],
+      "doubleTap": false,
+      "category": 29,
+      "nativeMoveIndex": 13,
+      "routeId": 20,
+      "npzPathId": 384,
+      "npzSourceSha256": "65a6e98b165ecaa3dc9f8a949cdbfa182a55ade7ff7fcca62ffb6c04fdf2e80e",
+      "oldIncorrectIndex": 13,
+      "oldIncorrectCommandId": "move:left_right_hook_processed"
+    },
+    {
+      "commandId": "move:left_hook_right_jab_processed",
+      "codes": [
+        "Space",
+        "KeyK"
+      ],
+      "numericKeys": [
+        1,
+        25
+      ],
+      "doubleTap": false,
+      "category": 30,
+      "nativeMoveIndex": 14,
+      "routeId": 21,
+      "npzPathId": 385,
+      "npzSourceSha256": "0966415dc08a555cf8b66e401c345c4c586a29d759ad489f7eb65b152be8bcd1",
+      "oldIncorrectIndex": 14,
+      "oldIncorrectCommandId": "move:left_hook_right_jab_processed"
+    },
+    {
+      "commandId": "move:double_hook_processed",
+      "codes": [
+        "Space",
+        "KeyH"
+      ],
+      "numericKeys": [
+        1,
+        22
+      ],
+      "doubleTap": false,
+      "category": 31,
+      "nativeMoveIndex": 15,
+      "routeId": 22,
+      "npzPathId": 390,
+      "npzSourceSha256": "865c3115c605853cc94240c1c8e45d69ab1970dac11be8fe5e45456b397aab02",
+      "oldIncorrectIndex": 15,
+      "oldIncorrectCommandId": "move:double_hook_processed"
+    },
+    {
+      "commandId": "move:butt_smack_emote_processed",
+      "codes": [
+        "Space",
+        "KeyI"
+      ],
+      "numericKeys": [
+        1,
+        23
+      ],
+      "doubleTap": false,
+      "category": 32,
+      "nativeMoveIndex": 16,
+      "routeId": 23,
+      "npzPathId": 382,
+      "npzSourceSha256": "b061d742eac4bb5a972e46599ff4f987dd47f34be2f029fb882a317a5362f35f",
+      "oldIncorrectIndex": 16,
+      "oldIncorrectCommandId": "move:butt_smack_emote_processed"
+    }
+  ],
+  "doubleTapWindowMs": 300,
+  "windowProvenance": "Original KeyboardControlScheme constructor default only; serialized seed tuning is not established by saved profile."
+}

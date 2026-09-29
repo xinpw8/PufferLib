@@ -1,6 +1,6 @@
 # Playback candidate launch and verification
 
-This folder contains the unchanged reviewed launcher and its historical CPU evidence, now used with app revision 7. The current app manifest is `6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca`; all 168 listed payload files plus the manifest were copied byte-for-byte from the frozen candidate. The immutable release-r1 archive and earlier validation receipts remain unchanged. This folder contains no human gameplay capture or credentials.
+This folder contains the reviewed launcher and its historical CPU evidence, now used with app revision 8. The current app manifest is `456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10`; all 176 payload files plus the manifest match the frozen candidate. Revision 8 corrects saved policy categories to native move indices. The immutable release-r1 archive and earlier validation receipts remain unchanged. This folder contains no human gameplay capture or credentials.
 
 The app uses one simulation process and one presentation-only process. The simulation advances in fixed 20 ms control steps. The renderer receives 72 finite qpos values, a source tick and reset generation; it never steps dynamics. Rendering runs at at most 20 Hz with one in-flight request and one latest pending snapshot. An old reset generation cannot publish a new image. A renderer failure remains distinct from physics failure. Explicit paused `frame:true` stepping still waits for its identified image. See [app documentation](../../app/README.md) for protocol details.
 
@@ -8,15 +8,17 @@ Revision 7 schedules absolute monotonic deadlines, with one step in flight, an e
 
 The current [worker template](../worker-template.json) selects one arena and the existing batch-2 models. Preparation requires encoder SHA256 `0e1cf37a7c1bafe870741b8a3de2560ae7a2b0cfe14c5ac8cef4d8a34d78207f` and decoder SHA256 `20b49c9df1a54dc3a211d0d86c2ebe3ccc1de67883a984a7b227af76af7aacb3`, retains the full GPU/Bot1 environment guards, and records arena count and required controller batch in the prepared identity. The former four-arena path remains supported. A one-arena control-step rate must not be multiplied by the old four-arena count.
 
-`launch_viewer.py` verifies the complete app source manifest and every prepared file pin. It compares actual server/worker configuration, environment, controls and executable against the prepared identity and the caller's expected binary SHA-256. It requires a fresh run on loopback port 18772, starts paused, and confirms tick-zero state and a matching PNG hash before writing `STARTED.json`. Startup failure signals only the new process group after checking its PID/start/session identity, including orphaned workers if the new Node leader has exited. It refuses cleanup after a detected PID reuse. Optional `--cpus` applies only to this launcher and its new children; omitting it retains the host's permitted CPU set.
+`launch_viewer.py` verifies the complete app source manifest and every prepared file pin. It compares actual server/worker configuration, environment, controls and executable against the prepared identity and the caller's expected binary SHA-256. It requires a fresh run and unused loopback port, starts paused, and confirms tick-zero state and a matching PNG hash before writing `STARTED.json`. `--port` must match both prepared identities and defaults to 18772. Startup failure signals only the new process group after checking its PID/start/session identity, including orphaned workers if the new Node leader has exited. It refuses cleanup after a detected PID reuse. Optional `--cpus` applies only to this launcher and its new children; omitting it retains the host's permitted CPU set.
 
-Prepare a fresh run using revision 7 and the verified executable supporting `--render-only`, then launch on Spark:
+Optional `--guard-viewers` accepts a JSON list of preserved loopback ports and exact PID/start-tick pairs. It checks them before spawn, after the new process record, throughout readiness polling and before publishing successful startup. The guard only reads `/api/snapshot`. If a preserved viewer resumes, changes identity or becomes unavailable, startup aborts through the new owned-process cleanup. Network and JSON guard errors cannot be treated as transient new-viewer readiness failures. Polling is bounded observation, not an atomic lock on human activity. Eleven CPU tests and independent guard-failure checks passed; see `launcher-tests-r3.txt` and `LAUNCHER-R3-REVIEW.json`.
+
+Prepare a fresh run using revision 8 and the verified executable supporting `--render-only`, then launch on Spark:
 
 ```sh
 python3 tools/playback/launch_viewer.py --app /absolute/path/to/app \
   --run /absolute/path/to/fresh-prepared-run \
   --manifest-sha256 VERIFIED_APP_MANIFEST_SHA256 \
-  --binary-sha256 VERIFIED_NATIVE_BINARY_SHA256
+  --binary-sha256 VERIFIED_NATIVE_BINARY_SHA256 --port UNUSED_PREPARED_PORT
 ```
 
 This is source publication, not a deployment receipt. The frozen release executable lacks the new renderer protocol. No 1x speed or official simulation parity claim follows from these tests. Actual performance and deployment require separately closed runtime evidence.

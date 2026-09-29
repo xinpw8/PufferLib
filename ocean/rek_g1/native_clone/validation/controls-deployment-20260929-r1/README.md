@@ -1,0 +1,9 @@
+# Corrected controls viewer deployment
+
+App revision 8 was started on port 18773 in fresh run-r7, paused at tick 0. Its app source manifest is `456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10`. The deployed input module has SHA256 `a0e6b8e7b60adf035c22db20cc61990c4700bd3d91d1b39375e2222f9022414a`; a separate CPU-only read of that exact module verified all 17 category-to-native indices. No synthetic input was sent to the deployed human viewer.
+
+The local URL, served controls file, native startup image, source recording, process affinity and NAS mirror were verified. The PNG decoded at 1280 by 720. New Node PID3543413/start133443582 and workers3543423/3543424/start133443589 use CPUs5 through9 and15 through19. Native binary, one-arena batch-2 motor configuration, physics timestep and pacing code remain unchanged from the realtime deployment. This startup is not a new speed or physical-trajectory test.
+
+Preserved viewers18771/tick1762 and18772/tick5747 were observed healthy and paused. Exact identities and pause status were checked before spawn, throughout startup and before completion. Guard failures clean up only the new owned processes. No old process was signalled or reset, and no Windows input was sent. Earlier native manual captures retain their actual commands/outcomes; they contain the known incorrect category translation and are not correctly mapped official demonstrations.
+
+The controls match the six selected current Windows registry values. [Mapping correction and independent tests](../controls-fix-20260929-r1/RESULTS.md) explain the10 prior wrong mappings. [Full saved controls](../../CONTROLS.md) list the keys. The helper processes use explicit STOP markers without a timed expiry. Process-specific files here are historical deployment evidence; use the generic current launcher for new runs.

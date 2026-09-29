@@ -8,7 +8,7 @@ This package preserves the working C++/CUDA clone tested on DGX Spark. It includ
 
 - `source/`: current source overlay, including the playback candidate's separate renderer protocol and cached reporting. The original 50-file build-r6 source closure remains in the frozen release archive. Relative includes are preserved. The shared legacy evaluator remains separate because its reduced backend does not implement the new direct-command API.
 - `dependency_source/`: frozen historical source files associated with the inventoried build dependencies, with original paths and hashes. These preserve the source record; the current build still consumes the pinned Spark objects and libraries.
-- `app/`: revision 7 paused-by-default viewer with absolute 20 ms scheduling, continuous commands, original mesh rendering, saved controls, native round/match metrics and detailed recording. Physics and presentation run in separate processes; source manifests preserve earlier revisions.
+- `app/`: revision 8 paused-by-default viewer with corrected saved-control translation, absolute 20 ms scheduling, continuous commands, original mesh rendering, native round/match metrics and detailed recording. Physics and presentation run in separate processes; source manifests preserve earlier revisions.
 - `tools/`: pinned build recipe, worker/environment templates, GPU smoke/match test drivers and headless JSON-line launcher. [Playback launch tools](tools/playback/README.md) add fresh-port identity checks and bounded cleanup, with CPU test receipts.
 - `passive_support/`: loopback SSH tunnel and append-verified NAS mirror. Explicit `--until-stop` removes the old four-hour expiry; omitting it retains the timed default.
 - `validation/`: closed test results, original-function comparisons, dependency inventories, connection repair evidence and the preceding project checkpoint's tests.
@@ -28,19 +28,21 @@ From this directory, after verifying the dependency manifest:
 bash build.sh /absolute/path/to/fresh-native-build
 node app/prepare.cjs tools/worker-template.json \
   /absolute/path/to/fresh-native-build/rek-native-clone \
-  /absolute/path/to/fresh-native-run tools/env.json 18772
+  /absolute/path/to/fresh-native-run tools/env.json 18773
 python3 tools/playback/launch_viewer.py --app "$PWD/app" \
   --run /absolute/path/to/fresh-native-run \
   --manifest-sha256 VERIFIED_APP_MANIFEST_SHA256 \
-  --binary-sha256 VERIFIED_NATIVE_BINARY_SHA256 \
+  --binary-sha256 VERIFIED_NATIVE_BINARY_SHA256 --port 18773 \
   --cpus 5,6,7,8,9,15,16,17,18,19
 ```
 
-Use the explicit verified hashes, an unused port and a fresh run directory. The playback launcher reserves loopback port 18772 and requires an executable supporting `--render-only`; the frozen release-r1 executable predates that protocol. The historical verification run `/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r4` uses port 18771 and independent recording. Preserve it during human play. The new launcher never contacts that port. The tools' historical smoke/launch scripts retain their original experiment paths and fresh-output guards.
+Use the explicit verified hashes, an unused port and a fresh run directory. The playback launcher accepts an explicit loopback port, defaults to 18772, and refuses an occupied port. The port in the example is currently deployed; choose a different unused port for another instance. The executable must support `--render-only`; the frozen release-r1 executable predates that protocol. Optional `--guard-viewers` reads preserved viewers' `/api/snapshot` endpoints and exact process identities throughout startup. A resumed or unavailable preserved viewer aborts the new launch and cleans up only its owned processes. Historical viewers and captures stay intact. The tools' historical smoke/launch scripts retain their original experiment paths and fresh-output guards.
 
 The current manual template uses one arena and the verified batch-2 motor exports. Every learned coefficient matches the previous batch-8 exports. Native cross-batch decoder comparisons differed by at most 9.536743e-6, below the existing 2e-5 controller criterion; they were not bit-identical. The timestep, physics model, solver configuration, motor weights and native binary remain unchanged from the playback candidate. CUDA graphs remain disabled. CPU IDs above are the tested Spark allocation, not a portable topology assumption. [Controller and timing evidence](validation/realtime-20260928-r1/RESULTS.md) records these limits.
 
-Revision 7 is deployed in fresh `run-r6` on port 18772, verified paused at tick 0 with its controls, decoded image, process affinities, recording and NAS mirror healthy. The unused prior run-r5 was closed and fully backed up after proving it contained no gameplay. The original port-18771 human session remains preserved. [Deployment receipts](validation/realtime-deployment-20260928-r1/README.md) and the [current publication manifest](publication/realtime-20260928-r1/MANIFEST.json) pin the delivered configuration.
+Revision 8 is deployed in fresh `run-r7` on port 18773, verified paused at tick 0 with its served controls, decoded image, process affinities, recording and NAS mirror healthy. [Saved controls](CONTROLS.md) match the current Windows profile. Earlier viewers on 18771 and 18772 remain preserved. Revision 7 on 18772 contained a category-to-move conversion defect: HH selected a left jab, UU selected a double uppercut, and L selected a right-side kick. Revision 8 corrects all 17 mappings, including the ten that differed from their named moves. The [mapping evidence](validation/controls-fix-20260929-r1/RESULTS.md) preserves the old-code failures and corrected tests. Existing captures retain their actual emitted commands and outcomes; they are not relabeled as correctly mapped official demonstrations.
+
+The revision 7 [deployment receipts](validation/realtime-deployment-20260928-r1/README.md) and [publication manifest](publication/realtime-20260928-r1/MANIFEST.json) remain historical. Its speed measurements describe that version's synthetic workload. Revision 8 changes only the production input conversion; no new timing or physical-trajectory equivalence result is inferred from its CPU tests.
 
 The revision 4 playback candidate keeps each simulation control step at 20 ms, with ten 2 ms physics substeps. Its renderer consumes immutable qpos snapshots at at most 20 Hz with one request in flight and one replaceable latest snapshot. Rendering does not block ordinary play, pause or reset; explicit paused `frame:true` requests still wait for their exact image. Frame tick, reset generation, SHA-256 and publication age are exposed for diagnostics. Source tests alone do not establish deployment, a 1x wall-clock pace or official-game parity.
 

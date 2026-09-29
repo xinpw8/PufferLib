@@ -1,0 +1,54 @@
+{
+  "schema": "rek.controls.category_translation_fix.v1",
+  "created_utc": "2026-09-29T01:43:12.906520+00:00",
+  "parent_manifest_sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca",
+  "changed_parent_files": [
+    "league/controls.test.cjs",
+    "league/input.cjs",
+    "league/input.test.cjs",
+    "README.md"
+  ],
+  "only_production_code_change": "league/input.cjs category-to-original-runtime registry translation",
+  "source_fixture": {
+    "path": "validation/semantic_duel_assets_manifest.json",
+    "sha256": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28"
+  },
+  "served_parent_controls_sha256": "283f9707affe1d85b4a068123c2d8b26fb0e45198bd2ab9e9f90b22228e98251",
+  "reported_gestures": {
+    "HH": {
+      "policy_category": 17,
+      "old_runtime_index": 1,
+      "old_clip": "left_jab",
+      "correct_runtime_index": 7,
+      "correct_clip": "left_front_kick"
+    },
+    "UU": {
+      "policy_category": 18,
+      "old_runtime_index": 2,
+      "old_clip": "double_uppercut",
+      "correct_runtime_index": 8,
+      "correct_clip": "right_side_kick"
+    },
+    "L": {
+      "policy_category": 24,
+      "old_runtime_index": 8,
+      "old_clip": "right_side_kick",
+      "correct_runtime_index": 4,
+      "correct_clip": "right_jab"
+    }
+  },
+  "negative_original_boundary": {
+    "exit_code": 1,
+    "tests_failed": 3,
+    "stdout_sha256": "d6c0d3ee22ffea8b4f8f01845e91db9913678ac2ad4a2111469346bf98e758c9"
+  },
+  "tests": {
+    "path": "validation/tests-r8.json",
+    "sha256": "7c3895564be72a81252442461f7fde9be6b4d2aa6622b19c757dddca245598a7",
+    "passed": 54,
+    "skipped": 1,
+    "failed": 0
+  },
+  "live_input_or_runtime_mutation": false,
+  "scope_limit": "Correct routing does not establish full physics parity or force native attack acceptance."
+}

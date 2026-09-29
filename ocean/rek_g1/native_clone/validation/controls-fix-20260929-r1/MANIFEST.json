@@ -1,0 +1,90 @@
+{
+  "schema": "rek.controls.public_evidence.v1",
+  "files": [
+    {
+      "path": "app-r8.diff",
+      "bytes": 7017,
+      "sha256": "a47352a8e4ff56bf17c373e274c54c45a983bf5fb88962247d0c41d42e7807f6"
+    },
+    {
+      "path": "controls-r7-negative.txt",
+      "bytes": 3540,
+      "sha256": "d6c0d3ee22ffea8b4f8f01845e91db9913678ac2ad4a2111469346bf98e758c9"
+    },
+    {
+      "path": "controls-r8-evidence.json",
+      "bytes": 1868,
+      "sha256": "0701bbb7742bda94ec8b7c08fffd834213746187ae0313feaf52f8fbb62de574"
+    },
+    {
+      "path": "COPY-VERIFICATION.json",
+      "bytes": 1060,
+      "sha256": "8deb2b86939183d91b48efb98d62c812c3ab8807a09775c17fefde2064aa0f74"
+    },
+    {
+      "path": "independent-review/CURRENT-WINDOWS-CONTROLS.json",
+      "bytes": 2330,
+      "sha256": "7c7594729c62c218129d995ad6dfc1d9252480aee91e7edabd99e3f662c450ad"
+    },
+    {
+      "path": "independent-review/derive_expected.py",
+      "bytes": 6768,
+      "sha256": "296bb55bacdd3652c07b39d16c0286b4d940c8ac07dffa409acd9f1829200ace"
+    },
+    {
+      "path": "independent-review/EXPECTED-MOVES.json",
+      "bytes": 11910,
+      "sha256": "e578dc72ccd70f37f39053c485e31dc56784bbe341daeb5fd262c8d42c1ca2e8"
+    },
+    {
+      "path": "independent-review/MANIFEST.json",
+      "bytes": 1462,
+      "sha256": "5c91d6f1d0fc2b863b2ae5156f701a734bbc4bdf604f0975c2bde4d0f675f4e2"
+    },
+    {
+      "path": "independent-review/REGRESSION.json",
+      "bytes": 1818,
+      "sha256": "958d9989582118990a7d4715dd189551ad52d3c156ee9698f8e81cca78939355"
+    },
+    {
+      "path": "independent-review/REVIEW.md",
+      "bytes": 5136,
+      "sha256": "1d1845b56d5a3c3054a1800ebb4a415cd88a4d8632032afff2869810761d45dd"
+    },
+    {
+      "path": "independent-review/verify_mapping.cjs",
+      "bytes": 1338,
+      "sha256": "e9a1c875bf9c91012f0234ebb1d2a76a9424258400565e43f6776d291cc19e44"
+    },
+    {
+      "path": "parent-r7/input.cjs",
+      "bytes": 2332,
+      "sha256": "d098118cabfd1319ae62f27a0cd474ea9bf7f687feecbae90deefe6dc5f1c51a"
+    },
+    {
+      "path": "RESULTS.md",
+      "bytes": 3693,
+      "sha256": "eda5b0a38ac765bb8852293e75c7965d22af23dd208ee8ba378b6ab9653f880c"
+    },
+    {
+      "path": "semantic_duel_assets_manifest.json",
+      "bytes": 36015,
+      "sha256": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28"
+    },
+    {
+      "path": "STAGED.json",
+      "bytes": 530,
+      "sha256": "20146bc0330ce8674974f272ee9431c132aaa753d3577b98ef919a7a61c1e5a1"
+    },
+    {
+      "path": "tests-r8.json",
+      "bytes": 2066,
+      "sha256": "7c3895564be72a81252442461f7fde9be6b4d2aa6622b19c757dddca245598a7"
+    },
+    {
+      "path": "tests-r8.txt",
+      "bytes": 5757,
+      "sha256": "fa5758d9f5840cde5fab18bab0e44907322b9566cf5a3b5a9a3eea4fa7aa6430"
+    }
+  ]
+}

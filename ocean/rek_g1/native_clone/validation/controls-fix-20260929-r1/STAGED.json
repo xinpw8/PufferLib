@@ -1,0 +1,12 @@
+{
+  "schema": "rek.app.frozen_stage.v1",
+  "created_utc": "2026-09-29T01:44:42.978965+00:00",
+  "app": "/home/spark-advantage/rek-training/rek-controls-fix-20260929-r1/app-stage-r8/app",
+  "archive_sha256": "e5c0836d6fc50f6b070e4ff311385009591c4556e27da1a3e01789cbe914c32e",
+  "manifest_sha256": "456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10",
+  "verified_files": 176,
+  "tests_local_passed": 54,
+  "tests_local_skipped": 1,
+  "original_boundary_negative_tests_failed": 3,
+  "native_gpu_app_executed": false
+}

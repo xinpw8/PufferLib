@@ -1,0 +1,73 @@
+{
+  "schema": "rek.native_clone.app_run.v1",
+  "filePins": {
+    "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/build-r1/rek-native-clone": "ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975",
+    "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/controls-deploy-20260929-r1/worker-template.json": "c6515a8167345de484aa2d80c009bf6954aa350cf12be6e417c6d4dd8b1d0d82",
+    "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/controls-deploy-20260929-r1/env.json": "8b89513b4e8735e9f3e28aae30607c3cd7cb47b383f565abedb6020df44e6094",
+    "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+    "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+    "/home/spark-advantage/rek-training/rek-controls-fix-20260929-r1/app-stage-r8/app/presentation/assets/presentation.playable.xml": "ed2e1d64e900f18f13808b327ddc9a5fe4045caec59bbd8b6d12810ab8023e61",
+    "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx": "0e1cf37a7c1bafe870741b8a3de2560ae7a2b0cfe14c5ac8cef4d8a34d78207f",
+    "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx": "20b49c9df1a54dc3a211d0d86c2ebe3ccc1de67883a984a7b227af76af7aacb3"
+  },
+  "worker": {
+    "backend": "mujoco",
+    "arenas": 1,
+    "seed": 73,
+    "round_seconds": 120,
+    "locomotion_segment_ticks": 1,
+    "model_path": "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml",
+    "physics_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+    "assets_path": "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact",
+    "motion_features_path": "/home/spark-advantage/rek-training/gpu-runtime-20260910/motion-foot-features",
+    "controller_encoder_path": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_encoder.batch2.onnx",
+    "controller_decoder_path": "/home/spark-advantage/codexrook-runtime/generated/gear-sonic-batch2-20260908T2314Z/model_decoder.batch2.onnx",
+    "move_duration_ticks": [
+      35,
+      27,
+      31,
+      45,
+      32,
+      45,
+      157,
+      145,
+      158,
+      139,
+      134,
+      138,
+      73,
+      75,
+      68,
+      71,
+      103
+    ],
+    "cuda_graph_step": false,
+    "render_model_path": "/home/spark-advantage/rek-training/rek-controls-fix-20260929-r1/app-stage-r8/app/presentation/assets/presentation.playable.xml"
+  },
+  "env": {
+    "REK_PHYSICS_BACKEND": "mujoco_cuda",
+    "REK_ALLOW_CPU_EVALUATION": "0",
+    "REK_NATIVE5_REWARD": "normalized_points_falls_v1",
+    "REK_OBSERVATION_SCHEMA": "rek.native5.observable_balance.v1",
+    "REK_PHYSICAL_OPPONENT": "recovered_bot1_g1_v1",
+    "REK_MUJOCO_DETERMINISTIC_SCALAR": "0",
+    "REK_NATIVE_RESET_ORDER": "runner_then_input",
+    "REK_MUJOCO_KERNEL_CATALOG": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/kernel-catalog-v3.json",
+    "REK_MUJOCO_CONDITIONAL_PTX": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco-conditional.ptx",
+    "REK_MUJOCO_CONDITIONAL_SHA256": "2300284dfc4f4560234ef6ffe8a3fab8c918a1abc8ffcdcf270e180042837b21",
+    "OMP_NUM_THREADS": "2",
+    "REK_NATIVE_MATCH_MODE": "1"
+  },
+  "port": 18773,
+  "execution": {
+    "arenas": 1,
+    "controllerBatch": 2,
+    "displayedArena": 0,
+    "controlStepSeconds": 0.02,
+    "throughputUnit": "control ticks per wall second",
+    "aggregateArenaStepsMultiplier": 1,
+    "controllerPairContract": "rek.verified_batch2_pair.v1"
+  },
+  "controlsSha256": "bab3a376dc0f71e08629f6b952a57e557f011bab3915ecf881466c1614bba185",
+  "fullParityProven": false
+}

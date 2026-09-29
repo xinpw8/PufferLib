@@ -1,0 +1,16 @@
+test_changed_worker_environment_executable_port_and_log_rejected (test_launch_viewer.LauncherTests.test_changed_worker_environment_executable_port_and_log_rejected) ... ok
+test_cleanup_escalates_only_owned_group_after_grace_period (test_launch_viewer.LauncherTests.test_cleanup_escalates_only_owned_group_after_grace_period) ... ok
+test_executable_bytes_and_external_expected_hash_are_checked (test_launch_viewer.LauncherTests.test_executable_bytes_and_external_expected_hash_are_checked) ... ok
+test_explicit_new_port_preserves_prepared_identity_binding (test_launch_viewer.LauncherTests.test_explicit_new_port_preserves_prepared_identity_binding) ... ok
+test_guard_transport_failure_cannot_be_retried_as_new_viewer_readiness (test_launch_viewer.LauncherTests.test_guard_transport_failure_cannot_be_retried_as_new_viewer_readiness) ... ok
+test_human_resume_after_spawn_reaches_owned_cleanup_without_retry (test_launch_viewer.LauncherTests.test_human_resume_after_spawn_reaches_owned_cleanup_without_retry) ... ok
+test_invalid_requested_port_refused (test_launch_viewer.LauncherTests.test_invalid_requested_port_refused) ... ok
+test_orphaned_worker_in_original_group_still_found (test_launch_viewer.LauncherTests.test_orphaned_worker_in_original_group_still_found) ... ok
+test_post_spawn_record_failure_reaches_owned_group_cleanup (test_launch_viewer.LauncherTests.test_post_spawn_record_failure_reaches_owned_group_cleanup) ... ok
+test_prepared_files_match_identity_and_expected_binary (test_launch_viewer.LauncherTests.test_prepared_files_match_identity_and_expected_binary) ... ok
+test_reused_pid_or_different_group_never_signalled (test_launch_viewer.LauncherTests.test_reused_pid_or_different_group_never_signalled) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.288s
+
+OK

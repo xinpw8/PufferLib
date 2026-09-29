@@ -1,0 +1,25 @@
+{
+  "schema": "rek.controls.launcher_guard_independent_review.v1",
+  "utc": "2026-09-29T01:47:32.637008+00:00",
+  "verdict": "GO",
+  "launcher": {
+    "path": "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\deployment\\launch_viewer.py",
+    "sha256": "0d411a7ae5e7a66d103d85a568b3d3b5ff4b356c62b60409afc49819bcbae570"
+  },
+  "testSourceSha256": "c32ba4a8f0f7b47ef30ae5fd51758e14b5d662be52708a7748dda5b71513c49c",
+  "launcherTestsPassed": 11,
+  "focusedGuardChecks": [
+    "OSError escapes transient-readiness catch as RuntimeError",
+    "ValueError escapes transient-readiness catch as RuntimeError",
+    "Human-resume AssertionError propagates unchanged"
+  ],
+  "scope": "Read-only source review and CPU mocks only. No live process, GPU or input actions.",
+  "conditions": [
+    "Fresh unused port18773; preserve18771/18772.",
+    "Pass explicit guard file containing all preserved viewer PID/start identities and ports.",
+    "Source checks guard before spawn, after process record, each readiness iteration and before final success.",
+    "Any guard failure after spawn reaches cleanup of only the new owned process group.",
+    "Polling is bounded observation and does not make human-resume events atomic."
+  ],
+  "reviewedChanges": "Explicit port plus passive preserved-viewer guard; exact owned cleanup and application/native source pins retained."
+}

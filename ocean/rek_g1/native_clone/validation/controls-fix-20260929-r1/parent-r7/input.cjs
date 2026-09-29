@@ -1,7 +1,5 @@
 'use strict';
 const KEYS=new Set(['W','S','A','D','Q','E']);
-// Policy categories put the four kicks first; direct commands use the original move registry.
-const CATEGORY_TO_RUNTIME_MOVE=Object.freeze([6,7,8,9,0,1,2,3,4,5,10,11,12,13,14,15,16]);
 const neutral=()=>({forward:0,strafe:0,yaw:0,moveIndex:-1,cancelAction:false});
 function commandFor(held){
   const k=new Set(held);
@@ -28,7 +26,7 @@ class HumanInput{
     // physics-state, translation, action-mask or busy-move suppression.
     if(value.move!=null&&this.edges.length>=32)throw Error('Input edge queue full');
     this.seq=value.seq;this.held=[...new Set(value.held)].sort();
-    if(value.move!=null)this.edges.push(CATEGORY_TO_RUNTIME_MOVE[value.move-16]);
+    if(value.move!=null)this.edges.push(value.move-16);
     this.cancel=this.cancel||value.cancelAction===true;
     this.disposition='submitted';return true;
   }

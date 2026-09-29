@@ -1,0 +1,46 @@
+{
+  "schema": "rek.controls.independent_review_publication.v1",
+  "utc": "2026-09-29T01:45:28.419438+00:00",
+  "verdict": "pass",
+  "scope": "Saved controls, category-to-runtime translation and initial optional-port launcher revision; no live execution",
+  "independentChecks": {
+    "oldMappingFailures": 10,
+    "correctedMappingPasses": 17,
+    "oneShotPasses": 17,
+    "appFocusedTestsPassed": 8,
+    "launcherTestsPassed": 9,
+    "currentWindowsSixControlsExact": true
+  },
+  "files": [
+    {
+      "path": "CURRENT-WINDOWS-CONTROLS.json",
+      "bytes": 2330,
+      "sha256": "7c7594729c62c218129d995ad6dfc1d9252480aee91e7edabd99e3f662c450ad"
+    },
+    {
+      "path": "derive_expected.py",
+      "bytes": 6768,
+      "sha256": "296bb55bacdd3652c07b39d16c0286b4d940c8ac07dffa409acd9f1829200ace"
+    },
+    {
+      "path": "EXPECTED-MOVES.json",
+      "bytes": 11910,
+      "sha256": "e578dc72ccd70f37f39053c485e31dc56784bbe341daeb5fd262c8d42c1ca2e8"
+    },
+    {
+      "path": "REGRESSION.json",
+      "bytes": 1818,
+      "sha256": "958d9989582118990a7d4715dd189551ad52d3c156ee9698f8e81cca78939355"
+    },
+    {
+      "path": "REVIEW.md",
+      "bytes": 5136,
+      "sha256": "1d1845b56d5a3c3054a1800ebb4a415cd88a4d8632032afff2869810761d45dd"
+    },
+    {
+      "path": "verify_mapping.cjs",
+      "bytes": 1338,
+      "sha256": "e9a1c875bf9c91012f0234ebb1d2a76a9424258400565e43f6776d291cc19e44"
+    }
+  ]
+}

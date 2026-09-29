@@ -1,0 +1,25 @@
+{
+  "schema": "rek.controls.repo_copy.v1",
+  "created_utc": "2026-09-29T01:47:24.019529+00:00",
+  "source": "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app",
+  "repository_app": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\app",
+  "app_manifest_sha256": "456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10",
+  "parent_manifest_sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca",
+  "verified_payload_files": 176,
+  "verified_manifest_files": 1,
+  "changed_parent_files": [
+    "league/controls.test.cjs",
+    "league/input.cjs",
+    "league/input.test.cjs",
+    "README.md"
+  ],
+  "new_native_execution": false,
+  "new_tests_run": false,
+  "test_receipt_reused": "7c3895564be72a81252442461f7fde9be6b4d2aa6622b19c757dddca245598a7",
+  "independent_review_manifest_sha256": "5c91d6f1d0fc2b863b2ae5156f701a734bbc4bdf604f0975c2bde4d0f675f4e2",
+  "excluded": [
+    "raw human trajectories",
+    "authentication data",
+    "growing deployment logs"
+  ]
+}

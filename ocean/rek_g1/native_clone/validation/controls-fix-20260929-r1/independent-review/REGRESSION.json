@@ -1,0 +1,75 @@
+{
+  "schema": "rek.controls.independent_regression.v1",
+  "pass": true,
+  "old": {
+    "source": "C:/rekagent/work/rek-playback-app-20260928-r7/app/league/input.cjs",
+    "bindingsChecked": 17,
+    "mismatches": [
+      {
+        "commandId": "move:left_hook_processed",
+        "category": 20,
+        "expected": 0,
+        "actual": 4
+      },
+      {
+        "commandId": "move:left_jab_processed",
+        "category": 21,
+        "expected": 1,
+        "actual": 5
+      },
+      {
+        "commandId": "move:double_uppercut_processed",
+        "category": 22,
+        "expected": 2,
+        "actual": 6
+      },
+      {
+        "commandId": "move:right_hook_processed",
+        "category": 23,
+        "expected": 3,
+        "actual": 7
+      },
+      {
+        "commandId": "move:right_jab_processed",
+        "category": 24,
+        "expected": 4,
+        "actual": 8
+      },
+      {
+        "commandId": "move:left_jab_right_uppercut_processed",
+        "category": 25,
+        "expected": 5,
+        "actual": 9
+      },
+      {
+        "commandId": "move:left_side_kick_processed",
+        "category": 16,
+        "expected": 6,
+        "actual": 0
+      },
+      {
+        "commandId": "move:left_front_kick_processed",
+        "category": 17,
+        "expected": 7,
+        "actual": 1
+      },
+      {
+        "commandId": "move:right_side_kick_processed",
+        "category": 18,
+        "expected": 8,
+        "actual": 2
+      },
+      {
+        "commandId": "move:right_knee_processed",
+        "category": 19,
+        "expected": 9,
+        "actual": 3
+      }
+    ]
+  },
+  "fixed": {
+    "source": "C:/rekagent/work/rek-controls-fix-20260929-r1/app/league/input.cjs",
+    "bindingsChecked": 17,
+    "mismatches": []
+  }
+}

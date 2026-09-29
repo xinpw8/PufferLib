@@ -1,0 +1,33 @@
+{
+  "utc": "2026-09-29T01:48:11.1490781Z",
+  "code": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\passive_support\\passive.py",
+  "code_sha256": "9d92e0e6516ce46c06cfe98e60e689d36152871e2d3d8b8c336085e067fe7e17",
+  "tunnel_pid": 139100,
+  "tunnel_started_utc": "2026-09-29T01:48:11.1239778Z",
+  "tunnel_args": [
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\passive_support\\passive.py",
+    "tunnel",
+    "--local",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\viewer-r7-active",
+    "--remote",
+    "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r7",
+    "--port",
+    "18773",
+    "--until-stop"
+  ],
+  "mirror_pid": 65716,
+  "mirror_started_utc": "2026-09-29T01:48:11.1385937Z",
+  "mirror_args": [
+    "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native_clone\\passive_support\\passive.py",
+    "mirror",
+    "--local",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\viewer-r7-active",
+    "--remote",
+    "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r7",
+    "--port",
+    "18773",
+    "--nas",
+    "R:\\pufferlib\\rek-evidence\\2026-09-29\\rek-controls-fix-r1\\viewer-r7",
+    "--until-stop"
+  ]
+}

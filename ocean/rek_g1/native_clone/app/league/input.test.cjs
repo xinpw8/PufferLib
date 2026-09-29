@@ -10,7 +10,7 @@ test('native scheduler receives attack while moving and busy, once per edge',()=
   const input=new HumanInput();input.update({seq:1,held:['W','D'],move:20});
   input.update({seq:2,held:['W','D'],move:23});
   const busy={raw:Array(446).fill(1),mask:Array(66).fill(0)};
-  assert.equal(input.next(busy).moveIndex,4);assert.equal(input.next(busy).moveIndex,7);assert.equal(input.next(busy).moveIndex,-1);
+  assert.equal(input.next(busy).moveIndex,0);assert.equal(input.next(busy).moveIndex,3);assert.equal(input.next(busy).moveIndex,-1);
   assert.equal(input.next(busy).strafe,-1);
 });
 test('stale packets cannot resurrect held controls or edges; release clears pending',()=>{

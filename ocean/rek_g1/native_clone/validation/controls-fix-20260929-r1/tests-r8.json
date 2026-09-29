@@ -1,0 +1,32 @@
+{
+  "schema": "rek.app.cpu_tests.v1",
+  "started_utc": "2026-09-29T01:41:56.978654+00:00",
+  "finished_utc": "2026-09-29T01:41:58.883499+00:00",
+  "exit_code": 0,
+  "args": [
+    "C:\\Users\\Daniel\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+    "--test",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\controls.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\frame_payload.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\heartbeat_gate.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\human_session.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\input.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\logged_recording.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\native_phase.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\paced_loop.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\prepare_batch2.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\protocol.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\render_decoupling.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\render_queue.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\server.test.cjs",
+    "C:\\rekagent\\work\\rek-controls-fix-20260929-r1\\app\\league\\worker.test.cjs"
+  ],
+  "stdout": {
+    "path": "tests-r8.txt",
+    "bytes": 5757,
+    "sha256": "fa5758d9f5840cde5fab18bab0e44907322b9566cf5a3b5a9a3eea4fa7aa6430"
+  },
+  "native_gpu_or_live_viewer_executed": false,
+  "genuine_model_contract": "Unchanged prepare199a198a and models; previous real Spark preparation tests retained.",
+  "scope": "All seventeen named keyboard/button moves joined against pinned original asset roles/routes. Gesture parser and direct API unchanged."
+}

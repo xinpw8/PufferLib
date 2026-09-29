@@ -1,0 +1,96 @@
+--- app-r7/league/controls.test.cjs
++++ app-r8/league/controls.test.cjs
+@@ -2,6 +2,27 @@
+ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+ const {SavedRekKeyboard,savedRekBindings}=require('./public/controls.js');
+ const {HumanInput}=require('./input.cjs');
++const crypto=require('node:crypto');
++const manifestBytes=fs.readFileSync(path.join(__dirname,'../validation/semantic_duel_assets_manifest.json'));
++assert.equal(crypto.createHash('sha256').update(manifestBytes).digest('hex'),'7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28');
++const nativeAssets=JSON.parse(manifestBytes);
++// Join named saved commands to the original clip roles, independently of category order.
++const commandRoles={
++  'move:left_hook_processed':'left_hook','move:left_jab_processed':'left_jab',
++  'move:double_uppercut_processed':'double_uppercut','move:right_hook_processed':'right_hook',
++  'move:right_jab_processed':'right_jab','move:left_jab_right_uppercut_processed':'left_jab_right_uppercut',
++  'move:left_side_kick_processed':'kick_left_side','move:left_front_kick_processed':'kick_left_front',
++  'move:right_side_kick_processed':'kick_right_side','move:right_knee_processed':'kick_right_knee',
++  'move:6_punch_processed':'six_punch','move:run_and_punch_processed':'run_and_punch',
++  'move:left_right_jab_processed':'left_right_jab','move:left_right_hook_processed':'left_right_hook',
++  'move:left_hook_right_jab_processed':'left_hook_right_jab','move:double_hook_processed':'double_hook',
++  'move:butt_smack_emote_processed':'butt_smack_emote'
++};
++function originalMove(commandId){
++  const clips=nativeAssets.clips.filter(c=>c.role===commandRoles[commandId]);assert.equal(clips.length,1,commandId);
++  const routes=nativeAssets.routes.filter(r=>r.npz_path_id===clips[0].npz_path_id&&r.runtime_move_index!==null);
++  assert.equal(routes.length,1,commandId);return routes[0].runtime_move_index;
++}
+ test('all seventeen saved bindings produce corresponding one-shot native move index',()=>{
+   const saved=JSON.parse(fs.readFileSync(path.join(__dirname,'../saved-g1-bindings.json'),'utf8'));
+   assert.deepEqual(savedRekBindings,saved.bindings);
+@@ -11,8 +32,25 @@
+     if(row.doubleTap){assert.equal(move,null);for(const c of row.codes)keys.release(c);for(const c of row.codes)move=keys.press(c,200);}
+     assert.equal(move,row.category,row.commandId);
+     const input=new HumanInput();input.update({seq:1,held:['W','D'],move});
+-    assert.deepEqual(input.next(),{forward:1,strafe:-1,yaw:0,moveIndex:row.category-16,cancelAction:false});
++    assert.deepEqual(input.next(),{forward:1,strafe:-1,yaw:0,moveIndex:originalMove(row.commandId),cancelAction:false},row.commandId);
+     assert.equal(input.next().moveIndex,-1);
++  }
++});
++test('all seventeen button categories select the named original clip without keyboard reinterpretation',()=>{
++  assert.equal(Object.keys(commandRoles).length,17);
++  const seen=new Set();
++  for(const row of savedRekBindings){
++    const input=new HumanInput();input.update({seq:1,held:[],move:row.category});
++    const actual=input.next().moveIndex;assert.equal(actual,originalMove(row.commandId),row.commandId);seen.add(actual);
++  }
++  assert.equal(seen.size,17);
++});
++test('reported HH, UU and L gestures reach front kick, side kick and jab in the original registry',()=>{
++  for(const [code,doubleTap,expected] of [['KeyH',true,7],['KeyU',true,8],['KeyL',false,4]]){
++    const keyboard=new SavedRekKeyboard();let move=keyboard.press(code,100);
++    if(doubleTap){assert.equal(move,null);keyboard.release(code);move=keyboard.press(code,200);}
++    const input=new HumanInput();input.update({seq:1,held:[],move});assert.equal(input.next().moveIndex,expected,code);
++    assert.equal(input.next().moveIndex,-1,'one shot');
+   }
+ });
+ test('saved chords take priority and double taps require a released edge within300ms',()=>{
+--- app-r7/league/input.cjs
++++ app-r8/league/input.cjs
+@@ -1,5 +1,7 @@
+ 'use strict';
+ const KEYS=new Set(['W','S','A','D','Q','E']);
++// Policy categories put the four kicks first; direct commands use the original move registry.
++const CATEGORY_TO_RUNTIME_MOVE=Object.freeze([6,7,8,9,0,1,2,3,4,5,10,11,12,13,14,15,16]);
+ const neutral=()=>({forward:0,strafe:0,yaw:0,moveIndex:-1,cancelAction:false});
+ function commandFor(held){
+   const k=new Set(held);
+@@ -26,7 +28,7 @@
+     // physics-state, translation, action-mask or busy-move suppression.
+     if(value.move!=null&&this.edges.length>=32)throw Error('Input edge queue full');
+     this.seq=value.seq;this.held=[...new Set(value.held)].sort();
+-    if(value.move!=null)this.edges.push(value.move-16);
++    if(value.move!=null)this.edges.push(CATEGORY_TO_RUNTIME_MOVE[value.move-16]);
+     this.cancel=this.cancel||value.cancelAction===true;
+     this.disposition='submitted';return true;
+   }
+--- app-r7/league/input.test.cjs
++++ app-r8/league/input.test.cjs
+@@ -10,7 +10,7 @@
+   const input=new HumanInput();input.update({seq:1,held:['W','D'],move:20});
+   input.update({seq:2,held:['W','D'],move:23});
+   const busy={raw:Array(446).fill(1),mask:Array(66).fill(0)};
+-  assert.equal(input.next(busy).moveIndex,4);assert.equal(input.next(busy).moveIndex,7);assert.equal(input.next(busy).moveIndex,-1);
++  assert.equal(input.next(busy).moveIndex,0);assert.equal(input.next(busy).moveIndex,3);assert.equal(input.next(busy).moveIndex,-1);
+   assert.equal(input.next(busy).strafe,-1);
+ });
+ test('stale packets cannot resurrect held controls or edges; release clears pending',()=>{
+--- app-r7/README.md
++++ app-r8/README.md
+@@ -1,4 +1,6 @@
+ # REK Native Clone app
++
++Revision 8 corrects the manual attack translation. Saved keyboard gestures and buttons still emit policy categories 16 through 32, while native direct commands receive the original move-registry indices. The four kick categories now map to native indices 6 through 9; the six preceding punch entries map to 0 through 5. Named tests join every saved command to the pinned original clip and route instead of assuming `category - 16`. HH selects left front kick, UU selects right side kick, and L selects right jab. Gesture timing, continuous controls, native acceptance/rejection, physics and pacing are unchanged. Native busy rejection remains possible for a correctly named request.
+ 
+ Revision 7 uses absolute monotonic 20 ms deadlines. Callback lateness does not shift every later deadline. It keeps one task and one scheduled callback, waits again after an early wake, and cancels/rebases scheduling on pause/resume and reset. Wall-clock debt above 100 ms is explicitly discarded and counted; no physics step, input/state record or timestep is changed. Scheduler task cost, lateness and rebases are exposed separately from the unchanged measured simulation/wall-time ratio. Actual 1x execution still requires the private integrated benchmark.
+ 

@@ -1,0 +1,31 @@
+{
+  "pid": 3543413,
+  "process_group": 3543413,
+  "session": 3543413,
+  "start_ticks": 133443582,
+  "utc": "2026-09-29T01:48:03.457853+00:00",
+  "argv": [
+    "node",
+    "/home/spark-advantage/rek-training/rek-controls-fix-20260929-r1/app-stage-r8/app/launch_logged.cjs",
+    "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r7"
+  ],
+  "source_manifest_sha256": "456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10",
+  "binary_sha256": "ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975",
+  "prepared_run_sha256": {
+    "identity.json": "18680b32fa142e22dadd506b2d290d9ecdb55dd53cd11b2aad410851e54db4f1",
+    "server.json": "1001434e139ba581dc58a7fd86930348365de56b9857a277a79c9058b9a04e79",
+    "worker.json": "5c9b7f8c482d46c64601384c7e95aa14a190b3bcf5abb0664fd7e7b47d955f83"
+  },
+  "cpu_affinity": [
+    5,
+    6,
+    7,
+    8,
+    9,
+    15,
+    16,
+    17,
+    18,
+    19
+  ]
+}

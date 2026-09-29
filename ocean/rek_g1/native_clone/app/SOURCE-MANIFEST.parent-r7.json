@@ -1,11 +1,11 @@
 {
   "schema": "rek.native_clone.app_source.v1",
-  "revision": 8,
+  "revision": 7,
   "full_official_parity_proven": false,
   "runtime_throughput_measured": false,
   "parent_manifest": {
-    "path": "SOURCE-MANIFEST.parent-r7.json",
-    "sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca"
+    "path": "SOURCE-MANIFEST.parent-r6.json",
+    "sha256": "c2b3b2b16802801ba2372c967a44be394d3846f08479b0500927aa085df77f70"
   },
   "files": [
     {
@@ -34,19 +34,14 @@
       "sha256": "8d9607155de8572d6e64e05e3b4b4a4c4484e82b3a7c301a9cdbb50f6848ea5b"
     },
     {
-      "path": "freeze_r8.py",
-      "bytes": 1506,
-      "sha256": "de0fb9b6cecd0a09e49f84cf5927acf95dda9ef63686a2000958ee23037a5752"
-    },
-    {
       "path": "launch_logged.cjs",
       "bytes": 6202,
       "sha256": "1cb64b5d22a98e89aa6e4bc1236f3f2e7760f23ea566e19304b44822e9a18a95"
     },
     {
       "path": "league/controls.test.cjs",
-      "bytes": 4441,
-      "sha256": "92ec3e729ec772d819d4eb2617fbfe4924315dad51db571935c9184907411d92"
+      "bytes": 1758,
+      "sha256": "4c6eab80fd47ec1e7091d12cc75910a40be2bf937887e43615d5d44c0460cf7a"
     },
     {
       "path": "league/frame_payload.cjs",
@@ -80,13 +75,13 @@
     },
     {
       "path": "league/input.cjs",
-      "bytes": 2543,
-      "sha256": "a0e6b8e7b60adf035c22db20cc61990c4700bd3d91d1b39375e2222f9022414a"
+      "bytes": 2332,
+      "sha256": "d098118cabfd1319ae62f27a0cd474ea9bf7f687feecbae90deefe6dc5f1c51a"
     },
     {
       "path": "league/input.test.cjs",
       "bytes": 1567,
-      "sha256": "5d41b98be2dda68020480c36f0d36662f4c79346401766b921547d19ea58e60a"
+      "sha256": "c22a28de668231397fcfa6ea9a007db4b74e97cf672b7f72372c5452d048454f"
     },
     {
       "path": "league/league.cjs",
@@ -745,8 +740,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 10058,
-      "sha256": "ac7ca9f16a8b55931a5ebfbb6954a81aa9f34fc6d46eb83933cfa7f296f02d58"
+      "bytes": 9374,
+      "sha256": "6bcc825904a90bbcdfa12df6b39fe2ecc407dfc896dc21aca942634c0139bfe9"
     },
     {
       "path": "saved-g1-bindings.json",
@@ -784,34 +779,9 @@
       "sha256": "c2b3b2b16802801ba2372c967a44be394d3846f08479b0500927aa085df77f70"
     },
     {
-      "path": "SOURCE-MANIFEST.parent-r7.json",
-      "bytes": 29876,
-      "sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca"
-    },
-    {
       "path": "start.sh",
       "bytes": 280,
       "sha256": "b4fe5c0c963b21cecb1dcb6fa81792d0fb772aadd9a07d783308ea0e8d3395aa"
-    },
-    {
-      "path": "validation/controls-r7-negative.txt",
-      "bytes": 3540,
-      "sha256": "d6c0d3ee22ffea8b4f8f01845e91db9913678ac2ad4a2111469346bf98e758c9"
-    },
-    {
-      "path": "validation/controls-r8-evidence.json",
-      "bytes": 1868,
-      "sha256": "0701bbb7742bda94ec8b7c08fffd834213746187ae0313feaf52f8fbb62de574"
-    },
-    {
-      "path": "validation/EXPECTED-MOVES.json",
-      "bytes": 11910,
-      "sha256": "e578dc72ccd70f37f39053c485e31dc56784bbe341daeb5fd262c8d42c1ca2e8"
-    },
-    {
-      "path": "validation/semantic_duel_assets_manifest.json",
-      "bytes": 36015,
-      "sha256": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28"
     },
     {
       "path": "validation/tests-r4-final.json",
@@ -872,16 +842,6 @@
       "path": "validation/tests-r7.txt",
       "bytes": 5608,
       "sha256": "64029a80c5e8e5cb58e22101261290e2fc1ab28d5a2238b2831ce3c38bc312a2"
-    },
-    {
-      "path": "validation/tests-r8.json",
-      "bytes": 2066,
-      "sha256": "7c3895564be72a81252442461f7fde9be6b4d2aa6622b19c757dddca245598a7"
-    },
-    {
-      "path": "validation/tests-r8.txt",
-      "bytes": 5757,
-      "sha256": "fa5758d9f5840cde5fab18bab0e44907322b9566cf5a3b5a9a3eea4fa7aa6430"
     },
     {
       "path": "validation/tests.txt",

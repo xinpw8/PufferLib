@@ -1,0 +1,58 @@
+{
+  "schema": "rek.controls.selected_registry_read.v1",
+  "utc": "2026-09-29T01:42:20.175660+00:00",
+  "registryKey": "HKEY_CURRENT_USER\\Software\\REK\\REK",
+  "scope": "Only six names from original controls export. No registry enumeration, writes, auth or unrelated value reads.",
+  "sourceSha256": "118ab0ca87c5a2a37f985aaa03b8892198e92a22051b8e5bc38badce966f7d89",
+  "allSixExact": true,
+  "checks": [
+    {
+      "name": "rek.controls.custom.dirty_h482949762",
+      "kind": "Binary",
+      "bytes": 1,
+      "expectedSha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "currentSha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+      "exactMatch": true
+    },
+    {
+      "name": "rek.controls.custom.g1_h4186581798",
+      "kind": "Binary",
+      "bytes": 1657,
+      "expectedSha256": "85dc309a7bb10f57d6a5d376e1248e946129d6bc1aba94109fc0ceea4f26509b",
+      "currentSha256": "85dc309a7bb10f57d6a5d376e1248e946129d6bc1aba94109fc0ceea4f26509b",
+      "exactMatch": true
+    },
+    {
+      "name": "rek.controls.custom.robots_h2203865671",
+      "kind": "Binary",
+      "bytes": 8,
+      "expectedSha256": "160b525556ca4f2ade0240925128ffafd6d9af37307fb740951044bbad8d9db4",
+      "currentSha256": "160b525556ca4f2ade0240925128ffafd6d9af37307fb740951044bbad8d9db4",
+      "exactMatch": true
+    },
+    {
+      "name": "rek.controls.custom.t800_h2226569628",
+      "kind": "Binary",
+      "bytes": 973,
+      "expectedSha256": "63c2eba377c23ced5354336818540a7df421e30ffd38173478a0796436c28fb7",
+      "currentSha256": "63c2eba377c23ced5354336818540a7df421e30ffd38173478a0796436c28fb7",
+      "exactMatch": true
+    },
+    {
+      "name": "rek.controls.scheme.g1.Keyboard_h791315363",
+      "kind": "DWord",
+      "bytes": 4,
+      "expectedSha256": "b4248c210a2905b94345e1a8414d0e12efcfb2f4f0f2397159a71283397a0ccd",
+      "currentSha256": "b4248c210a2905b94345e1a8414d0e12efcfb2f4f0f2397159a71283397a0ccd",
+      "exactMatch": true
+    },
+    {
+      "name": "rek.controls.scheme.t800.Keyboard_h495582297",
+      "kind": "DWord",
+      "bytes": 4,
+      "expectedSha256": "b4248c210a2905b94345e1a8414d0e12efcfb2f4f0f2397159a71283397a0ccd",
+      "currentSha256": "b4248c210a2905b94345e1a8414d0e12efcfb2f4f0f2397159a71283397a0ccd",
+      "exactMatch": true
+    }
+  ]
+}

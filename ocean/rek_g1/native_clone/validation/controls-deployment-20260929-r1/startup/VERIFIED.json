@@ -1,0 +1,157 @@
+{
+  "utc": "2026-09-29T01:49:37.383972+00:00",
+  "url": "http://127.0.0.1:18773/",
+  "paused_at_observation": true,
+  "tick_at_observation": 0,
+  "frame_sha256": "eba4623196e2a011dd3fbd4ee61142ed4469cd86700c8f531ce6f0fc70101e20",
+  "frame_dimensions": [
+    1280,
+    720
+  ],
+  "served_controls_sha256": "283f9707affe1d85b4a068123c2d8b26fb0e45198bd2ab9e9f90b22228e98251",
+  "processes": [
+    {
+      "pid": 3543413,
+      "start_ticks": 133443582,
+      "cpus": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    {
+      "pid": 3543423,
+      "start_ticks": 133443589,
+      "cpus": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    {
+      "pid": 3543424,
+      "start_ticks": 133443589,
+      "cpus": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    }
+  ],
+  "deployed_category_to_move": [
+    6,
+    7,
+    8,
+    9,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "input_module_sha256": "a0e6b8e7b60adf035c22db20cc61990c4700bd3d91d1b39375e2222f9022414a",
+  "old_viewers_observed_only": {
+    "18771": {
+      "ok": true,
+      "paused": true,
+      "tick": 1762
+    },
+    "18772": {
+      "ok": true,
+      "paused": true,
+      "tick": 5747
+    }
+  },
+  "recorder": {
+    "utc": "2026-09-29T01:49:33.592Z",
+    "pid": 3543413,
+    "sequence": 7,
+    "steps": 0,
+    "frames": 1,
+    "lastTick": 0,
+    "lastScore": [
+      0,
+      0
+    ],
+    "ok": true,
+    "recorderFailure": null,
+    "workerFailure": null,
+    "rendererFailure": null,
+    "lastRequestError": null,
+    "elapsedSeconds": 90.079572823
+  },
+  "nas_mirror": {
+    "utc": "2026-09-29T01:49:33.106194+00:00",
+    "pid": 65716,
+    "phase": "watching",
+    "source": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r7",
+    "nas": "R:\\pufferlib\\rek-evidence\\2026-09-29\\rek-controls-fix-r1\\viewer-r7",
+    "source_latest_mtime": 1790646568,
+    "source_age_seconds": 5.106194019317627,
+    "last_success_utc": "2026-09-29T01:49:33.106194+00:00",
+    "errors": [],
+    "files_verified": 10,
+    "active_append_files_are_prefixes": true,
+    "source_recorder_health": {
+      "utc": "2026-09-29T01:49:28.592Z",
+      "pid": 3543413,
+      "sequence": 7,
+      "steps": 0,
+      "frames": 1,
+      "lastTick": 0,
+      "lastScore": [
+        0,
+        0
+      ],
+      "ok": true,
+      "recorderFailure": null,
+      "workerFailure": null,
+      "rendererFailure": null,
+      "lastRequestError": null,
+      "elapsedSeconds": 85.079615736
+    }
+  },
+  "tunnel": {
+    "utc": "2026-09-29T01:49:37.120821+00:00",
+    "pid": 139100,
+    "phase": "listening",
+    "local": "127.0.0.1:18773",
+    "remote": "127.0.0.1:18773",
+    "counts": {
+      "connections": 3,
+      "client_bytes": 389,
+      "remote_bytes": 593654
+    },
+    "errors": []
+  },
+  "native_input_sent_by_verification": false
+}

@@ -1,0 +1,83 @@
+✖ all seventeen saved bindings produce corresponding one-shot native move index (5.078ms)
+✖ all seventeen button categories select the named original clip without keyboard reinterpretation (0.2999ms)
+✖ reported HH, UU and L gestures reach front kick, side kick and jab in the original registry (0.2613ms)
+✔ saved chords take priority and double taps require a released edge within300ms (0.618ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109.9093
+
+✖ failing tests:
+
+test at ..\..\rekagent\work\rek-controls-fix-20260929-r1\old-boundary-negative\league\controls.test.cjs:26:1
+✖ all seventeen saved bindings produce corresponding one-shot native move index (5.078ms)
+  AssertionError [ERR_ASSERTION]: move:left_hook_processed
+  + actual - expected
+  
+    {
+      cancelAction: false,
+      forward: 1,
+  +   moveIndex: 4,
+  -   moveIndex: 0,
+      strafe: -1,
+      yaw: 0
+    }
+  
+      at TestContext.<anonymous> (C:\rekagent\work\rek-controls-fix-20260929-r1\old-boundary-negative\league\controls.test.cjs:35:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { forward: 1, strafe: -1, yaw: 0, moveIndex: 4, cancelAction: false },
+    expected: { forward: 1, strafe: -1, yaw: 0, moveIndex: 0, cancelAction: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at ..\..\rekagent\work\rek-controls-fix-20260929-r1\old-boundary-negative\league\controls.test.cjs:39:1
+✖ all seventeen button categories select the named original clip without keyboard reinterpretation (0.2999ms)
+  AssertionError [ERR_ASSERTION]: move:left_hook_processed
+  
+  4 !== 0
+  
+      at TestContext.<anonymous> (C:\rekagent\work\rek-controls-fix-20260929-r1\old-boundary-negative\league\controls.test.cjs:44:48)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ..\..\rekagent\work\rek-controls-fix-20260929-r1\old-boundary-negative\league\controls.test.cjs:48:1
+✖ reported HH, UU and L gestures reach front kick, side kick and jab in the original registry (0.2613ms)
+  AssertionError [ERR_ASSERTION]: KeyH
+  
+  1 !== 7
+  
+      at TestContext.<anonymous> (C:\rekagent\work\rek-controls-fix-20260929-r1\old-boundary-negative\league\controls.test.cjs:52:76)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 7,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

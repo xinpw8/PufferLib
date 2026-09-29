@@ -1,0 +1,10 @@
+{
+  "app": "/home/spark-advantage/rek-training/rek-controls-fix-20260929-r1/app-stage-r8/app",
+  "app_manifest_sha256": "456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10",
+  "binary": "/home/spark-advantage/rek-training/rek-playback-native-20260928-r1/build-r1/rek-native-clone",
+  "binary_sha256": "ef519db4c8b3b3a6696ebc8dfd7b686bffc789a7b91f1ef8d60dfab3494e0975",
+  "run": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r7",
+  "port": 18773,
+  "launcher": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/controls-deploy-20260929-r1/launch_viewer.py",
+  "guard": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/controls-deploy-20260929-r1/guarded_start.py"
+}
