@@ -1,0 +1,52 @@
+{
+  "schema": "rek.viewer.follow_camera_cpu_tests.v1",
+  "started_utc": "2026-09-29T22:39:45.468418+00:00",
+  "finished_utc": "2026-09-29T22:39:46.428804+00:00",
+  "exit_code": 0,
+  "command": [
+    "node",
+    "--test",
+    "league/*.test.cjs"
+  ],
+  "node": "v18.19.1",
+  "stdout_sha256": "76c4c990d2b23fdbffab35e4711a1b4e2a39a39cb17ebf3ea0f6345d3dc2938f",
+  "native_or_live_session_executed": false,
+  "source_commit": "339daee4ccac71efda1672770bae24c032eea369",
+  "files": [
+    {
+      "path": "league/server.cjs",
+      "bytes": 16539,
+      "sha256": "d6b9367ff0ac163582b16c44ec70fbdd8c5ba30e5b90135a2cf30f655117a62e"
+    },
+    {
+      "path": "league/render_queue.cjs",
+      "bytes": 3647,
+      "sha256": "4d5e9b33ba79b00dd3b06ff14f453978cecca64e5463680c41032023bfb80134"
+    },
+    {
+      "path": "league/render_queue.test.cjs",
+      "bytes": 4302,
+      "sha256": "78a34746f3c52d7038383ab4adafdd0e7a92a3317e3048080d44698e13ad9fea"
+    },
+    {
+      "path": "league/render_decoupling.test.cjs",
+      "bytes": 11823,
+      "sha256": "fa11f749e5f4e4d66febc67570e591a3ee002852d337b251459668bc113d0d92"
+    },
+    {
+      "path": "presentation/eval_renderer.h",
+      "bytes": 11702,
+      "sha256": "cc89af818ae2ee512c16821e638bed411ffee86de224a229f5773636855f9d90"
+    },
+    {
+      "path": "presentation/validate_follow_camera.cpp",
+      "bytes": 4766,
+      "sha256": "a164a89e3c95806779ee5e80d84a38831f7e96f18ca62e568a0788ea78df849b"
+    },
+    {
+      "path": "README.md",
+      "bytes": 11692,
+      "sha256": "287c81904a957d670b5771c0f091e657037b49bc39e3d0f327fea5c618292c23"
+    }
+  ]
+}

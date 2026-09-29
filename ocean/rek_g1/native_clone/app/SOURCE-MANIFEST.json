@@ -1,18 +1,73 @@
 {
   "schema": "rek.native_clone.app_source.v1",
-  "revision": 9,
+  "revision": 10,
   "full_official_parity_proven": false,
   "runtime_throughput_measured": false,
-  "scope": "Conditional images, hidden-tab image suppression, recent pace and bounded performance diagnostics. No native physics change.",
+  "scope": "Third-person follow camera behind the human-controlled fighter (render-only). No native physics, control or pacing change.",
   "parent_manifest": {
-    "path": "SOURCE-MANIFEST.parent-r8.json",
-    "sha256": "456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10"
+    "path": "SOURCE-MANIFEST.parent-r9.json",
+    "sha256": "9138485e02c0c6ec69a8f84aad87f3469b046170e9db720433b2508a674481a2"
   },
   "files": [
+    {
+      "path": "README.md",
+      "bytes": 11692,
+      "sha256": "287c81904a957d670b5771c0f091e657037b49bc39e3d0f327fea5c618292c23"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r1.json",
+      "bytes": 23671,
+      "sha256": "73516917b2b40d41dd64f6f1bb3e837e5b54f6c2afce04752820301eb20cbfef"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r2.json",
+      "bytes": 24178,
+      "sha256": "f0c9e12e5c60acc6aace91657a3d619b5fa10e734144f42ca3c293571a6801bf"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r3.json",
+      "bytes": 24349,
+      "sha256": "760e27b6a923ce0bdaaa92c323f4f0864e2efd22cda3148aea0182fc7c4c2db1"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r4.json",
+      "bytes": 26344,
+      "sha256": "8a240b78a16b62531a3d64a34904e36c73ae206df413643efbf0506ccc5cc42b"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r5.json",
+      "bytes": 28043,
+      "sha256": "8f34c4cdfaafa2955061a6b546d23964af4457b2af8d96a91553cdbb68e37b9e"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r6.json",
+      "bytes": 29226,
+      "sha256": "c2b3b2b16802801ba2372c967a44be394d3846f08479b0500927aa085df77f70"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r7.json",
+      "bytes": 29876,
+      "sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r8.json",
+      "bytes": 31235,
+      "sha256": "456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r9.json",
+      "bytes": 32865,
+      "sha256": "9138485e02c0c6ec69a8f84aad87f3469b046170e9db720433b2508a674481a2"
+    },
     {
       "path": "freeze.py",
       "bytes": 1038,
       "sha256": "d45e302ed5a6847376a6dccdf76cdcab82e40768daa855506c8bf76b9b006919"
+    },
+    {
+      "path": "freeze_r10.py",
+      "bytes": 2115,
+      "sha256": "e23e66606d8dde31484cd1764811fa92b33f73215392ed803dd9aba4339d9d37"
     },
     {
       "path": "freeze_r4.py",
@@ -186,23 +241,23 @@
     },
     {
       "path": "league/render_decoupling.test.cjs",
-      "bytes": 10986,
-      "sha256": "dceaf0ffc0546239bad207057e580e787c4ec51fec82bb15fcc293c9c104dcfd"
+      "bytes": 11823,
+      "sha256": "fa11f749e5f4e4d66febc67570e591a3ee002852d337b251459668bc113d0d92"
     },
     {
       "path": "league/render_queue.cjs",
-      "bytes": 3331,
-      "sha256": "862f4ba6cd23990544b9850e23830cffe1a720ea0c13bdb4ea7da3efc3b74bfd"
+      "bytes": 3647,
+      "sha256": "4d5e9b33ba79b00dd3b06ff14f453978cecca64e5463680c41032023bfb80134"
     },
     {
       "path": "league/render_queue.test.cjs",
-      "bytes": 3710,
-      "sha256": "5d694baee88554b09bbdb6f6f719277c86ce8bcca9b53a9a14837045cfd0821e"
+      "bytes": 4302,
+      "sha256": "78a34746f3c52d7038383ab4adafdd0e7a92a3317e3048080d44698e13ad9fea"
     },
     {
       "path": "league/server.cjs",
-      "bytes": 16414,
-      "sha256": "0623dd28e9782d4b28b05505d733b859bf109614aff3ac2f8fa4a17c82f1c9fd"
+      "bytes": 16539,
+      "sha256": "d6b9367ff0ac163582b16c44ec70fbdd8c5ba30e5b90135a2cf30f655117a62e"
     },
     {
       "path": "league/server.test.cjs",
@@ -233,6 +288,11 @@
       "path": "prepare.cjs",
       "bytes": 4096,
       "sha256": "199a198ad2d319590444acd8bbb40bd1346c9ef513c016ba495057b2f149dd0b"
+    },
+    {
+      "path": "presentation/SOURCE-REPORT.md",
+      "bytes": 5007,
+      "sha256": "9d22a1f4fef0ea5b9295245ac2b0e843d4a0daa7e0c7cf1053eccd4493889f1e"
     },
     {
       "path": "presentation/assets/MAPPING.json",
@@ -761,13 +821,13 @@
     },
     {
       "path": "presentation/eval_renderer.h",
-      "bytes": 6190,
-      "sha256": "d2a111559498339db43b97329fff4cb338bb1fc71cb895bcb739fdcdf040217f"
+      "bytes": 11702,
+      "sha256": "cc89af818ae2ee512c16821e638bed411ffee86de224a229f5773636855f9d90"
     },
     {
-      "path": "presentation/SOURCE-REPORT.md",
-      "bytes": 5007,
-      "sha256": "9d22a1f4fef0ea5b9295245ac2b0e843d4a0daa7e0c7cf1053eccd4493889f1e"
+      "path": "presentation/validate_follow_camera.cpp",
+      "bytes": 4766,
+      "sha256": "a164a89e3c95806779ee5e80d84a38831f7e96f18ca62e568a0788ea78df849b"
     },
     {
       "path": "presentation/validate_presentation.cpp",
@@ -775,59 +835,19 @@
       "sha256": "f18ec4d37953e731ecf366cb27c29ad57063e28d6b576ed66086b7882c1be8eb"
     },
     {
-      "path": "README.md",
-      "bytes": 10058,
-      "sha256": "ac7ca9f16a8b55931a5ebfbb6954a81aa9f34fc6d46eb83933cfa7f296f02d58"
-    },
-    {
       "path": "saved-g1-bindings.json",
       "bytes": 3441,
       "sha256": "bab3a376dc0f71e08629f6b952a57e557f011bab3915ecf881466c1614bba185"
     },
     {
-      "path": "SOURCE-MANIFEST.parent-r1.json",
-      "bytes": 23671,
-      "sha256": "73516917b2b40d41dd64f6f1bb3e837e5b54f6c2afce04752820301eb20cbfef"
-    },
-    {
-      "path": "SOURCE-MANIFEST.parent-r2.json",
-      "bytes": 24178,
-      "sha256": "f0c9e12e5c60acc6aace91657a3d619b5fa10e734144f42ca3c293571a6801bf"
-    },
-    {
-      "path": "SOURCE-MANIFEST.parent-r3.json",
-      "bytes": 24349,
-      "sha256": "760e27b6a923ce0bdaaa92c323f4f0864e2efd22cda3148aea0182fc7c4c2db1"
-    },
-    {
-      "path": "SOURCE-MANIFEST.parent-r4.json",
-      "bytes": 26344,
-      "sha256": "8a240b78a16b62531a3d64a34904e36c73ae206df413643efbf0506ccc5cc42b"
-    },
-    {
-      "path": "SOURCE-MANIFEST.parent-r5.json",
-      "bytes": 28043,
-      "sha256": "8f34c4cdfaafa2955061a6b546d23964af4457b2af8d96a91553cdbb68e37b9e"
-    },
-    {
-      "path": "SOURCE-MANIFEST.parent-r6.json",
-      "bytes": 29226,
-      "sha256": "c2b3b2b16802801ba2372c967a44be394d3846f08479b0500927aa085df77f70"
-    },
-    {
-      "path": "SOURCE-MANIFEST.parent-r7.json",
-      "bytes": 29876,
-      "sha256": "6be9fa74673eca108da8c07cd414d27d55b6cc9f625db1ab70e2f5c3e6f02cca"
-    },
-    {
-      "path": "SOURCE-MANIFEST.parent-r8.json",
-      "bytes": 31235,
-      "sha256": "456d96225d79a01821d5959742b9120bbcd14f8b58bf7094666abc2518e7fd10"
-    },
-    {
       "path": "start.sh",
       "bytes": 280,
       "sha256": "b4fe5c0c963b21cecb1dcb6fa81792d0fb772aadd9a07d783308ea0e8d3395aa"
+    },
+    {
+      "path": "validation/EXPECTED-MOVES.json",
+      "bytes": 11910,
+      "sha256": "e578dc72ccd70f37f39053c485e31dc56784bbe341daeb5fd262c8d42c1ca2e8"
     },
     {
       "path": "validation/controls-r7-negative.txt",
@@ -840,14 +860,19 @@
       "sha256": "0701bbb7742bda94ec8b7c08fffd834213746187ae0313feaf52f8fbb62de574"
     },
     {
-      "path": "validation/EXPECTED-MOVES.json",
-      "bytes": 11910,
-      "sha256": "e578dc72ccd70f37f39053c485e31dc56784bbe341daeb5fd262c8d42c1ca2e8"
-    },
-    {
       "path": "validation/semantic_duel_assets_manifest.json",
       "bytes": 36015,
       "sha256": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28"
+    },
+    {
+      "path": "validation/tests-r10.json",
+      "bytes": 1610,
+      "sha256": "065c69666d8fd7645eedeff6e986e62e15d21eb747072359b1e581507dc8742c"
+    },
+    {
+      "path": "validation/tests-r10.txt",
+      "bytes": 15425,
+      "sha256": "76c4c990d2b23fdbffab35e4711a1b4e2a39a39cb17ebf3ea0f6345d3dc2938f"
     },
     {
       "path": "validation/tests-r4-final.json",

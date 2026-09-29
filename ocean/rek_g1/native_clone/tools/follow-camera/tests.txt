@@ -1,0 +1,12 @@
+test_baseline_is_run_r8_graph_on_single_arena (test_deployment.Tests.test_baseline_is_run_r8_graph_on_single_arena) ... ok
+test_disk_cap_stops_only_its_own_viewer_group (test_deployment.Tests.test_disk_cap_stops_only_its_own_viewer_group) ... ok
+test_disk_cap_under_cap_exits_with_viewer (test_deployment.Tests.test_disk_cap_under_cap_exits_with_viewer) ... ok
+test_exact_package_and_all_four_guards (test_deployment.Tests.test_exact_package_and_all_four_guards) ... ok
+test_existing_run_rejected_before_subprocess_or_guard (test_deployment.Tests.test_existing_run_rejected_before_subprocess_or_guard) ... ok
+test_fixed_start_command_uses_guarded_generic_launcher (test_deployment.Tests.test_fixed_start_command_uses_guarded_generic_launcher) ... ok
+test_reject_unrelated_worker_mutation (test_deployment.Tests.test_reject_unrelated_worker_mutation) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 2.038s
+
+OK

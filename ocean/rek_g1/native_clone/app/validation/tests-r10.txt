@@ -1,0 +1,360 @@
+TAP version 13
+# Subtest: all seventeen saved bindings produce corresponding one-shot native move index
+ok 1 - all seventeen saved bindings produce corresponding one-shot native move index
+  ---
+  duration_ms: 1.947459
+  ...
+# Subtest: all seventeen button categories select the named original clip without keyboard reinterpretation
+ok 2 - all seventeen button categories select the named original clip without keyboard reinterpretation
+  ---
+  duration_ms: 0.225699
+  ...
+# Subtest: reported HH, UU and L gestures reach front kick, side kick and jab in the original registry
+ok 3 - reported HH, UU and L gestures reach front kick, side kick and jab in the original registry
+  ---
+  duration_ms: 0.098225
+  ...
+# Subtest: saved chords take priority and double taps require a released edge within300ms
+ok 4 - saved chords take priority and double taps require a released edge within300ms
+  ---
+  duration_ms: 0.145458
+  ...
+# Subtest: actual browser loop sends last ETag and preserves the displayed image on a bodyless304
+ok 5 - actual browser loop sends last ETag and preserves the displayed image on a bodyless304
+  ---
+  duration_ms: 6.408384
+  ...
+# Subtest: hidden browser never requests frames, aborts in-flight image and resumes with its last displayed ETag
+ok 6 - hidden browser never requests frames, aborts in-flight image and resumes with its last displayed ETag
+  ---
+  duration_ms: 2.867596
+  ...
+# Subtest: image body finishing after visibility change cannot replace the displayed snapshot
+ok 7 - image body finishing after visibility change cannot replace the displayed snapshot
+  ---
+  duration_ms: 2.510649
+  ...
+# Subtest: browser distinguishes recent active pace from the cumulative session pace
+ok 8 - browser distinguishes recent active pace from the cumulative session pace
+  ---
+  duration_ms: 2.057892
+  ...
+# Subtest: recorder and server reuse the same decoded bytes/hash without changing wire reply
+ok 9 - recorder and server reuse the same decoded bytes/hash without changing wire reply
+  ---
+  duration_ms: 1.259117
+  ...
+# Subtest: distinct or changed replies never return an older PNG
+ok 10 - distinct or changed replies never return an older PNG
+  ---
+  duration_ms: 0.272818
+  ...
+# Subtest: 50 Hz step health writes coalesce to 250 ms while every trace record remains
+ok 11 - 50 Hz step health writes coalesce to 250 ms while every trace record remains
+  ---
+  duration_ms: 1.080507
+  ...
+# Subtest: reset, snapshot, error and exit health force the current state immediately
+ok 12 - reset, snapshot, error and exit health force the current state immediately
+  ---
+  duration_ms: 0.17549
+  ...
+# Subtest: failed write propagates and does not suppress the next attempted status
+ok 13 - failed write propagates and does not suppress the next attempted status
+  ---
+  duration_ms: 0.215634
+  ...
+# Subtest: human durations are explicit and default to 300 seconds
+ok 14 - human durations are explicit and default to 300 seconds
+  ---
+  duration_ms: 1.03593
+  ...
+# Subtest: human config changes only round_seconds and never modifies original assets or config
+ok 15 - human config changes only round_seconds and never modifies original assets or config
+  ---
+  duration_ms: 12.849553
+  ...
+# Subtest: human config reports legacy training duration default without rewriting source
+ok 16 - human config reports legacy training duration default without rewriting source
+  ---
+  duration_ms: 0.606678
+  ...
+# Subtest: invalid durations and malformed configs are rejected
+ok 17 - invalid durations and malformed configs are rejected
+  ---
+  duration_ms: 2.464089
+  ...
+# Subtest: human config cleanup never recursively removes an unexpected sibling
+ok 18 - human config cleanup never recursively removes an unexpected sibling
+  ---
+  duration_ms: 0.996442
+  ...
+# Subtest: session records native points winners and deduplicates exact terminal snapshots
+ok 19 - session records native points winners and deduplicates exact terminal snapshots
+  ---
+  duration_ms: 0.389348
+  ...
+# Subtest: KO winner remains authoritative even with fewer points
+ok 20 - KO winner remains authoritative even with fewer points
+  ---
+  duration_ms: 0.082305
+  ...
+# Subtest: draws count as valid rounds while replay and unknown results are invalid
+ok 21 - draws count as valid rounds while replay and unknown results are invalid
+  ---
+  duration_ms: 0.094209
+  ...
+# Subtest: missing valid native winner does not become a score-derived win or draw
+ok 22 - missing valid native winner does not become a score-derived win or draw
+  ---
+  duration_ms: 0.064128
+  ...
+# Subtest: new native round streams preserve scoreboard while reset clears the session
+ok 23 - new native round streams preserve scoreboard while reset clears the session
+  ---
+  duration_ms: 0.199154
+  ...
+# Subtest: snapshot is detached and malformed terminal states do not mutate session
+ok 24 - snapshot is detached and malformed terminal states do not mutate session
+  ---
+  duration_ms: 0.374724
+  ...
+# Subtest: only authoritative native match terminal determines match W/L and is counted once
+ok 25 - only authoritative native match terminal determines match W/L and is counted once
+  ---
+  duration_ms: 0.141921
+  ...
+# Subtest: continuous diagonal and yaw survive without magnitude normalization
+ok 26 - continuous diagonal and yaw survive without magnitude normalization
+  ---
+  duration_ms: 1.108715
+  ...
+# Subtest: native scheduler receives attack while moving and busy, once per edge
+ok 27 - native scheduler receives attack while moving and busy, once per edge
+  ---
+  duration_ms: 0.203154
+  ...
+# Subtest: stale packets cannot resurrect held controls or edges; release clears pending
+ok 28 - stale packets cannot resurrect held controls or edges; release clears pending
+  ---
+  duration_ms: 0.075649
+  ...
+# Subtest: fractional commands validated verbatim and nonfinite refused
+ok 29 - fractional commands validated verbatim and nonfinite refused
+  ---
+  duration_ms: 0.215363
+  ...
+# Subtest: actual logger preserves every input/request/state and reports reset/error with coalesced health
+ok 30 - actual logger preserves every input/request/state and reports reset/error with coalesced health
+  ---
+  duration_ms: 346.238571
+  ...
+# {"ready":true,"url":"http://127.0.0.1:43475"}
+# Subtest: native phase labels do not invent a timer or treat round terminal as match complete
+ok 31 - native phase labels do not invent a timer or treat round terminal as match complete
+  ---
+  duration_ms: 1.107275
+  ...
+# Subtest: launched zero-intermission server continues stepping native between-round phase without an extra browser timer
+ok 32 - launched zero-intermission server continues stepping native between-round phase without an extra browser timer
+  ---
+  duration_ms: 153.007837
+  ...
+# Subtest: 24 ms fake worker loses no 20 ms interval opportunities after completing
+ok 33 - 24 ms fake worker loses no 20 ms interval opportunities after completing
+  ---
+  duration_ms: 5.707673
+  ...
+# Subtest: fast worker remains capped at one fixed 20 ms simulation step per 20 ms
+ok 34 - fast worker remains capped at one fixed 20 ms simulation step per 20 ms
+  ---
+  duration_ms: 2.388328
+  ...
+# Subtest: step plus frame is serial and lateness never accumulates a catch-up burst
+ok 35 - step plus frame is serial and lateness never accumulates a catch-up burst
+  ---
+  duration_ms: 1.344509
+  ...
+# Subtest: stop during an in-flight request lets it complete without scheduling another
+ok 36 - stop during an in-flight request lets it complete without scheduling another
+  ---
+  duration_ms: 0.300115
+  ...
+# Subtest: stop before the first tick cancels all work
+ok 37 - stop before the first tick cancels all work
+  ---
+  duration_ms: 0.090593
+  ...
+# Subtest: a 500 ms pause does not create deferred simulation work
+ok 38 - a 500 ms pause does not create deferred simulation work
+  ---
+  duration_ms: 0.838056
+  ...
+# Subtest: overdue work uses a cancellable I/O yield without the one millisecond timer clamp
+ok 39 - overdue work uses a cancellable I/O yield without the one millisecond timer clamp
+  ---
+  duration_ms: 0.455365
+  ...
+# Subtest: stop cancels an already queued immediate successor
+ok 40 - stop cancels an already queued immediate successor
+  ---
+  duration_ms: 0.128002
+  ...
+# Subtest: absolute deadlines remove persistent one millisecond callback lateness without advancing early
+ok 41 - absolute deadlines remove persistent one millisecond callback lateness without advancing early
+  ---
+  duration_ms: 2.493529
+  ...
+# Subtest: an early timer callback cannot execute a physics task before its absolute deadline
+ok 42 - an early timer callback cannot execute a physics task before its absolute deadline
+  ---
+  duration_ms: 0.191202
+  ...
+# Subtest: large compute overrun reports and discards wall debt without fabricating skipped simulation steps
+ok 43 - large compute overrun reports and discards wall debt without fabricating skipped simulation steps
+  ---
+  duration_ms: 0.486325
+  ...
+# Subtest: pause cancels future work and resume starts a fresh clock without paused-time debt
+ok 44 - pause cancels future work and resume starts a fresh clock without paused-time debt
+  ---
+  duration_ms: 0.296435
+  ...
+# Subtest: pause and resume during an in-flight request preserve the new deadline and never overlap
+ok 45 - pause and resume during an in-flight request preserve the new deadline and never overlap
+  ---
+  duration_ms: 0.193154
+  ...
+# Subtest: performance samples remain bounded while lifetime stalls are retained
+ok 46 - performance samples remain bounded while lifetime stalls are retained
+  ---
+  duration_ms: 0.893049
+  ...
+# Subtest: performance samples reject invalid values and retain separate components
+ok 47 - performance samples reject invalid values and retain separate components
+  ---
+  duration_ms: 0.298931
+  ...
+# Subtest: repeated HTTP snapshots reuse bounded statistics without losing newly recorded samples
+ok 48 - repeated HTTP snapshots reuse bounded statistics without losing newly recorded samples
+  ---
+  duration_ms: 0.268643
+  ...
+# Subtest: real batch-2 preparation binds one arena, rejects wrong models, and preserves four-arena support
+ok 49 - real batch-2 preparation binds one arena, rejects wrong models, and preserves four-arena support # SKIP Requires the four genuine exported ONNX paths; synthetic hashes are not substituted
+  ---
+  duration_ms: 0.509125
+  ...
+# {"ready":true,"url":"http://127.0.0.1:36265"}
+# Subtest: paused protocol preserves continuous inputs, native events and exclusive requests across delayed HTTP bodies
+ok 50 - paused protocol preserves continuous inputs, native events and exclusive requests across delayed HTTP bodies
+  ---
+  duration_ms: 131.345603
+  ...
+# Subtest: recent pace follows actual fast and slow completions without changing cumulative time or inventing intervals
+ok 51 - recent pace follows actual fast and slow completions without changing cumulative time or inventing intervals
+  ---
+  duration_ms: 1.418862
+  ...
+# Subtest: pause gap is excluded and new play/reset begins a fresh measurement
+ok 52 - pause gap is excluded and new play/reset begins a fresh measurement
+  ---
+  duration_ms: 0.106817
+  ...
+# Subtest: whole long intervals and capacity limits stay explicit
+ok 53 - whole long intervals and capacity limits stay explicit
+  ---
+  duration_ms: 0.236738
+  ...
+# {"ready":true,"url":"http://127.0.0.1:33651"}
+# Subtest: blocked renderer permits physics progress, pause and reset, and stale generation never publishes
+ok 54 - blocked renderer permits physics progress, pause and reset, and stale generation never publishes
+  ---
+  duration_ms: 252.571409
+  ...
+# {"ready":true,"url":"http://127.0.0.1:39327"}
+# Subtest: chase camera follows the human-controlled side across selections
+ok 55 - chase camera follows the human-controlled side across selections
+  ---
+  duration_ms: 77.614217
+  ...
+# {"ready":true,"url":"http://127.0.0.1:40339"}
+# Subtest: reset waits for delayed physics step before changing render generation and tick-zero publication
+ok 56 - reset waits for delayed physics step before changing render generation and tick-zero publication
+  ---
+  duration_ms: 90.894366
+  ...
+# {"ready":true,"url":"http://127.0.0.1:38605"}
+# Subtest: paused frame:true waits for exact frame, renderer failures remain isolated and next capture recovers
+ok 57 - paused frame:true waits for exact frame, renderer failures remain isolated and next capture recovers
+  ---
+  duration_ms: 129.685251
+  ...
+# {"ready":true,"url":"http://127.0.0.1:35747"}
+# Subtest: closed renderer is latched without repeated requests while physics keeps advancing
+ok 58 - closed renderer is latched without repeated requests while physics keeps advancing
+  ---
+  duration_ms: 134.35877
+  ...
+# {"ready":true,"url":"http://127.0.0.1:40613"}
+# Subtest: conditional frame GET transfers only new snapshot identities, including after reset
+ok 59 - conditional frame GET transfers only new snapshot identities, including after reset
+  ---
+  duration_ms: 66.048645
+  ...
+# {"proof":"HTTP image-body bytes only; headers excluded","firstImageBytes":9,"duplicateRequests":4,"parentDuplicateImageBytes":36,"conditionalDuplicateImageBytes":0}
+# Subtest: slow renderer retains only newest immutable snapshot and never overlaps requests
+ok 60 - slow renderer retains only newest immutable snapshot and never overlaps requests
+  ---
+  duration_ms: 3.283169
+  ...
+# Subtest: generation change discards in-flight frame and pending exact capture, then accepts reset tick zero
+ok 61 - generation change discards in-flight frame and pending exact capture, then accepts reset tick zero
+  ---
+  duration_ms: 0.658919
+  ...
+# Subtest: paused exact capture is retained over live offers and resolves only its identified frame
+ok 62 - paused exact capture is retained over live offers and resolves only its identified frame
+  ---
+  duration_ms: 0.372468
+  ...
+# Subtest: failed renders leave queue usable, invalid snapshots fail before renderer and close drops pending work
+ok 63 - failed renders leave queue usable, invalid snapshots fail before renderer and close drops pending work
+  ---
+  duration_ms: 0.490533
+  ...
+# Subtest: reply identity mismatch fails exact capture without publishing another tick
+ok 64 - reply identity mismatch fails exact capture without publishing another tick
+  ---
+  duration_ms: 0.750103
+  ...
+# Subtest: follow side passes through to the renderer and invalid sides fail before rendering
+ok 65 - follow side passes through to the renderer and invalid sides fail before rendering
+  ---
+  duration_ms: 0.290067
+  ...
+# {"ready":true,"url":"http://127.0.0.1:34529"}
+# Subtest: human server pauses, extends rounds, retains results and leaves league fixtures unchanged
+ok 66 - human server pauses, extends rounds, retains results and leaves league fixtures unchanged
+  ---
+  duration_ms: 315.819323
+  ...
+# Subtest: renderer role is requested and mismatched ready fails before any rendering request
+ok 67 - renderer role is requested and mismatched ready fails before any rendering request
+  ---
+  duration_ms: 2.388408
+  ...
+# Subtest: renderer timeout closes only that transport and cannot accumulate later queued work
+ok 68 - renderer timeout closes only that transport and cannot accumulate later queued work
+  ---
+  duration_ms: 12.244875
+  ...
+1..68
+# tests 68
+# suites 0
+# pass 67
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 881.304857
