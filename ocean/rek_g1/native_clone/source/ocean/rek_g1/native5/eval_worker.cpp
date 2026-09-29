@@ -245,21 +245,35 @@ public:
             int human_side=integer(command,"humanSide",0);
             if(human_side<0||human_side>1)throw std::runtime_error("Invalid human side");
             if(steps<1||steps>512||action<0||action>=33)throw std::runtime_error("Invalid step/actions");
-            const auto* direct=field(command,"command");RekG1CudaDirectCommand requested{};requested.move_index=-1;
-            if(direct){
-                if(!cJSON_IsObject(direct)||field(command,"action"))throw std::runtime_error("Specify either action or command object");
-                if(policies[human_side]||(human_side==0&&scripted_player))throw std::runtime_error("Human command conflicts with configured policy/script");
+            auto parse_direct=[&](const cJSON* direct){
+                if(!cJSON_IsObject(direct))throw std::runtime_error("Command must be an object");
+                RekG1CudaDirectCommand parsed{};
                 auto velocity=[&](const char* name){auto* item=field(direct,name);if(!item)return 0.f;
                     if(!cJSON_IsNumber(item)||!std::isfinite(item->valuedouble)||item->valuedouble < -1||item->valuedouble > 1)
                         throw std::runtime_error(std::string("Invalid command ")+name);return float(item->valuedouble);};
-                requested.velocity={velocity("forward"),velocity("strafe"),velocity("yaw")};
-                requested.rejection_velocity=requested.velocity;requested.move_index=integer(direct,"moveIndex",-1);
-                if(requested.move_index < -1||requested.move_index>=17)throw std::runtime_error("Invalid moveIndex");
+                parsed.velocity={velocity("forward"),velocity("strafe"),velocity("yaw")};
+                parsed.rejection_velocity=parsed.velocity;parsed.move_index=integer(direct,"moveIndex",-1);
+                if(parsed.move_index < -1||parsed.move_index>=17)throw std::runtime_error("Invalid moveIndex");
                 const auto* cancel=field(direct,"cancelAction");
                 if(cancel&&!cJSON_IsBool(cancel))throw std::runtime_error("Invalid cancelAction");
-                requested.cancel_action=cJSON_IsTrue(cancel);
+                parsed.cancel_action=cJSON_IsTrue(cancel);
+                return parsed;
+            };
+            const auto* direct=field(command,"command");RekG1CudaDirectCommand requested{};requested.move_index=-1;
+            // Two human players: one direct command per fighter, no scripted opponent.
+            const auto* pair=field(command,"commands");RekG1CudaDirectCommand paired[2]{};
+            if(pair){
+                if(!cJSON_IsArray(pair)||cJSON_GetArraySize(pair)!=2||direct||field(command,"action"))
+                    throw std::runtime_error("commands must be a two-element array without command or action");
+                if(policies[0]||policies[1]||scripted_player)throw std::runtime_error("Two human commands conflict with configured policy/script");
+                for(int side=0;side<2;side++)paired[side]=parse_direct(cJSON_GetArrayItem(pair,side));
             }
-            const int desired[2]={direct&&human_side==0?1:0,human_side==1?(direct?1:0):(policies[1]?0:1)};
+            if(direct){
+                if(field(command,"action"))throw std::runtime_error("Specify either action or command object");
+                if(policies[human_side]||(human_side==0&&scripted_player))throw std::runtime_error("Human command conflicts with configured policy/script");
+                requested=parse_direct(direct);
+            }
+            const int desired[2]={pair?1:direct&&human_side==0?1:0,pair?3:human_side==1?(direct?1:0):(policies[1]?0:1)};
             for(int side=0;side<2;side++)if(control_mode[side]>=0&&control_mode[side]!=desired[side])
                 throw std::runtime_error("Control mode changed: explicitly reset before switching categorical/direct ownership");
             for(int side=0;side<2;side++)control_mode[side]=desired[side];
@@ -294,6 +308,10 @@ public:
                 std::fill(host_direct.begin(),host_direct.end(),0);
                 if(direct){host_direct[human_side]=1;host_commands[human_side]=requested;
                     if(i){host_commands[human_side].move_index=-1;host_commands[human_side].cancel_action=0;}}
+                if(pair)for(int side=0;side<2;side++){
+                    host_actions[side]=1.f;host_override[side]=1;host_direct[side]=1;host_commands[side]=paired[side];
+                    if(i){host_commands[side].move_index=-1;host_commands[side].cancel_action=0;}
+                }
                 cuda_ok(cudaMemcpyAsync(direct_commands,host_commands.data(),host_commands.size()*sizeof(RekG1CudaDirectCommand),cudaMemcpyHostToDevice,stream));
                 cuda_ok(cudaMemcpyAsync(direct_enabled,host_direct.data(),host_direct.size(),cudaMemcpyHostToDevice,stream));
                 cuda_ok(cudaMemcpyAsync(external,host_actions.data(),host_actions.size()*sizeof(float),cudaMemcpyHostToDevice,stream));
