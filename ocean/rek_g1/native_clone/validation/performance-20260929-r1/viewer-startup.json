@@ -1,0 +1,194 @@
+{
+  "schema": "rek.performance_viewer_local_verification.v1",
+  "utc": "2026-09-29T02:57:05.122048+00:00",
+  "url": "http://127.0.0.1:18774/",
+  "paused": true,
+  "tick": 0,
+  "mode": "experimental graph-enabled human viewer; numeric/physics parity not asserted",
+  "frame_sha256": "eba4623196e2a011dd3fbd4ee61142ed4469cd86700c8f531ce6f0fc70101e20",
+  "frame_bytes": 583950,
+  "frame_dimensions": [
+    1280,
+    720
+  ],
+  "conditional_frame_status": 304,
+  "node": {
+    "pid": 3702006,
+    "start_ticks": 133846865
+  },
+  "processes": [
+    {
+      "pid": 3702006,
+      "start_ticks": 133846865,
+      "role": "viewer"
+    },
+    {
+      "pid": 3702016,
+      "start_ticks": 133846872,
+      "role": "native_child"
+    },
+    {
+      "pid": 3702017,
+      "start_ticks": 133846873,
+      "role": "native_child"
+    }
+  ],
+  "mirror": {
+    "utc": "2026-09-29T02:57:04.662941+00:00",
+    "pid": 136976,
+    "phase": "watching",
+    "source": "/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r8",
+    "nas": "R:\\pufferlib\\rek-evidence\\2026-09-29\\rek-performance-audit-r1\\viewer-r8",
+    "source_latest_mtime": 1790650623,
+    "source_age_seconds": 1.6629416942596436,
+    "last_success_utc": "2026-09-29T02:57:04.662941+00:00",
+    "errors": [],
+    "files_verified": 11,
+    "files_verified_this_process": 11,
+    "files_verified_scope": "inventory entries, including prior checkpoints; process count is separate",
+    "active_append_files_are_prefixes": true,
+    "source_recorder_health": {
+      "utc": "2026-09-29T02:57:01.373Z",
+      "pid": 3702006,
+      "sequence": 28,
+      "steps": 0,
+      "frames": 1,
+      "lastTick": 0,
+      "lastScore": [
+        0,
+        0
+      ],
+      "ok": true,
+      "recorderFailure": null,
+      "workerFailure": null,
+      "rendererFailure": null,
+      "lastRequestError": null,
+      "elapsedSeconds": 105.023247874,
+      "performance": {
+        "schema": "rek.performance.v1",
+        "elapsedMs": 105022.76105308533,
+        "sampleCapacity": 1024,
+        "snapshotPeriodMs": 250,
+        "snapshotAgeMs": 0.257889986038208,
+        "spans": {
+          "record_serialize_ms": {
+            "count": 27,
+            "totalMs": 1.2438180446624756,
+            "meanMs": 0.0460673349874991,
+            "maxMs": 0.06848001480102539,
+            "recentCount": 27,
+            "recentP50Ms": 0.047023773193359375,
+            "recentP95Ms": 0.06174492835998535,
+            "recentP99Ms": 0.062399864196777344
+          },
+          "record_write_ms": {
+            "count": 27,
+            "totalMs": 1.2111968994140625,
+            "meanMs": 0.04485914442274305,
+            "maxMs": 0.12752079963684082,
+            "recentCount": 27,
+            "recentP50Ms": 0.04588890075683594,
+            "recentP95Ms": 0.05380821228027344,
+            "recentP99Ms": 0.059600830078125
+          },
+          "renderer_json_parse_ms": {
+            "count": 2,
+            "totalMs": 0.32621097564697266,
+            "meanMs": 0.16310548782348633,
+            "maxMs": 0.31001901626586914,
+            "recentCount": 2,
+            "recentP50Ms": 0.016191959381103516,
+            "recentP95Ms": 0.016191959381103516,
+            "recentP99Ms": 0.016191959381103516
+          },
+          "simulation_json_parse_ms": {
+            "count": 2,
+            "totalMs": 0.12044906616210938,
+            "meanMs": 0.06022453308105469,
+            "maxMs": 0.07332897186279297,
+            "recentCount": 2,
+            "recentP50Ms": 0.047120094299316406,
+            "recentP95Ms": 0.047120094299316406,
+            "recentP99Ms": 0.047120094299316406
+          },
+          "native_snapshot_rpc_ms": {
+            "count": 1,
+            "totalMs": 0.871912,
+            "meanMs": 0.871912,
+            "maxMs": 0.871912,
+            "recentCount": 1,
+            "recentP50Ms": 0.871912,
+            "recentP95Ms": 0.871912,
+            "recentP99Ms": 0.871912
+          },
+          "render_rpc_ms": {
+            "count": 1,
+            "totalMs": 298.604943,
+            "meanMs": 298.604943,
+            "maxMs": 298.604943,
+            "recentCount": 1,
+            "recentP50Ms": 298.604943,
+            "recentP95Ms": 298.604943,
+            "recentP99Ms": 298.604943
+          },
+          "frame_decode_hash_ms": {
+            "count": 1,
+            "totalMs": 1.7003839015960693,
+            "meanMs": 1.7003839015960693,
+            "maxMs": 1.7003839015960693,
+            "recentCount": 1,
+            "recentP50Ms": 1.7003839015960693,
+            "recentP95Ms": 1.7003839015960693,
+            "recentP99Ms": 1.7003839015960693
+          },
+          "frame_write_elapsed_ms": {
+            "count": 1,
+            "totalMs": 0.8690481185913086,
+            "meanMs": 0.8690481185913086,
+            "maxMs": 0.8690481185913086,
+            "recentCount": 1,
+            "recentP50Ms": 0.8690481185913086,
+            "recentP95Ms": 0.8690481185913086,
+            "recentP99Ms": 0.8690481185913086
+          }
+        },
+        "eventLoop": {
+          "count": 10382,
+          "meanDelayMs": 10.113626051242536,
+          "p99DelayMs": 10.362879,
+          "maxDelayMs": 12.410879
+        },
+        "eventLoopUtilization": {
+          "idle": 104769.487565,
+          "active": 234.44332317596127,
+          "utilization": 0.0022327099680261677
+        },
+        "memory": {
+          "rssBytes": 56881152,
+          "heapUsedBytes": 4672768,
+          "externalBytes": 2648352
+        },
+        "note": "Cumulative counters and bounded recent span samples sampled at most once per250ms unless forced. snapshotAgeMs exposes cache age. Overlapping spans are not additive. Event-loop delay includes the 10 ms monitor interval."
+      }
+    },
+    "frame_backlog_pending": false
+  },
+  "tunnel": {
+    "utc": "2026-09-29T02:57:04.266128+00:00",
+    "pid": 233392,
+    "phase": "listening",
+    "local": "127.0.0.1:18774",
+    "remote": "127.0.0.1:18774",
+    "counts": {
+      "connections": 0,
+      "client_bytes": 0,
+      "remote_bytes": 0
+    },
+    "errors": []
+  },
+  "resource_sample_utc": "2026-09-29T02:57:03.373564+00:00",
+  "resource_nas_age_seconds": 1.748484,
+  "resource_gpu_age_seconds": 2.921438049,
+  "resource_gpu_errors": [],
+  "nas_root": "R:\\pufferlib\\rek-evidence\\2026-09-29\\rek-performance-audit-r1\\viewer-r8"
+}

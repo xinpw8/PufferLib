@@ -1,0 +1,34 @@
+{
+  "schema": "rek.native_clone.passive_port_revision.v1",
+  "utc": "2026-09-28T20:46:18.225407+00:00",
+  "parent_manifest": "SOURCE-MANIFEST.parent-r2.json",
+  "default_port": 18771,
+  "tests_passed": 12,
+  "files": [
+    {
+      "path": "passive.py",
+      "bytes": 16266,
+      "sha256": "9d92e0e6516ce46c06cfe98e60e689d36152871e2d3d8b8c336085e067fe7e17"
+    },
+    {
+      "path": "test_passive.py",
+      "bytes": 8173,
+      "sha256": "4dfb1b1b9330944dc25ee90a7642dbd9aa67276726a7741d815cce14247f1a22"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4873,
+      "sha256": "a89dc60f130819549619b125c24493cd322e5e750da5108b960d6c36697fca4c"
+    },
+    {
+      "path": "tests.txt",
+      "bytes": 1648,
+      "sha256": "541a6671782b7589be72860fe224f83dda79bfa59bd84be2fcfdfcdc921f11e2"
+    },
+    {
+      "path": "SOURCE-MANIFEST.parent-r2.json",
+      "bytes": 979,
+      "sha256": "0bc360bac95801c4e8b64a47733576d3f723ec7fb7bf09176f3fab6d2362c9e4"
+    }
+  ]
+}

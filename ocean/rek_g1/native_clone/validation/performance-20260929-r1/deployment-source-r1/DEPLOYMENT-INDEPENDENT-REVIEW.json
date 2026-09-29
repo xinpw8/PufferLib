@@ -1,0 +1,57 @@
+{
+  "schema": "rek.viewer_deployment_independent_source_review.v1",
+  "utc": "2026-09-29T02:53:26.269050+00:00",
+  "verdict": "GO for these exact reviewed sources, subject to root verifying staged hashes and actual paused/PID/port guards",
+  "scope": "Read-only source review. No application input, process signals, GPU query, deployment or native execution.",
+  "checks": [
+    "Fresh run-r8, prepared-inputs and preparation receipt required",
+    "Exact app/native/baseline/guard/launcher hashes",
+    "Explicit graph mode and full worker/environment parity validation",
+    "Port18774 vacancy before preparation and launch",
+    "Three existing viewer identities plus paused cached snapshots checked repeatedly through startup",
+    "Failure cleanup bound to newly created session/group identity; no prior viewer signaling",
+    "Resource watcher source matches separately reviewed5f52525e; passive mirrorc21796cf"
+  ],
+  "limitations": [
+    "Actual startup guards must still execute at launch",
+    "Graph-enabled native remains numerically nonidentical and official Unity parity is unproven",
+    "New wrapper CPU-test result is owned by training_audit and not inferred by this source review"
+  ],
+  "files": [
+    {
+      "path": "deployment_config.py",
+      "bytes": 3212,
+      "sha256": "f64559ce44e5f52ba53319b732854673414c5fd9f5b932e3d458d2a0c13156b4"
+    },
+    {
+      "path": "prepare_viewer.py",
+      "bytes": 3275,
+      "sha256": "5f21e924fa06322d6bcd44a13f3d184a0f1b0c8a1264dc07aafd7c27394d1b4d"
+    },
+    {
+      "path": "start_viewer.py",
+      "bytes": 788,
+      "sha256": "e0c3197a58831378069c6ccbba57a82c50d65f98a6bacff461db03a6d8854012"
+    },
+    {
+      "path": "launch_viewer.py",
+      "bytes": 9148,
+      "sha256": "0d411a7ae5e7a66d103d85a568b3d3b5ff4b356c62b60409afc49819bcbae570"
+    },
+    {
+      "path": "human-viewers.json",
+      "bytes": 800,
+      "sha256": "91364fb89fe4a1a1f6803371b55318cc324cff6130a94a4c6d713c91817fb09f"
+    },
+    {
+      "path": "passive.py",
+      "bytes": 19393,
+      "sha256": "c21796cf490a4f0c172a7454d65d6974e3ebbb95eb18bc8c4b6948f80cfec52a"
+    },
+    {
+      "path": "resource_watch.py",
+      "bytes": 11914,
+      "sha256": "5f52525e62e4a955c7e41198cc2b0fd2e36045769233fdf652c9100987edb4ce"
+    }
+  ]
+}

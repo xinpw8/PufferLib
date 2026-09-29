@@ -1,0 +1,8 @@
+{
+  "schema": "rek.resource_watch_independent_review.v1",
+  "utc": "2026-09-29T02:54:42.045125+00:00",
+  "verdict": "GO for exact-parent passive resource watcher in the new isolated viewer",
+  "source_sha256": "5f52525e62e4a955c7e41198cc2b0fd2e36045769233fdf652c9100987edb4ce",
+  "tests_receipt_sha256": "cb549ec5c2769ffa748aab81db98678311e8562adde42177afed57b1cdc9cd1c",
+  "review": "Full source read and11 author CPU tests reviewed. Correct proc offsets and PID/start rechecks; no cmdline/environment reads, input or process signals; bounded single pending GPU query future; null unsupported/nonfinite counters; system-wide numeric GPU scope explicit; fresh output and own STOP. No live query executed during review."
+}

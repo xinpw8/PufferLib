@@ -1,0 +1,97 @@
+{
+  "schema": "rek.performance_deployment_source.v1",
+  "utc": "2026-09-29T02:54:42.060125+00:00",
+  "scope": "Frozen deployment scripts, CPU checks and baseline configuration. Launch separately authorized by parent after graph assessment.",
+  "files": [
+    {
+      "path": "baseline/identity.json",
+      "bytes": 4165,
+      "sha256": "18680b32fa142e22dadd506b2d290d9ecdb55dd53cd11b2aad410851e54db4f1"
+    },
+    {
+      "path": "baseline/server.json",
+      "bytes": 1611,
+      "sha256": "1001434e139ba581dc58a7fd86930348365de56b9857a277a79c9058b9a04e79"
+    },
+    {
+      "path": "baseline/worker.json",
+      "bytes": 1305,
+      "sha256": "5c9b7f8c482d46c64601384c7e95aa14a190b3bcf5abb0664fd7e7b47d955f83"
+    },
+    {
+      "path": "CPU-TESTS.json",
+      "bytes": 287,
+      "sha256": "a6438fda0efb55244ac75db24efb34852ad94168e006fc73f80b07776323a4f9"
+    },
+    {
+      "path": "DEPLOYMENT-INDEPENDENT-REVIEW.json",
+      "bytes": 2337,
+      "sha256": "b5d3f93217d7aa6f20612116395173a30ab8b4d98696a8a7c885ca7518c257ad"
+    },
+    {
+      "path": "deployment_config.py",
+      "bytes": 3212,
+      "sha256": "f64559ce44e5f52ba53319b732854673414c5fd9f5b932e3d458d2a0c13156b4"
+    },
+    {
+      "path": "human-viewers.json",
+      "bytes": 800,
+      "sha256": "91364fb89fe4a1a1f6803371b55318cc324cff6130a94a4c6d713c91817fb09f"
+    },
+    {
+      "path": "launch_viewer.py",
+      "bytes": 9148,
+      "sha256": "0d411a7ae5e7a66d103d85a568b3d3b5ff4b356c62b60409afc49819bcbae570"
+    },
+    {
+      "path": "passive.py",
+      "bytes": 19393,
+      "sha256": "c21796cf490a4f0c172a7454d65d6974e3ebbb95eb18bc8c4b6948f80cfec52a"
+    },
+    {
+      "path": "prepare_viewer.py",
+      "bytes": 3275,
+      "sha256": "5f21e924fa06322d6bcd44a13f3d184a0f1b0c8a1264dc07aafd7c27394d1b4d"
+    },
+    {
+      "path": "RESOURCE-WATCH-REVIEW.json",
+      "bytes": 730,
+      "sha256": "e9514b20bb374b2f3061ac9aa063b15d5278063ded6a1e9a7f606db7b4b35c69"
+    },
+    {
+      "path": "RESOURCE-WATCH-TESTS.json",
+      "bytes": 2105,
+      "sha256": "cb549ec5c2769ffa748aab81db98678311e8562adde42177afed57b1cdc9cd1c"
+    },
+    {
+      "path": "resource_watch.py",
+      "bytes": 11914,
+      "sha256": "5f52525e62e4a955c7e41198cc2b0fd2e36045769233fdf652c9100987edb4ce"
+    },
+    {
+      "path": "start_helpers.ps1",
+      "bytes": 4154,
+      "sha256": "9e651007af2bd72796fa575768ef9b955e84c364c52faa5f4e61d5c0ff230140"
+    },
+    {
+      "path": "start_resource_watch.py",
+      "bytes": 3106,
+      "sha256": "976aea07a4c19c2f5a798535da9aa2b8b9f719b7b2fc2c7f385c5b1e16333346"
+    },
+    {
+      "path": "start_viewer.py",
+      "bytes": 788,
+      "sha256": "e0c3197a58831378069c6ccbba57a82c50d65f98a6bacff461db03a6d8854012"
+    },
+    {
+      "path": "test_deployment.py",
+      "bytes": 4295,
+      "sha256": "c88011564d1ea4dc09b153c591ef2ae5e7f50bbbac2581050fa7652946513a1a"
+    },
+    {
+      "path": "tests.txt",
+      "bytes": 1001,
+      "sha256": "4ab52fa09e965aec83e35654982154a5516e08ed4fc30308c04c8f44b5fa210e"
+    }
+  ]
+}

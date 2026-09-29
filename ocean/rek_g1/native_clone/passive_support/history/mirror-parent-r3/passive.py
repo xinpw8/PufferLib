@@ -6,12 +6,10 @@ import paramiko
 REMOTE='/home/spark-advantage/rek-training/rek-native-clone-20260927-r1/run-r2'
 NAS=Path(r'R:\pufferlib\rek-evidence\2026-09-27\rek-native-clone-r1\live-session-r1')
 HERE=Path(__file__).resolve().parent
-APPEND={'session.jsonl','resource.jsonl','worker.stderr.log','server.stdout.log','server.stderr.log'}
+APPEND={'session.jsonl','worker.stderr.log','server.stdout.log','server.stderr.log'}
 IMMUTABLE={'identity.json','worker.json','server.json','league.json'}
 SNAPSHOT={'recorder-health.json'}
 CHUNK=1024*1024;GUARD=65536
-CHECKPOINT_RECORDS=32;CHECKPOINT_SECONDS=2.0
-FRAME_BATCH=32;FRAME_SECONDS=1.0
 def utc():return datetime.datetime.now(datetime.timezone.utc).isoformat()
 def deadline_for(args):
     return None if getattr(args,'until_stop',False) else time.monotonic()+args.minutes*60
@@ -124,41 +122,21 @@ def immutable_file(sftp,remote,local,nas,stop):
         tmp.rename(destination)
     stage.unlink()
     return {'bytes':before.st_size,'sha256':digest,'source_mtime':before.st_mtime,'source_local_nas_sha_equal':True,'active_prefix':False}
-def frame_listing(sftp):
-    try:
-        if not stat.S_ISDIR(sftp.lstat(REMOTE+'/frames').st_mode):raise IOError('Unexpected frame directory')
-        frames=sftp.listdir_attr(REMOTE+'/frames')
-    except FileNotFoundError:frames=[]
+def listing(sftp):
     files=[]
-    for a in sorted(frames,key=lambda x:x.filename):
-        if not stat.S_ISREG(a.st_mode) or not a.filename.endswith('.png') or not a.filename[:-4].isdigit():raise IOError('Unexpected frame entry')
-        files.append(('frames/'+a.filename,a))
-    return files
-
-def listing(sftp,include_frames=True):
-    files=[]
-    # Refresh health and active prefixes before enumerating/copying PNG backlog.
-    for name in sorted(APPEND|IMMUTABLE|SNAPSHOT,key=lambda n:(n not in SNAPSHOT,n not in APPEND,n)):
+    for name in sorted(APPEND|IMMUTABLE|SNAPSHOT):
         try:a=sftp.lstat(REMOTE+'/'+name)
         except FileNotFoundError:continue
         if not stat.S_ISREG(a.st_mode):raise IOError('Unexpected nonregular source: '+name)
         files.append((name,a))
-    if include_frames:files.extend(frame_listing(sftp))
+    try:
+        if not stat.S_ISDIR(sftp.lstat(REMOTE+'/frames').st_mode):raise IOError('Unexpected frame directory')
+        frames=sftp.listdir_attr(REMOTE+'/frames')
+    except FileNotFoundError:frames=[]
+    for a in sorted(frames,key=lambda x:x.filename,reverse=True):
+        if not stat.S_ISREG(a.st_mode) or not a.filename.endswith('.png') or not a.filename[:-4].isdigit():raise IOError('Unexpected frame entry')
+        files.append(('frames/'+a.filename,a))
     return files
-
-class InventoryCheckpoint:
-    def __init__(self,local,nas,identity,files):
-        self.local=local;self.nas=nas;self.identity=identity;self.files=files
-        self.dirty=0;self.last=time.monotonic()
-    def record(self,relative,result):
-        self.files[relative]=result;self.dirty+=1
-    def flush(self,force=False):
-        if not self.dirty:return False
-        if not force and self.dirty<CHECKPOINT_RECORDS and time.monotonic()-self.last<CHECKPOINT_SECONDS:return False
-        value={'identity':self.identity,'files':self.files,'checkpoint_utc':utc()}
-        atomic(self.local,value);atomic(self.nas,value)
-        # A failed second write keeps the batch dirty and safe to retry.
-        self.dirty=0;self.last=time.monotonic();return True
 def initialize(local,nas,resume):
     if resume:
         a=json.loads((local/'MIRROR-IDENTITY.json').read_text());b=json.loads((nas/'MIRROR-IDENTITY.json').read_text())
@@ -173,84 +151,59 @@ def mirror(args):
     local=args.local/'spool';nas=args.nas;stop=lambda: (args.local/'STOP').exists() or expired(deadline)
     deadline=deadline_for(args);identity=initialize(local,nas,args.resume)
     status_path=args.local/'mirror-status.json';ledger_path=local/'inventory.json'
-    ledger=json.loads(ledger_path.read_text()) if args.resume and ledger_path.exists() else {'identity':identity['id'],'files':{}}
-    if ledger.get('identity')!=identity['id'] or not isinstance(ledger.get('files'),dict):raise RuntimeError('Resume inventory identity mismatch')
-    files=ledger['files'];inventory=InventoryCheckpoint(ledger_path,nas/'inventory.json',identity['id'],files)
-    # A checkpoint is an index, not proof that files survived a crash unchanged.
-    # Recheck each immutable source/local/NAS once after a process starts.
-    verified=set()
+    files=json.loads(ledger_path.read_text()).get('files',{}) if args.resume and ledger_path.exists() else {}
     client=None;errors=[];last_success=None;source_latest=None;reason='deadline';source_health=None
-    def publish_status(phase,**extra):
-        status={'utc':utc(),'pid':os.getpid(),'phase':phase,'source':REMOTE,'nas':str(nas),'source_latest_mtime':source_latest,
-            'source_age_seconds':time.time()-source_latest if source_latest else None,'last_success_utc':last_success,
-            'errors':errors[-10:] if phase=='retrying' else [],'files_verified':len(files),'files_verified_this_process':len(verified),
-            'files_verified_scope':'inventory entries, including prior checkpoints; process count is separate','active_append_files_are_prefixes':True,
-            'source_recorder_health':source_health,**extra}
-        atomic(status_path,status);atomic(nas/'mirror-status.json',status)
     try:
         while not stop():
-            frame_backlog=False
             try:
                 if client is None:client=connect()
                 sftp=client.open_sftp();sftp.get_channel().settimeout(10)
                 with sftp:
-                    for frame_phase in (False,True):
+                    entries=listing(sftp)
+                    for relative,a in entries:
                         if stop():break
-                        entries=frame_listing(sftp) if frame_phase else listing(sftp,include_frames=False)
-                        frame_started=time.monotonic();frame_count=0
-                        for relative,a in entries:
-                            if stop():break
-                            source_latest=max(source_latest or 0,a.st_mtime)
-                            prior=files.get(relative);signature=[a.st_size,a.st_mtime]
-                            if relative in verified and prior and prior.get('source_signature')==signature and relative not in APPEND:continue
-                            if frame_phase and (frame_count>=FRAME_BATCH or (frame_count and time.monotonic()-frame_started>=FRAME_SECONDS)):
-                                frame_backlog=True;break
-                            atomic(status_path,{'utc':utc(),'pid':os.getpid(),'phase':'copying','current_file':relative,'source_latest_mtime':source_latest,'last_success_utc':last_success,'errors':errors[-10:]})
-                            src=REMOTE+'/'+relative
-                            if relative in APPEND:
-                                with sftp.open(src,'rb') as source:
-                                    if source.stat().st_size<a.st_size:raise IOError('Source shrank before append')
-                                    lp=scoped(local,relative);np=scoped(nas,relative)
-                                    append_file(source,lp,a.st_size,stop)
-                                    with lp.open('rb') as copied:result=append_file(copied,np,a.st_size,stop)
-                                result['verification']='source-to-spool-to-NAS append bytes readback; prior last64KiB checked'
-                            else:
-                                dest=relative
-                                if relative in SNAPSHOT:dest='snapshots/'+relative[:-5]+'/'+str(a.st_mtime)+'-'+str(a.st_size)+'.json'
-                                result=immutable_file(sftp,src,scoped(local,dest),scoped(nas,dest),stop);result['destination']=dest
-                                if relative=='recorder-health.json':source_health=json.loads(scoped(local,dest).read_text())
-                            result.update({'source_signature':signature,'verified_utc':utc()})
-                            inventory.record(relative,result);verified.add(relative);inventory.flush()
-                            if frame_phase:frame_count+=1
-                        if not frame_phase:publish_status('watching',frame_backlog_pending=True)
-                    inventory.flush(force=True)
+                        source_latest=max(source_latest or 0,a.st_mtime)
+                        prior=files.get(relative);signature=[a.st_size,a.st_mtime]
+                        if prior and prior.get('source_signature')==signature and relative not in APPEND:continue
+                        atomic(status_path,{'utc':utc(),'pid':os.getpid(),'phase':'copying','current_file':relative,'source_latest_mtime':source_latest,'last_success_utc':last_success,'errors':errors[-10:]})
+                        src=REMOTE+'/'+relative
+                        if relative in APPEND:
+                            with sftp.open(src,'rb') as source:
+                                if source.stat().st_size<a.st_size:raise IOError('Source shrank before append')
+                                lp=scoped(local,relative);np=scoped(nas,relative)
+                                append_file(source,lp,a.st_size,stop)
+                                with lp.open('rb') as copied:result=append_file(copied,np,a.st_size,stop)
+                            result['verification']='source-to-spool-to-NAS append bytes readback; prior last64KiB checked'
+                        else:
+                            dest=relative
+                            if relative in SNAPSHOT:dest='snapshots/'+relative[:-5]+'/'+str(a.st_mtime)+'-'+str(a.st_size)+'.json'
+                            result=immutable_file(sftp,src,scoped(local,dest),scoped(nas,dest),stop);result['destination']=dest
+                            if relative=='recorder-health.json':source_health=json.loads(scoped(local,dest).read_text())
+                        result.update({'source_signature':signature,'verified_utc':utc()});files[relative]=result
+                        atomic(ledger_path,{'identity':identity['id'],'files':files})
                     last_success=utc()
-                    publish_status('watching',frame_backlog_pending=frame_backlog)
+                    status={'utc':utc(),'pid':os.getpid(),'phase':'watching','source':REMOTE,'nas':str(nas),'source_latest_mtime':source_latest,
+                        'source_age_seconds':time.time()-source_latest if source_latest else None,'last_success_utc':last_success,'errors':[],
+                        'files_verified':len(files),'active_append_files_are_prefixes':True,'source_recorder_health':source_health}
+                    atomic(status_path,status);atomic(nas/'mirror-status.json',status)
+                    atomic(nas/'inventory.json',{'identity':identity['id'],'files':files})
             except InterruptedError:break
             except Exception as e:
                 errors.append({'utc':utc(),'error':type(e).__name__+': '+str(e)})
-                try:inventory.flush(force=True)
-                except Exception as checkpoint_error:errors.append({'utc':utc(),'error':'Error checkpoint failed: '+str(checkpoint_error)})
                 atomic(status_path,{'utc':utc(),'pid':os.getpid(),'phase':'retrying','last_success_utc':last_success,'errors':errors[-10:]})
-                try:publish_status('retrying')
-                except Exception:pass # Local retry status already preserves the error when NAS is unavailable.
                 if client:client.close();client=None
-                frame_backlog=False
-            for _ in range(0 if frame_backlog else 30):
+            for _ in range(30):
                 if stop():break
                 time.sleep(.1)
         if (args.local/'STOP').exists():reason='STOP'
     finally:
         if client:client.close()
-        checkpoint_errors=[]
-        try:inventory.flush(force=True)
-        except Exception as e:checkpoint_errors.append({'utc':utc(),'error':'Final inventory checkpoint failed: '+str(e)})
         final={'utc':utc(),'pid':os.getpid(),'phase':'stopped','reason':reason,'last_success_utc':last_success,
-            'errors':checkpoint_errors,'historical_errors':errors[-10:]}
+            'errors':[],'historical_errors':errors[-10:]}
         atomic(status_path,final)
         try:atomic(nas/'mirror-status.json',final)
         except Exception as e:
-            final['errors'].append({'utc':utc(),'error':'Final NAS status publication failed: '+str(e)})
+            final['errors']=[{'utc':utc(),'error':'Final NAS status publication failed: '+str(e)}]
             atomic(status_path,final)
 
 def tunnel(args):

@@ -1,0 +1,8 @@
+{
+  "schema": "rek.performance_deployment_cpu_tests.v1",
+  "tests": 7,
+  "exit_code": 0,
+  "tests_sha256": "4ab52fa09e965aec83e35654982154a5516e08ed4fc30308c04c8f44b5fa210e",
+  "powershell_syntax": "passed ParseFile without execution",
+  "runtime_executed_during_tests": false
+}

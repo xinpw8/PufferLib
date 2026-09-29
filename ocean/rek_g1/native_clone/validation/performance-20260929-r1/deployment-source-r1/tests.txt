@@ -1,0 +1,12 @@
+test_exact_package_and_all_three_guards (test_deployment.Tests.test_exact_package_and_all_three_guards) ... ok
+test_existing_run_rejected_before_subprocess_or_guard (test_deployment.Tests.test_existing_run_rejected_before_subprocess_or_guard) ... ok
+test_fixed_start_command_uses_guarded_generic_launcher (test_deployment.Tests.test_fixed_start_command_uses_guarded_generic_launcher) ... ok
+test_missing_mode_does_not_default_to_graph (test_deployment.Tests.test_missing_mode_does_not_default_to_graph) ... ok
+test_real_baseline_graph_change_is_only_requested_field (test_deployment.Tests.test_real_baseline_graph_change_is_only_requested_field) ... ok
+test_reject_unrelated_worker_mutation (test_deployment.Tests.test_reject_unrelated_worker_mutation) ... ok
+test_watcher_postspawn_failure_sets_only_own_stop (test_deployment.Tests.test_watcher_postspawn_failure_sets_only_own_stop) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.017s
+
+OK

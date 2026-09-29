@@ -1,0 +1,25 @@
+{
+  "schema": "rek.resource_watch_cpu_validation.v1",
+  "returncode": 0,
+  "tests": 11,
+  "scope": "Fake proc/query/future only. No live resource query or application input.",
+  "stdout": "",
+  "stderr": "test_bounded_query_errors (test_resource_watch.GpuTests.test_bounded_query_errors) ... ok\ntest_nonfinite_unavailable_and_columns (test_resource_watch.GpuTests.test_nonfinite_unavailable_and_columns) ... ok\ntest_one_pending_job_and_age (test_resource_watch.GpuTests.test_one_pending_job_and_age) ... ok\ntest_pmon_command_and_unavailable_pid_not_retained (test_resource_watch.GpuTests.test_pmon_command_and_unavailable_pid_not_retained) ... ok\ntest_child_reuse_and_missing_io (test_resource_watch.ProcTests.test_child_reuse_and_missing_io) ... ok\ntest_cpu_and_io_interval_deltas (test_resource_watch.ProcTests.test_cpu_and_io_interval_deltas) ... ok\ntest_exact_identity_native_scope_and_initial_null_deltas (test_resource_watch.ProcTests.test_exact_identity_native_scope_and_initial_null_deltas) ... ok\ntest_nonmonotonic_interval (test_resource_watch.ProcTests.test_nonmonotonic_interval) ... ok\ntest_parent_change_during_sample (test_resource_watch.ProcTests.test_parent_change_during_sample) ... ok\ntest_parent_reuse_and_zombie_stop_without_children_effects (test_resource_watch.ProcTests.test_parent_reuse_and_zombie_stop_without_children_effects) ... ok\ntest_run_stop_flush_and_exclusive_create (test_resource_watch.ProcTests.test_run_stop_flush_and_exclusive_create) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 0.094s\n\nOK\n",
+  "files": [
+    {
+      "path": "resource_watch.py",
+      "bytes": 11914,
+      "sha256": "5f52525e62e4a955c7e41198cc2b0fd2e36045769233fdf652c9100987edb4ce"
+    },
+    {
+      "path": "test_resource_watch.py",
+      "bytes": 6298,
+      "sha256": "3e4c1b18aec725032090a9913981fc06b3829ec6603d8c7a427feff35427ea00"
+    },
+    {
+      "path": "RESOURCE-WATCH.md",
+      "bytes": 2408,
+      "sha256": "d2a6b0bba5ae2ef368988a84c33255f89503a1e9f40a9fa698aafe94232707ec"
+    }
+  ]
+}

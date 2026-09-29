@@ -1,0 +1,58 @@
+{
+  "schema": "rek.passive_mirror_batch_tests.v1",
+  "utc": "2026-09-29T02:42:17.793454+00:00",
+  "source_sha256": "c21796cf490a4f0c172a7454d65d6974e3ebbb95eb18bc8c4b6948f80cfec52a",
+  "parent_sha256": "9d92e0e6516ce46c06cfe98e60e689d36152871e2d3d8b8c336085e067fe7e17",
+  "exit_code": 0,
+  "tests": 23,
+  "scope": "CPU local/fake SFTP only; no live process or remote connection",
+  "unchanged_function_bodies": [
+    "utc",
+    "deadline_for",
+    "expired",
+    "sha",
+    "atomic",
+    "scoped",
+    "connect",
+    "OwnedLock",
+    "read_exact",
+    "prefix_guard",
+    "append_file",
+    "immutable_file",
+    "initialize",
+    "tunnel",
+    "parse_args",
+    "main"
+  ],
+  "test_log": {
+    "path": "tests-mirror-r4.txt",
+    "bytes": 3837,
+    "sha256": "e05e867efd8f5b3eb4ddc8832559c174573ec3fdac18ad5c0aeba7111d73988e"
+  },
+  "growth": [
+    {
+      "frames": 128,
+      "old_local_inventory_writes": 128,
+      "new_local_inventory_writes": 4,
+      "old_local_serialized_bytes": 1730624,
+      "new_local_serialized_bytes": 67156,
+      "new_both_destinations_serialized_bytes": 134312
+    },
+    {
+      "frames": 512,
+      "old_local_inventory_writes": 512,
+      "new_local_inventory_writes": 16,
+      "old_local_serialized_bytes": 27468032,
+      "new_local_serialized_bytes": 910672,
+      "new_both_destinations_serialized_bytes": 1821344
+    }
+  ],
+  "limits": {
+    "checkpoint_records": 32,
+    "checkpoint_seconds": 2,
+    "frame_batch": 32,
+    "frame_seconds": 1,
+    "time_bounds": "cooperative between completed file copies"
+  },
+  "deployed": false
+}
