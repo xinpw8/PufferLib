@@ -22,7 +22,7 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
     backend.training=JSON.parse(fs.readFileSync(path.resolve(path.dirname(configPath),backend.trainingFile),'utf8'));
   let active=null,worker=null,renderer=null,state={ok:false,failure:'Select a backend'},png=null;
   let busy=false,switching=false,lastClient=0,workerGeneration=0,frameGeneration=0;
-  let frameState=null,renderFailure=null;
+  let frameState=null,renderFailure=null,viewSide=0;
   let humanConfig=null,paused=true,roundRestartAt=0;
   const session=new HumanSession();
   const input=new HumanInput();
@@ -48,7 +48,8 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
   function invalidateFrames(){
     renderQueue.invalidate(++frameGeneration);png=null;frameState=null;renderFailure=null;
   }
-  function frameSnapshot(){return {qpos:state.qpos,snapshotTick:state.tick,generation:frameGeneration};}
+  // The renderer's chase camera sits behind the human-controlled fighter.
+  function frameSnapshot(){return {qpos:state.qpos,snapshotTick:state.tick,generation:frameGeneration,followSide:viewSide};}
   function offerFrame(){
     if(renderer?.closed){renderFailure=renderFailure||'Native renderer unavailable; select a backend to recreate it';return;}
     try{renderQueue.offer(frameSnapshot());}catch(error){renderFailure=error.message;}
@@ -86,7 +87,7 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
     switching=true;workerGeneration++;timer.pause();input.reset();
     try{
       while(busy)await new Promise(resolve=>setTimeout(resolve,5));
-      invalidateFrames();
+      invalidateFrames();viewSide=humanSide;
       recentPace.reset();
       // This private viewer override never changes the training/league config.
       const nextConfig=createHumanConfig(backend.workerConfig,roundSeconds);

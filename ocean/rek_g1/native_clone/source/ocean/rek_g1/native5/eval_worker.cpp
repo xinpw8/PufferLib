@@ -58,8 +58,10 @@ public:
         cJSON_AddBoolToObject(reply.get(),"ok",true);
         if(frame.has_tick)num(reply.get(),"snapshotTick",frame.tick);
         if(frame.has_generation)num(reply.get(),"generation",frame.generation);
+        if(frame.follow_side>=0)num(reply.get(),"followSide",frame.follow_side);
         if(!renderer)renderer=std::make_unique<rek_eval::Renderer>(model_path.c_str());
-        text(reply.get(),"png",renderer->frame(frame.qpos.data()));return reply;
+        rek_eval::FollowView view{frame.follow_side,frame.has_tick,frame.has_generation,frame.tick,frame.generation};
+        text(reply.get(),"png",renderer->frame(frame.qpos.data(),view));return reply;
     }
 };
 

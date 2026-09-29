@@ -24,7 +24,12 @@ class LatestFrameQueue {
     if(!Number.isSafeInteger(value.snapshotTick)||value.snapshotTick<0||
       !Array.isArray(value.qpos)||value.qpos.length!==72||!value.qpos.every(Number.isFinite))
       throw Error('Invalid render snapshot');
-    return {generation:value.generation,snapshotTick:value.snapshotTick,qpos:[...value.qpos]};
+    // Optional third-person camera target; absent keeps the two-fighter overview.
+    if(value.followSide!==undefined&&value.followSide!==0&&value.followSide!==1)
+      throw Error('Invalid render follow side');
+    const snapshot={generation:value.generation,snapshotTick:value.snapshotTick,qpos:[...value.qpos]};
+    if(value.followSide!==undefined)snapshot.followSide=value.followSide;
+    return snapshot;
   }
   offer(value){
     const snapshot=this.snapshot(value);

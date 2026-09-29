@@ -50,3 +50,11 @@ test('reply identity mismatch fails exact capture without publishing another tic
   await assert.rejects(queue.exact(snapshot(1)),/identity mismatch/);
   assert.equal(frames.length,0);assert.equal(errors.length,1);queue.close();
 });
+test('follow side passes through to the renderer and invalid sides fail before rendering',async()=>{
+  const r=rig();assert.throws(()=>r.queue.offer({...snapshot(1),followSide:2}),/follow side/);
+  assert.throws(()=>r.queue.offer({...snapshot(1),followSide:'1'}),/follow side/);
+  r.queue.offer({...snapshot(1),followSide:1});r.advance();assert.equal(r.calls[0].value.followSide,1);
+  r.calls[0].resolve();await flush();r.queue.offer(snapshot(2));r.advance(50);
+  assert.equal('followSide' in r.calls[1].value,false,'absent side keeps the overview request unchanged');
+  r.queue.close();
+});

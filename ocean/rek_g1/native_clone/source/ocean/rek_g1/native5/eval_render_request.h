@@ -11,6 +11,7 @@ struct FrameRequest {
     std::array<float,72> qpos{};
     bool has_tick=false,has_generation=false;
     double tick=0,generation=0;
+    int follow_side=-1;
 };
 
 inline FrameRequest frame_request(const cJSON* command) {
@@ -39,6 +40,12 @@ inline FrameRequest frame_request(const cJSON* command) {
     };
     identity("snapshotTick",request.has_tick,request.tick);
     identity("generation",request.has_generation,request.generation);
+    const auto* side=cJSON_GetObjectItemCaseSensitive(command,"followSide");
+    if(side) {
+        if(!cJSON_IsNumber(side)||(side->valuedouble!=0&&side->valuedouble!=1))
+            throw std::runtime_error("Invalid renderer followSide");
+        request.follow_side=int(side->valuedouble);
+    }
     return request;
 }
 }

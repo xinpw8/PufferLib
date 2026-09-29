@@ -72,6 +72,17 @@ test('blocked renderer permits physics progress, pause and reset, and stale gene
     const state=(await f.api('/api/snapshot')).data;assert.equal(state.frame.tick,0);assert(state.frame.ageMs>=0);assert.equal(f.renderer.maxActive,1);
   }finally{await f.close();}
 });
+test('chase camera follows the human-controlled side across selections',async()=>{
+  const f=await fixture();try{
+    assert.equal(f.renderer.jobs[0].args.followSide,0);f.renderer.jobs[0].finish();
+    assert.equal((await f.api('/api/select',{backend:'mujoco',opponent:'bot1',humanSide:1,roundSeconds:120})).status,200);
+    await until(()=>f.context.renderer.jobs.length===1,'renderer recreated for the new side');
+    const renderer=f.context.renderer;assert.equal(renderer.jobs[0].args.followSide,1);renderer.jobs[0].finish();
+    await f.api('/api/play',{paused:false});await until(()=>renderer.jobs.length>=2,'play frames requested');
+    await f.api('/api/play',{paused:true});assert(renderer.jobs.every(job=>job.args.followSide===1));
+    for(const job of renderer.jobs)if(!job.done)job.finish();
+  }finally{await f.close();}
+});
 test('reset waits for delayed physics step before changing render generation and tick-zero publication',async()=>{
   const f=await fixture();let release;
   try{
