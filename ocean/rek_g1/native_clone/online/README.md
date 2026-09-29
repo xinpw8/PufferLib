@@ -38,6 +38,8 @@ g++ -std=c++17 -O2 -I$M/include online/export_scene.cpp -L$M -l:libmujoco.so.3.7
 node online/configure.cjs --out CONFIG.json --password-file PASSWORD_FILE --binary BINARY --worker-config WORKER.json \
   --server-json RUN/server.json --scene-dir SCENE_DIR --log-dir LOG_DIR --port 18780 --hosts rek.clipfrac.com
 online/start.sh CONFIG.json RUN_DIR
+# Change the password later (reads it from stdin; --logout-all also signs everyone out), then restart
+node online/set_password.cjs CONFIG.json [--logout-all]
 ```
 
 The server listens on 127.0.0.1 only; a Cloudflare tunnel publishes it at `https://rek.clipfrac.com`. Only allowed Host names are served, and WebSocket upgrades require the login cookie and a same-origin `Origin`. Logs are small (joins, matches) and capped; `disk_cap.py` stops the server if its log directory passes 2 GB.
