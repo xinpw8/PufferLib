@@ -3,6 +3,7 @@
   const $=id=>document.getElementById(id),{SavedRekKeyboard,savedRekBindings}=globalThis.RekControls;
   const keyboard=new SavedRekKeyboard(),held=new Set(),moveKeys=new Map(['W','A','S','D','Q','E'].map(k=>['Key'+k,k]));
   let paused=true,ready=false,stopped=false,seq=Date.now()*1024,blob=null,lastTick=null,lastAdvance=performance.now();
+  let frameETag=null,frameRequest=null;
   let inputChain=Promise.resolve(),playChain=Promise.resolve(),generation=0,changing=false;
   const showError=message=>{$('error').hidden=!message;$('error').textContent=message||'';};
   async function api(url,body){
@@ -52,7 +53,8 @@
     const last=q.lastRound;$('last-round').textContent=last?`${last.bluePoints} : ${last.orangePoints} · ${last.winner===0?'You won':last.winner===1?'Bot 1 won':last.reason} (${last.reason})`:'No completed round';
     const c=s.commandResults?.[s.active?.humanSide??0];
     if(c?.attempted||c?.cancelled||c?.reason)$('command-status').textContent=`Native action: ${c.accepted?'accepted':c.rejected?'rejected':c.cancelled?'cancelled':'processed'} · ${['none','invalid','recovering','punching','round inactive'][c.reason]??c.reason??''}`;
-    const pace=s.pace||{};$('pace').textContent=Number.isFinite(pace.realTimeRatio)?`${pace.realTimeRatio.toFixed(2)}× wall-clock pace`:'Pace awaiting play';
+    const pace=s.pace||{},recent=pace.recent;
+    $('pace').textContent=`${Number.isFinite(recent?.realTimeRatio)?`${recent.realTimeRatio.toFixed(2)}× recent (${(recent.activeWallMs/1000).toFixed(1)} s active)`:'Recent pace awaiting play'} · ${Number.isFinite(pace.realTimeRatio)?`${pace.realTimeRatio.toFixed(2)}× session`:'Session pace awaiting play'}`;
     $('timing').textContent=`20 ms control · step ${Number.isFinite(pace.lastStepMs)?pace.lastStepMs.toFixed(1):'?'} ms · frame ${Number.isFinite(pace.lastFrameMs)?pace.lastFrameMs.toFixed(1):'?'} ms · image ${s.frame?`tick ${s.frame.tick}, age ${Math.round(s.frame.ageMs)} ms`:'pending'}`;
     if(s.tick!==lastTick){lastTick=s.tick;lastAdvance=performance.now();}
     $('connection').textContent=!s.ok?(s.failure||'Loading'):paused?'Ready · paused':performance.now()-lastAdvance>3000?'Waiting for simulation':'Running';
@@ -64,9 +66,24 @@
       await new Promise(r=>setTimeout(r,100));}
   }
   async function frameLoop(){
-    while(!stopped){try{const response=await fetch('/frame.png',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-      if(response.ok){const next=URL.createObjectURL(await response.blob()),old=blob;blob=next;$('frame').src=next;if(old)URL.revokeObjectURL(old);}}
-      catch{}await new Promise(r=>setTimeout(r,50));}
+    while(!stopped){
+      if(document.hidden){await new Promise(r=>setTimeout(r,250));continue;}
+      const controller=new AbortController();frameRequest=controller;
+      try{
+        const response=await fetch('/frame.png',{cache:'no-store',
+          headers:frameETag?{'If-None-Match':frameETag}:{},
+          signal:AbortSignal.any([controller.signal,AbortSignal.timeout(15000)])});
+        if(response.ok){
+          const image=await response.blob();
+          if(!stopped&&!document.hidden&&!controller.signal.aborted){
+            const next=URL.createObjectURL(image),old=blob;blob=next;frameETag=response.headers.get('etag');
+            $('frame').src=next;if(old)URL.revokeObjectURL(old);
+          }
+        }
+      }catch{}
+      finally{if(frameRequest===controller)frameRequest=null;}
+      await new Promise(r=>setTimeout(r,50));
+    }
   }
   for(const binding of savedRekBindings){
     const b=document.createElement('button'),key=document.createElement('b'),label=document.createElement('small');
@@ -95,7 +112,7 @@
     if(!paused||changing)return;changing=true;
     try{await api('/api/step',{steps:1,command:{forward:0,strafe:0,yaw:0,moveIndex:-1,cancelAction:false},frame:true});}catch(e){showError(e.message);}finally{changing=false;}
   });
-  window.addEventListener('blur',()=>setPaused(true));document.addEventListener('visibilitychange',()=>{if(document.hidden)setPaused(true);});
-  window.addEventListener('pagehide',()=>{setPaused(true);stopped=true;if(blob)URL.revokeObjectURL(blob);});
+  window.addEventListener('blur',()=>setPaused(true));document.addEventListener('visibilitychange',()=>{if(document.hidden){frameRequest?.abort();setPaused(true);}});
+  window.addEventListener('pagehide',()=>{setPaused(true);stopped=true;frameRequest?.abort();if(blob)URL.revokeObjectURL(blob);});
   stateLoop();frameLoop();
 })();

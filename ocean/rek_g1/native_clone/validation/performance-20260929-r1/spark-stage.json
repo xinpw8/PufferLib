@@ -1,0 +1,12 @@
+{
+  "schema": "rek.performance.app_stage.v1",
+  "utc": "2026-09-29T02:32:48.119645+00:00",
+  "app": "/home/spark-advantage/rek-training/rek-performance-audit-20260929-r1/app-stage-r9/app",
+  "manifest_sha256": "9138485e02c0c6ec69a8f84aad87f3469b046170e9db720433b2508a674481a2",
+  "archive_sha256": "072d2c01480b72fae2552feb7a1d92582e2260e7cc8a190f202462ab43ea20a1",
+  "files": 185,
+  "native_or_viewer_started": false,
+  "cpu_tests_exit_code": 0,
+  "stdout_sha256": "f3c3aeb5bb5952a87be9a344170c1d533326a6a61e8ad43353abf37ca38df0d0",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

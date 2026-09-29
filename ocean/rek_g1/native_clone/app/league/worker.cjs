@@ -2,9 +2,10 @@
 const {spawn}=require('node:child_process');
 const readline=require('node:readline');
 const fs=require('node:fs');
+const {performance}=require('node:perf_hooks');
 
 class NativeWorker {
-  constructor({executable,config,env={},logFile,renderOnly=false,spawnProcess=spawn}){
+  constructor({executable,config,env={},logFile,renderOnly=false,spawnProcess=spawn,onTransportTiming=()=>{}}){
     this.serial=0;this.pending=new Map();this.closed=false;this.renderOnly=renderOnly;
     const log=logFile?fs.openSync(logFile,'a',0o600):'inherit';
     this.child=spawnProcess(executable,[...(renderOnly?['--render-only']:[]),'--config',config],{env:{...process.env,...env},
@@ -15,7 +16,9 @@ class NativeWorker {
       this.readyTimer=setTimeout(()=>reject(new Error('Native worker startup timeout')),60000);
     });
     readline.createInterface({input:this.child.stdout}).on('line',line=>{
+      const started=performance.now();
       let value;try{value=JSON.parse(line);}catch{return;}
+      onTransportTiming('json_parse_ms',performance.now()-started);
       if(value.event==='ready'){
         if(renderOnly&&value.rendererOnly!==true){
           this.fail(new Error('Native renderer role mismatch'));this.child.kill('SIGTERM');return;

@@ -14,7 +14,7 @@ test('native phase labels do not invent a timer or treat round terminal as match
 });
 test('launched zero-intermission server continues stepping native between-round phase without an extra browser timer',async()=>{
   const launch=fs.readFileSync(path.join(__dirname,'../launch_logged.cjs'),'utf8');
-  assert(launch.includes('{Worker:RecordedWorker,Renderer:RecordedWorker,intermissionMs:0}'));
+  assert.match(launch,/\{Worker:RecordedWorker,Renderer:RecordedWorker,intermissionMs:0(?:,diagnostics:[^\n]+)?\}/);
   const listener=net.createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');
   const port=listener.address().port;await new Promise(r=>listener.close(r));
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rek-native-phase-'));

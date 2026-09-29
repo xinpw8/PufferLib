@@ -4,7 +4,7 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),net=
 const {once}=require('node:events'),{setTimeout:delay}=require('node:timers/promises');
 const {League}=require('./league.cjs'),{serve}=require('./server.cjs');
 async function until(condition,label){const deadline=Date.now()+2000;while(!condition()&&Date.now()<deadline)await delay(5);assert(condition(),label);}
-async function fixture(){
+async function fixture(extra={}){
   const listener=net.createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');
   const port=listener.address().port;await new Promise(r=>listener.close(r));
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rek-decoupled-render-'));
@@ -38,7 +38,7 @@ async function fixture(){
     }
     async close(){for(const job of this.jobs)if(!job.done)job.fail();}
   }
-  const service=await serve(cfg,{Worker,Renderer,intermissionMs:0});if(!service.server.listening)await once(service.server,'listening');
+  const service=await serve(cfg,{Worker,Renderer,intermissionMs:0,...extra});if(!service.server.listening)await once(service.server,'listening');
   const base=`http://127.0.0.1:${port}`;
   async function api(route,value){const r=await fetch(base+route,value===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});return {status:r.status,data:await r.json()};}
   assert.equal((await api('/api/select',{backend:'mujoco',opponent:'bot1',humanSide:0,roundSeconds:120})).status,200);
@@ -54,9 +54,13 @@ test('blocked renderer permits physics progress, pause and reset, and stale gene
     await until(()=>f.physics.steps>=5,'steps continue while first render remains unresolved');
     assert.equal(f.renderer.jobs.length,1,'only one rendering job in flight');
     assert.equal((await f.api('/api/play',{paused:true})).status,200);
-    const stopped=f.physics.steps;await delay(50);assert.equal(f.physics.steps,stopped);
+    const stopped=f.physics.steps,atPause=(await f.api('/api/snapshot')).data.pace.recent;
+    assert.equal(atPause.activeIntervals,stopped-1,'only completed control intervals counted');
+    await delay(50);assert.equal(f.physics.steps,stopped);
+    assert.deepEqual((await f.api('/api/snapshot')).data.pace.recent,atPause,'paused wall time does not change recent pace');
     assert.equal((await f.api('/api/reset',{})).status,200,'reset does not wait for renderer');
     assert.equal((await f.api('/api/snapshot')).data.tick,0);
+    assert.equal((await f.api('/api/snapshot')).data.pace.recent.realTimeRatio,null,'reset starts fresh recent measurement');
     old.finish();await until(()=>f.renderer.jobs.length===2,'reset frame follows old in-flight job');
     assert.equal((await fetch(f.base+'/frame.png')).status,503,'old generation discarded');
     const reset=f.renderer.jobs[1];assert.equal(reset.args.snapshotTick,0);assert(reset.args.generation>old.args.generation);
@@ -101,5 +105,35 @@ test('closed renderer is latched without repeated requests while physics keeps a
     await f.api('/api/play',{paused:true});
     const state=(await f.api('/api/snapshot')).data;
     assert.equal(state.ok,true);assert.match(state.renderFailure,/render/i);assert.equal(f.renderer.jobs.length,1);
+  }finally{await f.close();}
+});
+
+test('conditional frame GET transfers only new snapshot identities, including after reset',async t=>{
+  const diagnostic={recorderWriteMs:{count:4,max:1.25}};
+  const f=await fixture({diagnostics:()=>diagnostic});
+  try{
+    f.renderer.jobs[0].finish();await until(()=>f.renderer.active===0,'initial render done');await delay(5);
+    const first=await fetch(f.base+'/frame.png'),initial=Buffer.from(await first.arrayBuffer()),etag=first.headers.get('etag');
+    assert.equal(first.status,200);assert.match(etag,/^"rek-\d+-0-[0-9a-f]{64}"$/);
+    const before=f.renderer.jobs.length;
+    for(const validator of [etag,`W/${etag}`,`"unrelated", ${etag}`,'*']){
+      const duplicate=await fetch(f.base+'/frame.png',{headers:{'If-None-Match':validator}});
+      assert.equal(duplicate.status,304);assert.equal((await duplicate.arrayBuffer()).byteLength,0);
+      assert.equal(duplicate.headers.get('etag'),etag);assert.equal(duplicate.headers.get('x-rek-snapshot-tick'),'0');
+      assert.equal(duplicate.headers.get('x-rek-frame-sha256'),crypto.createHash('sha256').update(initial).digest('hex'));
+    }
+    t.diagnostic(JSON.stringify({proof:'HTTP image-body bytes only; headers excluded',firstImageBytes:initial.length,
+      duplicateRequests:4,parentDuplicateImageBytes:initial.length*4,conditionalDuplicateImageBytes:0}));
+    assert.equal(f.renderer.jobs.length,before,'HTTP image reads never request rendering');
+    assert.deepEqual((await f.api('/api/snapshot')).data.diagnostics,diagnostic);
+    const stepping=f.api('/api/step',{action:0,steps:1,frame:true});
+    await until(()=>f.renderer.jobs.length===2,'new snapshot requested');f.renderer.jobs[1].finish();await stepping;
+    const next=await fetch(f.base+'/frame.png',{headers:{'If-None-Match':etag}});
+    assert.equal(next.status,200);assert.notEqual(next.headers.get('etag'),etag);assert.equal(next.headers.get('x-rek-snapshot-tick'),'1');
+    await next.arrayBuffer();
+    await f.api('/api/reset',{});await until(()=>f.renderer.jobs.length===3,'reset snapshot requested');f.renderer.jobs[2].finish();await delay(5);
+    const reset=await fetch(f.base+'/frame.png',{headers:{'If-None-Match':etag}});
+    assert.equal(reset.status,200);assert.notEqual(reset.headers.get('etag'),etag,'new generation cannot reuse prior tick-zero validator');
+    assert.equal(reset.headers.get('x-rek-snapshot-tick'),'0');await reset.arrayBuffer();
   }finally{await f.close();}
 });

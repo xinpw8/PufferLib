@@ -1,0 +1,65 @@
+{
+  "schema": "rek.viewer.transport_cpu_full_tests.v1",
+  "started_utc": "2026-09-29T02:22:19.753705+00:00",
+  "finished_utc": "2026-09-29T02:22:21.698113+00:00",
+  "exit_code": 0,
+  "files": [
+    {
+      "path": "league/server.cjs",
+      "bytes": 16414,
+      "sha256": "0623dd28e9782d4b28b05505d733b859bf109614aff3ac2f8fa4a17c82f1c9fd"
+    },
+    {
+      "path": "league/public/app.js",
+      "bytes": 8870,
+      "sha256": "033440aeed236e9641ed3109949aaa036e9964303b4410b3986bb8cc72f02338"
+    },
+    {
+      "path": "league/render_decoupling.test.cjs",
+      "bytes": 10986,
+      "sha256": "dceaf0ffc0546239bad207057e580e787c4ec51fec82bb15fcc293c9c104dcfd"
+    },
+    {
+      "path": "league/frame_browser.test.cjs",
+      "bytes": 5537,
+      "sha256": "caf20c5f30e3575417d55a282e8c9c22b887efbf6454c59184f065ed93fbf602"
+    },
+    {
+      "path": "league/performance_stats.cjs",
+      "bytes": 2811,
+      "sha256": "82914ea53281c985586fc09751f8095513e89001c2c73b3c4f5679a0a9b95826"
+    },
+    {
+      "path": "league/performance_stats.test.cjs",
+      "bytes": 2222,
+      "sha256": "c7f3920badc609faead152173fae2964dc12f80b08ac65887333e82a55e66ae5"
+    },
+    {
+      "path": "league/recent_pace.cjs",
+      "bytes": 1738,
+      "sha256": "db1e3c2a8dac734e37bda8a15c13f4136a2b6d82e4f8e86654844c9374836919"
+    },
+    {
+      "path": "league/recent_pace.test.cjs",
+      "bytes": 1909,
+      "sha256": "4ce04db008af6fcfb77bde3b77bdc5c7b8ce14fad7e3c871a5fb87e2ab198944"
+    },
+    {
+      "path": "league/native_phase.test.cjs",
+      "bytes": 3919,
+      "sha256": "7d95cacf4236478a9f5f15e91fbd94b82e69bc75d3d5f6830d3acf53dc734d9d"
+    },
+    {
+      "path": "launch_logged.cjs",
+      "bytes": 7183,
+      "sha256": "c01bd94709a052398d435d5ec1830a0db5d02d99e4047807c7931df1aa29b260"
+    },
+    {
+      "path": "league/worker.cjs",
+      "bytes": 2975,
+      "sha256": "4d2fcbc2b4f8f32205fbed750da13a9fa00e0c3e16743652bb22d7726ed5120c"
+    }
+  ],
+  "stdout_sha256": "dca88647233875e1f4189cb19b04f702666e0a986972d33905018bb8b4efc676",
+  "native_or_live_session_executed": false
+}

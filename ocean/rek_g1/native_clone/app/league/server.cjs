@@ -2,6 +2,7 @@
 const http=require('node:http');
 const {performance}=require('node:perf_hooks');
 const {startPacedLoop}=require('./paced_loop.cjs');
+const {RecentPace}=require('./recent_pace.cjs');
 const {LatestFrameQueue}=require('./render_queue.cjs');
 const fs=require('node:fs');
 const path=require('node:path');
@@ -12,7 +13,7 @@ const {HumanInput,validateCommand}=require('./input.cjs');
 const {publicStanding}=require('./public_result.cjs');
 const {HumanSession,createHumanConfig,HUMAN_ROUND_SECONDS,DEFAULT_HUMAN_ROUND_SECONDS}=require('./human_session.cjs');
 
-async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,intermissionMs=3000}={}){
+async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,intermissionMs=3000,diagnostics=()=>null}={}){
   const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
   const port=config.port||18768,host='127.0.0.1';
   const league=new League({file:config.leagueFile});
@@ -26,10 +27,11 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
   const session=new HumanSession();
   const input=new HumanInput();
   let pace={steps:0,activeIntervals:0,activeWallMs:0,lastStepMs:null,lastFrameMs:null},lastStepStart=null;
-  const runtimeState=()=>({...state,active,switching,paused,
+  const recentPace=new RecentPace();
+  const runtimeState=()=>({...state,active,switching,paused,diagnostics:diagnostics(),
     frame:frameState?{...frameState,ageMs:Math.max(0,Date.now()-frameState.publishedAtMs)}:null,renderFailure,
     intermissionSeconds:Math.max(0,(roundRestartAt-Date.now())/1000),session:session.snapshot(),
-    pace:{...pace,scheduler:timer.snapshot(),simulationStepSeconds:.02,realTimeRatio:pace.activeWallMs>0?pace.activeIntervals*20/pace.activeWallMs:null}});
+    pace:{...pace,recent:recentPace.snapshot(),scheduler:timer.snapshot(),simulationStepSeconds:.02,realTimeRatio:pace.activeWallMs>0?pace.activeIntervals*20/pace.activeWallMs:null}});
   const renderQueue=new LatestFrameQueue({
     render:snapshot=>{
       if(renderer.closed)throw Error('Native renderer unavailable; select a backend to recreate it');
@@ -55,7 +57,7 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
     state=result.state;
     for(const completed of result.rounds||[]){session.record(completed);session.recordFight(completed);}
     if(state.terminal){session.record(state);input.release();roundRestartAt=Date.now()+intermissionMs;}
-    if(state.fightResult>0){session.recordFight(state);paused=true;timer.pause();input.release();}
+    if(state.fightResult>0){session.recordFight(state);paused=true;timer.pause();recentPace.breakSpan();input.release();}
     state.moveDisposition=state.commandResults?.[active.humanSide]??null;state.held=[...input.held];
   }
   function options(backend){
@@ -85,6 +87,7 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
     try{
       while(busy)await new Promise(resolve=>setTimeout(resolve,5));
       invalidateFrames();
+      recentPace.reset();
       // This private viewer override never changes the training/league config.
       const nextConfig=createHumanConfig(backend.workerConfig,roundSeconds);
       if(worker)await worker.close();
@@ -116,9 +119,9 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
     finally{switching=false;}
   }
   async function tick(){
-    if(Date.now()-lastClient>2000){input.release();paused=true;timer.pause();lastStepStart=null;return;}
+    if(Date.now()-lastClient>2000){input.release();paused=true;timer.pause();recentPace.breakSpan();lastStepStart=null;return;}
     if(paused||Date.now()<roundRestartAt||busy||switching||!worker||!state.ok){
-      if(paused||!state.ok)timer.pause();lastStepStart=null;return;
+      if(paused||!state.ok)timer.pause();recentPace.breakSpan();lastStepStart=null;return;
     }
     busy=true;
     try{
@@ -126,9 +129,9 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
       if(lastStepStart!==null){pace.activeIntervals++;pace.activeWallMs+=started-lastStepStart;}
       lastStepStart=started;
       const result=await worker.request('step',{command:input.next(state,active.humanSide),humanSide:active.humanSide,steps:1});
-      pace.lastStepMs=performance.now()-started;pace.steps++;recordResult(result);
+      const completed=performance.now();pace.lastStepMs=completed-started;pace.steps++;recentPace.complete(completed);recordResult(result);
       offerFrame();
-    }catch(error){state={...state,ok:false,failure:error.message};timer.pause();input.release();}
+    }catch(error){state={...state,ok:false,failure:error.message};timer.pause();recentPace.breakSpan();input.release();}
     finally{busy=false;}
   }
   const timer=startPacedLoop(tick,{periodMs:20,startPaused:true});
@@ -163,9 +166,13 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
       if(req.method==='GET'&&url.pathname==='/health')return json(state.ok?200:503,{ok:state.ok,failure:state.failure});
       if(req.method==='GET'&&url.pathname==='/frame.png'){
         if(!png)return json(503,{error:renderFailure||'Frame unavailable'});
+        const etag=`"rek-${frameState.generation}-${frameState.tick}-${frameState.sha256}"`;
+        res.setHeader('ETag',etag);
         res.setHeader('X-Rek-Snapshot-Tick',String(frameState.tick));
         res.setHeader('X-Rek-Frame-Generation',String(frameState.generation));
         res.setHeader('X-Rek-Frame-Sha256',frameState.sha256);
+        if(String(req.headers['if-none-match']||'').split(',').some(value=>
+          [etag,`W/${etag}`,'*'].includes(value.trim())))return send(304,'image/png',null);
         return send(200,'image/png',png);
       }
       if(req.method==='POST'&&url.pathname==='/api/input'){
@@ -183,10 +190,12 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
         if(switching||!worker||generation!==workerGeneration)return json(409,{error:'Evaluator not ready'});
         if(typeof value.paused!=='boolean')throw new Error('Paused must be a boolean');
         if(!value.paused&&state.fightResult>0)return json(409,{error:'Match finished. Reset to begin another match.'});
-        paused=value.paused;if(paused){timer.pause();input.release();lastStepStart=null;}else timer.resume();lastClient=Date.now();
+        const wasPaused=paused;
+        paused=value.paused;if(paused){timer.pause();input.release();lastStepStart=null;}else{if(wasPaused)recentPace.reset();timer.resume();}lastClient=Date.now();
         // A step already in flight may finish. Once this reply arrives the
         // paused snapshot is stable and no subsequent step can start.
         while(paused&&busy)await new Promise(resolve=>setTimeout(resolve,5));
+        if(paused)recentPace.breakSpan();
         return json(200,{ok:true,paused});
       }
       if(req.method==='POST'&&url.pathname==='/api/step'){
@@ -215,6 +224,7 @@ async function serve(configPath,{Worker=NativeWorker,Renderer=NativeWorker,inter
         switching=true;workerGeneration++;timer.pause();try{
           while(busy)await new Promise(resolve=>setTimeout(resolve,5));
           invalidateFrames();
+          recentPace.reset();
           session.abandonFight(state);input.reset();paused=true;roundRestartAt=0;session.newRoundStream();lastStepStart=null;
           state=(await worker.request('reset')).state;
           offerFrame();return json(200,{ok:true});
