@@ -1,0 +1,48 @@
+{
+  "schema": "rek.closed_trial_backup_verification.v1",
+  "status": "complete",
+  "verified_utc": "2026-09-29T03:06:42.824679+00:00",
+  "scope": "Closed synthetic 240-second app-r9 graph performance trial; private raw capture preserved on physical NAS.",
+  "supplements_historical_receipt": {
+    "file": "public-validation.json",
+    "sha256": "2cc7f951f9de6d07eee21c2bfec36f16169c4aa7bf75435ac5acdd385254545b",
+    "historical_file_unchanged": true,
+    "previous_backup_status": "pending; source integrity verified",
+    "current_backup_status": "complete; full physical NAS archive readback and every member size/SHA verified"
+  },
+  "archive": {
+    "nas_path": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-29\\rek-performance-audit-r1\\live-audit-r1\\INCREMENT-03-CAPTURE-r2.tar",
+    "bytes": 3000186880,
+    "sha256": "eb74b769248751c72fd5e02465caf42d6d534469095ba07a144cf8d0087853f6",
+    "member_count": 4868,
+    "payload_bytes": 2991451025,
+    "path_mapping": "Every inventory path is preserved verbatim as a regular tar member.",
+    "format": "uncompressed TAR"
+  },
+  "verification": {
+    "whole_archive_nas_sha_readback_verified": true,
+    "all_members_size_sha_verified_against_pinned_source_inventory": true,
+    "exact_member_set_verified_no_extra_members": true,
+    "source_inventory_sha256": "180090c3b3fa7e785a251194be466a2735153450f879dab243a47ffae59b91f6",
+    "receipt_nas_path": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-29\\rek-performance-audit-r1\\live-audit-r1\\INCREMENT-03-RECEIPT.json",
+    "receipt_sha256": "ade63a067ec4e3e7cc0e99776dfbf491a530cc69399837d65b0b5a45e92e3bc7",
+    "readback_finished_utc": "2026-09-29T03:06:24.293319+00:00",
+    "rate_cap_bytes_per_second": 30000000,
+    "source_tar_exit_code": 0,
+    "verification_helper_sha256": "bd0a11f017d66e6b0acf78ad0489fffec3f6ec3c7886b6329ee88a6bee37a881",
+    "supplement_source_sha256": "ede4c0b76bfc28aa14197258cd7ae110720fff1c0977af48a62ddbe4fbee87ba"
+  },
+  "capture": {
+    "session_jsonl_bytes": 160585431,
+    "session_jsonl_sha256": "9d6af6288004de0e0b3058cc11aeb88db427a0de8b37aac6a0a568f63bcb3585",
+    "recorded_png_count": 4844,
+    "recorded_png_bytes": 2781809170,
+    "all_session_and_png_members_in_verified_archive": true
+  },
+  "preservation": {
+    "remote_originals_retained": true,
+    "earlier_partial_backups_retained_separately": true,
+    "raw_capture_published_to_github": false,
+    "additional_runtime_or_ui_actions_for_backup": false
+  }
+}

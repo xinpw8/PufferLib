@@ -1,0 +1,801 @@
+{
+  "schema": "rek.closed_trial_resource_summary.v1",
+  "inputs": [
+    {
+      "name": "APP240-RESOURCES.json",
+      "bytes": 4165938,
+      "sha256": "f211a4f62cef32a87bee5ad9bb677673f3a7a9b5a13d6bac2929d1af63ba238c"
+    },
+    {
+      "name": "app240_resource_sample.py",
+      "bytes": 4133,
+      "sha256": "3d70ec86997ad466ef599055c88d7e26f24d3f720a5ab3750c07dd91373515c0"
+    },
+    {
+      "name": "active-identities.json",
+      "bytes": 298,
+      "sha256": "0b79e1fb53611e9a181a7bd29a00ec6e59b4b1d9a5439236191c80a94d0f9568"
+    },
+    {
+      "name": "summary.json",
+      "bytes": 31453,
+      "sha256": "66ce1496ba71c91c0cfa861c0508f883c9d1d359ae6d44e6462dbbe7d99346ad"
+    },
+    {
+      "name": "ANALYSIS.json",
+      "bytes": 26347,
+      "sha256": "713d6ea3ba5e9f978e1c824825bc0212e7d723b07fbfd4bb6b3504a10e9bae14"
+    }
+  ],
+  "source_samples": 243,
+  "first_sample_utc": "2026-09-29T02:45:35.361977+00:00",
+  "last_sample_utc": "2026-09-29T02:49:37.362129+00:00",
+  "sample_monotonic_span_seconds": 242.00016740197316,
+  "collector_duration_seconds": 242.00590532878414,
+  "clock_ticks_per_second": 100,
+  "logical_cpu_count": 20,
+  "gpu_all_samples": {
+    "query_failures": 0,
+    "gpu_utilization_percent": {
+      "samples": 41,
+      "available": 41,
+      "unavailable": 0,
+      "min": 21.0,
+      "max": 90.0,
+      "mean": 79.39024390243902,
+      "first": 21.0,
+      "last": 87.0
+    },
+    "memory_utilization_percent": {
+      "samples": 41,
+      "available": 41,
+      "unavailable": 0,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "first": 0.0,
+      "last": 0.0
+    },
+    "sm_clock_MHz": {
+      "samples": 41,
+      "available": 41,
+      "unavailable": 0,
+      "min": 2418.0,
+      "max": 2457.0,
+      "mean": 2446.170731707317,
+      "first": 2418.0,
+      "last": 2450.0
+    },
+    "power_W": {
+      "samples": 41,
+      "available": 41,
+      "unavailable": 0,
+      "min": 27.95,
+      "max": 33.56,
+      "mean": 32.88414634146341,
+      "first": 27.95,
+      "last": 33.56
+    },
+    "temperature_C": {
+      "samples": 41,
+      "available": 41,
+      "unavailable": 0,
+      "min": 61.0,
+      "max": 67.0,
+      "mean": 64.73170731707317,
+      "first": 61.0,
+      "last": 67.0
+    }
+  },
+  "gpu_during_valid_owned_process_samples": {
+    "query_failures": 0,
+    "gpu_utilization_percent": {
+      "samples": 40,
+      "available": 40,
+      "unavailable": 0,
+      "min": 73.0,
+      "max": 90.0,
+      "mean": 80.85,
+      "first": 79.0,
+      "last": 87.0
+    },
+    "memory_utilization_percent": {
+      "samples": 40,
+      "available": 40,
+      "unavailable": 0,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "first": 0.0,
+      "last": 0.0
+    },
+    "sm_clock_MHz": {
+      "samples": 40,
+      "available": 40,
+      "unavailable": 0,
+      "min": 2444.0,
+      "max": 2457.0,
+      "mean": 2446.875,
+      "first": 2450.0,
+      "last": 2450.0
+    },
+    "power_W": {
+      "samples": 40,
+      "available": 40,
+      "unavailable": 0,
+      "min": 32.49,
+      "max": 33.56,
+      "mean": 33.0075,
+      "first": 32.78,
+      "last": 33.56
+    },
+    "temperature_C": {
+      "samples": 40,
+      "available": 40,
+      "unavailable": 0,
+      "min": 63.0,
+      "max": 67.0,
+      "mean": 64.825,
+      "first": 63.0,
+      "last": 67.0
+    }
+  },
+  "owned_processes": {
+    "owned_node": {
+      "pid": 3679525,
+      "start_ticks": "133788781",
+      "valid_samples": 240,
+      "read_errors": 1,
+      "identity_mismatches": 0,
+      "first_utc": "2026-09-29T02:45:37.362053+00:00",
+      "last_utc": "2026-09-29T02:49:36.362042+00:00",
+      "observed_seconds": 238.99998071813025,
+      "cpu_seconds_delta": 85.1,
+      "cpu_percent_one_core_weighted": 35.60669743332093,
+      "cpu_percent_one_core_intervals": {
+        "samples": 239,
+        "available": 239,
+        "unavailable": 0,
+        "min": 29.99946270867485,
+        "max": 40.99965387246344,
+        "mean": 35.606705509891654,
+        "first": 37.99991913343293,
+        "last": 33.004003419940766
+      },
+      "rss_bytes": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 75984896.0,
+        "max": 133795840.0,
+        "mean": 114274696.53333333,
+        "first": 75984896.0,
+        "last": 129658880.0
+      },
+      "rss_first_to_last_bytes": 53673984.0,
+      "swap_bytes": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "first": 0.0,
+        "last": 0.0
+      },
+      "last_cpu_ids": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "threads": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 11,
+        "max": 12,
+        "mean": 11.008333333333333,
+        "first": 11,
+        "last": 12
+      },
+      "io_cumulative_delta_bytes": {
+        "read_bytes": 0.0,
+        "write_bytes": 2943479808.0
+      },
+      "gpu_pmon": {
+        "process_appearances": 0,
+        "query_failures": 0,
+        "reported_types": [],
+        "sm_percent": {
+          "samples": 0,
+          "available": 0,
+          "unavailable": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "memory_utilization_percent": {
+          "samples": 0,
+          "available": 0,
+          "unavailable": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "encoder_percent": {
+          "samples": 0,
+          "available": 0,
+          "unavailable": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "decoder_percent": {
+          "samples": 0,
+          "available": 0,
+          "unavailable": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "jpeg_percent": {
+          "samples": 0,
+          "available": 0,
+          "unavailable": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "ofa_percent": {
+          "samples": 0,
+          "available": 0,
+          "unavailable": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "framebuffer_reported_MB": {
+          "samples": 0,
+          "available": 0,
+          "unavailable": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "ccpm_reported_MB": {
+          "samples": 0,
+          "available": 0,
+          "unavailable": 0,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        }
+      },
+      "role_evidence": "Node PID explicitly bound by closed summary."
+    },
+    "owned_simulation": {
+      "pid": 3679536,
+      "start_ticks": "133788789",
+      "valid_samples": 240,
+      "read_errors": 1,
+      "identity_mismatches": 0,
+      "first_utc": "2026-09-29T02:45:37.362053+00:00",
+      "last_utc": "2026-09-29T02:49:36.362042+00:00",
+      "observed_seconds": 238.99998071813025,
+      "cpu_seconds_delta": 15.04,
+      "cpu_percent_one_core_weighted": 6.292887536981748,
+      "cpu_percent_one_core_intervals": {
+        "samples": 239,
+        "available": 239,
+        "unavailable": 0,
+        "min": 4.99956687240878,
+        "max": 8.000771179622046,
+        "mean": 6.292889869917806,
+        "first": 6.99998510352712,
+        "last": 5.000606578778903
+      },
+      "rss_bytes": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 663949312.0,
+        "max": 664023040.0,
+        "mean": 663988206.9333333,
+        "first": 663949312.0,
+        "last": 664023040.0
+      },
+      "rss_first_to_last_bytes": 73728.0,
+      "swap_bytes": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "first": 0.0,
+        "last": 0.0
+      },
+      "last_cpu_ids": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "threads": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 3,
+        "max": 3,
+        "mean": 3.0,
+        "first": 3,
+        "last": 3
+      },
+      "io_cumulative_delta_bytes": {
+        "read_bytes": 0.0,
+        "write_bytes": 0.0
+      },
+      "gpu_pmon": {
+        "process_appearances": 40,
+        "query_failures": 0,
+        "reported_types": [
+          "C"
+        ],
+        "sm_percent": {
+          "samples": 40,
+          "available": 40,
+          "unavailable": 0,
+          "min": 24.0,
+          "max": 64.0,
+          "mean": 51.95,
+          "first": 24.0,
+          "last": 49.0
+        },
+        "memory_utilization_percent": {
+          "samples": 40,
+          "available": 40,
+          "unavailable": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "first": 0.0,
+          "last": 0.0
+        },
+        "encoder_percent": {
+          "samples": 40,
+          "available": 0,
+          "unavailable": 40,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "decoder_percent": {
+          "samples": 40,
+          "available": 0,
+          "unavailable": 40,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "jpeg_percent": {
+          "samples": 40,
+          "available": 0,
+          "unavailable": 40,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "ofa_percent": {
+          "samples": 40,
+          "available": 0,
+          "unavailable": 40,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "framebuffer_reported_MB": {
+          "samples": 40,
+          "available": 40,
+          "unavailable": 0,
+          "min": 494.0,
+          "max": 494.0,
+          "mean": 494.0,
+          "first": 494.0,
+          "last": 494.0
+        },
+        "ccpm_reported_MB": {
+          "samples": 40,
+          "available": 40,
+          "unavailable": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "first": 0.0,
+          "last": 0.0
+        }
+      },
+      "role_evidence": "Explicit recorded worker role/PID in closed ANALYSIS.worker_identities; start ticks independently match active-identities."
+    },
+    "owned_renderer": {
+      "pid": 3679537,
+      "start_ticks": "133788789",
+      "valid_samples": 240,
+      "read_errors": 1,
+      "identity_mismatches": 0,
+      "first_utc": "2026-09-29T02:45:37.362053+00:00",
+      "last_utc": "2026-09-29T02:49:36.362042+00:00",
+      "observed_seconds": 238.99998071813025,
+      "cpu_seconds_delta": 76.96,
+      "cpu_percent_one_core_weighted": 32.20083941795979,
+      "cpu_percent_one_core_intervals": {
+        "samples": 239,
+        "available": 239,
+        "unavailable": 0,
+        "min": 23.999746394229565,
+        "max": 40.000350683276686,
+        "mean": 32.20083949030867,
+        "first": 33.99992764570315,
+        "last": 31.0037607884292
+      },
+      "rss_bytes": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 539107328.0,
+        "max": 540266496.0,
+        "mean": 540204100.2666667,
+        "first": 539107328.0,
+        "last": 540266496.0
+      },
+      "rss_first_to_last_bytes": 1159168.0,
+      "swap_bytes": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "first": 0.0,
+        "last": 0.0
+      },
+      "last_cpu_ids": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "threads": {
+        "samples": 240,
+        "available": 240,
+        "unavailable": 0,
+        "min": 1,
+        "max": 1,
+        "mean": 1.0,
+        "first": 1,
+        "last": 1
+      },
+      "io_cumulative_delta_bytes": {
+        "read_bytes": 0.0,
+        "write_bytes": 0.0
+      },
+      "gpu_pmon": {
+        "process_appearances": 40,
+        "query_failures": 0,
+        "reported_types": [
+          "G"
+        ],
+        "sm_percent": {
+          "samples": 40,
+          "available": 24,
+          "unavailable": 16,
+          "min": 1.0,
+          "max": 5.0,
+          "mean": 1.7083333333333333,
+          "first": 1.0,
+          "last": 1.0
+        },
+        "memory_utilization_percent": {
+          "samples": 40,
+          "available": 24,
+          "unavailable": 16,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "first": 0.0,
+          "last": 0.0
+        },
+        "encoder_percent": {
+          "samples": 40,
+          "available": 0,
+          "unavailable": 40,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "decoder_percent": {
+          "samples": 40,
+          "available": 0,
+          "unavailable": 40,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "jpeg_percent": {
+          "samples": 40,
+          "available": 0,
+          "unavailable": 40,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "ofa_percent": {
+          "samples": 40,
+          "available": 0,
+          "unavailable": 40,
+          "min": null,
+          "max": null,
+          "mean": null,
+          "first": null,
+          "last": null
+        },
+        "framebuffer_reported_MB": {
+          "samples": 40,
+          "available": 40,
+          "unavailable": 0,
+          "min": 274.0,
+          "max": 274.0,
+          "mean": 274.0,
+          "first": 274.0,
+          "last": 274.0
+        },
+        "ccpm_reported_MB": {
+          "samples": 40,
+          "available": 40,
+          "unavailable": 0,
+          "min": 0.0,
+          "max": 0.0,
+          "mean": 0.0,
+          "first": 0.0,
+          "last": 0.0
+        }
+      },
+      "role_evidence": "Explicit recorded worker role/PID in closed ANALYSIS.worker_identities; start ticks independently match active-identities."
+    }
+  },
+  "background_official_REK": {
+    "pid": 3905442,
+    "start_ticks": "114148897",
+    "valid_samples": 243,
+    "read_errors": 0,
+    "identity_mismatches": 0,
+    "first_utc": "2026-09-29T02:45:35.361977+00:00",
+    "last_utc": "2026-09-29T02:49:37.362129+00:00",
+    "observed_seconds": 242.00016740197316,
+    "cpu_seconds_delta": 207.58,
+    "cpu_percent_one_core_weighted": 85.77680016857191,
+    "cpu_percent_one_core_intervals": {
+      "samples": 242,
+      "available": 242,
+      "unavailable": 0,
+      "min": 78.99469771412669,
+      "max": 95.00008900658185,
+      "mean": 85.7768133424188,
+      "first": 85.99181503850915,
+      "last": 84.99158804440829
+    },
+    "rss_bytes": {
+      "samples": 243,
+      "available": 243,
+      "unavailable": 0,
+      "min": 3771899904.0,
+      "max": 3772055552.0,
+      "mean": 3771901185.053498,
+      "first": 3771899904.0,
+      "last": 3771899904.0
+    },
+    "rss_first_to_last_bytes": 0.0,
+    "swap_bytes": {
+      "samples": 243,
+      "available": 243,
+      "unavailable": 0,
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "first": 0.0,
+      "last": 0.0
+    },
+    "last_cpu_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "threads": {
+      "samples": 243,
+      "available": 243,
+      "unavailable": 0,
+      "min": 88,
+      "max": 90,
+      "mean": 88.01646090534979,
+      "first": 88,
+      "last": 88
+    },
+    "io_cumulative_delta_bytes": {
+      "read_bytes": 0.0,
+      "write_bytes": 139264.0
+    },
+    "gpu_pmon": {
+      "process_appearances": 40,
+      "query_failures": 0,
+      "reported_types": [
+        "C+G"
+      ],
+      "sm_percent": {
+        "samples": 40,
+        "available": 40,
+        "unavailable": 0,
+        "min": 13.0,
+        "max": 35.0,
+        "mean": 24.8,
+        "first": 21.0,
+        "last": 30.0
+      },
+      "memory_utilization_percent": {
+        "samples": 40,
+        "available": 40,
+        "unavailable": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "first": 0.0,
+        "last": 0.0
+      },
+      "encoder_percent": {
+        "samples": 40,
+        "available": 0,
+        "unavailable": 40,
+        "min": null,
+        "max": null,
+        "mean": null,
+        "first": null,
+        "last": null
+      },
+      "decoder_percent": {
+        "samples": 40,
+        "available": 0,
+        "unavailable": 40,
+        "min": null,
+        "max": null,
+        "mean": null,
+        "first": null,
+        "last": null
+      },
+      "jpeg_percent": {
+        "samples": 40,
+        "available": 0,
+        "unavailable": 40,
+        "min": null,
+        "max": null,
+        "mean": null,
+        "first": null,
+        "last": null
+      },
+      "ofa_percent": {
+        "samples": 40,
+        "available": 0,
+        "unavailable": 40,
+        "min": null,
+        "max": null,
+        "mean": null,
+        "first": null,
+        "last": null
+      },
+      "framebuffer_reported_MB": {
+        "samples": 40,
+        "available": 40,
+        "unavailable": 0,
+        "min": 769.0,
+        "max": 769.0,
+        "mean": 769.0,
+        "first": 769.0,
+        "last": 769.0
+      },
+      "ccpm_reported_MB": {
+        "samples": 40,
+        "available": 40,
+        "unavailable": 0,
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "first": 0.0,
+        "last": 0.0
+      }
+    }
+  },
+  "unknown_fields": [
+    "GPU throttle-reason flags were not queried.",
+    "GPU memory clock was not queried.",
+    "Per-process GPU SM samples marked - are unavailable, not zero.",
+    "No original-human-slowdown contemporaneous GPU/solver measurements exist in this input."
+  ],
+  "scope_notes": [
+    "Closed four-minute synthetic graph trial only. No new live queries, experiments or input.",
+    "Process CPU percentages are cumulative user+system tick differences divided by nominal sample monotonic interval;100 percent equals one logical CPU. CPU reads occurred sequentially after the sample timestamp, so short interval percentages are approximate.",
+    "CPU/RSS spans begin at each first valid owned sample and end at its last; startup before the first sample and process shutdown are excluded. Final owned read errors occur after normal process closure.",
+    "RSS uses sampled VmRSS KiB converted to bytes. First-to-last memory growth alone does not establish a leak.",
+    "GPU values are whole-device sampled measurements at approximately six-second cadence, not a continuous peak record. Memory utilization is activity, not allocated capacity.",
+    "pmon per-process utilization windows are asynchronous to whole-device samples and must not be added or treated as attributable portions of the device percentage. Framebuffer units retain the tool-reported MB label.",
+    "Background REK PID/start identity was pinned by the sampler. The process remained active during the trial; this does not establish it caused the earlier human slowdown.",
+    "No raw human commands, full poses, credentials, command lines or images are included."
+  ],
+  "observations": [
+    "During valid owned-process samples, GPU utilization ranged 73 to 90 percent; SM clock 2444 to 2457 MHz; power 32.49 to 33.56 W; temperature 63 to 67 C.",
+    "The source records sustained successful near-real-time behavior with the background official REK process active. This provides a coexistence observation, not a contention or thermal-throttling diagnosis.",
+    "Renderer and simulation RSS remain much steadier than Node RSS; all trends are reported as samples rather than inferred allocation/leak causes."
+  ]
+}
