@@ -1,6 +1,6 @@
 // Browser client: renders the server's simulation locally and sends key changes.
 import * as THREE from './vendor/three.module.min.js';
-import {forwardKinematics,interpolateQpos,FollowHeading,followCamera,overviewCamera,cutawayWalls,hiddenWalls,Playout} from './scene.js';
+import {forwardKinematics,interpolateQpos,ChaseCamera,OverviewCamera,cutawayWalls,hiddenWalls,Playout} from './scene.js';
 
 const $=id=>document.getElementById(id);
 const MODES=['idle','bot','pvp'],REASONS=['','invalid','recovering','busy punching','round not active'];
@@ -140,8 +140,9 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseKeys
 canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));
 
 // ---- HUD -------------------------------------------------------------------
-let overview=false;
-function toggleView(){overview=!overview;$('toggle-view').textContent=`View: ${overview?'overview':'follow'}`;}
+// Lock-on (behind you, facing the opponent) is the calmest view; follow tracks your facing.
+const VIEWS=['lock-on','follow','overview'];let view=0;
+function toggleView(){view=(view+1)%VIEWS.length;$('toggle-view').textContent=`View: ${VIEWS[view]}`;}
 $('toggle-view').addEventListener('click',toggleView);
 $('toggle-help').addEventListener('click',()=>{const h=$('help');h.hidden=!h.hidden;$('toggle-help').setAttribute('aria-expanded',String(!h.hidden));});
 $('fight-bot').addEventListener('click',()=>{if(ws?.readyState===1)ws.send(JSON.stringify({t:'bot'}));canvas.focus({preventScroll:true});});
@@ -189,7 +190,7 @@ function updateHud(t){
 }
 
 // ---- Frame loop ------------------------------------------------------------
-const follow=new FollowHeading(),eyeNow=new THREE.Vector3(),targetNow=new THREE.Vector3();let lastFrame=performance.now(),hidden=new Set();
+const chase=new ChaseCamera(),overviewCam=new OverviewCamera();let lastFrame=performance.now(),lastTick=-1,hidden=new Set();
 function draw(now){
   requestAnimationFrame(draw);
   const dt=Math.min(.1,(now-lastFrame)/1000);lastFrame=now;
@@ -197,17 +198,12 @@ function draw(now){
   const [a,b,t]=sample,qpos=a===b?a.qpos:interpolateQpos(scene,a.qpos,b.qpos,t);
   const frames=forwardKinematics(scene,qpos);
   for(let i=1;i<bodies.length;i++){const p=frames.xpos[i],q=frames.xquat[i];bodies[i].position.set(p[0],p[1],p[2]);bodies[i].quaternion.set(q[1],q[2],q[3],q[0]);}
-  const side=seat>=0&&!overview?seat:-1;
-  let view;
-  if(side>=0){const seconds=(a.tick+(b.tick-a.tick)*t)*.02;view=followCamera(qpos,side,follow.update(qpos,side,seconds));}
-  else view=overviewCamera(qpos);
-  // Light smoothing only removes gait bob; a large jump (reset, side change) snaps.
-  const eye=new THREE.Vector3(...view.eye),target=new THREE.Vector3(...view.target);
-  const k=eyeNow.distanceTo(eye)>1.5?1:1-Math.exp(-dt/.06);
-  eyeNow.lerp(eye,k);targetNow.lerp(target,k);
-  camera.position.copy(eyeNow);camera.lookAt(targetNow);
-  headlight.position.copy(eyeNow);headlight.target.position.copy(targetNow);
-  const next=side>=0?hiddenWalls(walls,[eyeNow.x,eyeNow.y,eyeNow.z]):new Set();
+  const side=seat>=0&&VIEWS[view]!=='overview'?seat:-1,snap=a.tick<lastTick;lastTick=b.tick;
+  // A new match cuts; the cameras ease everything else.
+  const pose=side>=0?chase.update(qpos,side,dt,{lockOn:VIEWS[view]==='lock-on',snap}):overviewCam.update(qpos,dt,{snap});
+  camera.position.set(...pose.eye);camera.lookAt(...pose.target);
+  headlight.position.set(...pose.eye);headlight.target.position.set(...pose.target);
+  const next=side>=0?hiddenWalls(walls,pose.eye):new Set();
   for(const id of hidden)if(!next.has(id))geomObjects.get(id).visible=true;
   for(const id of next)geomObjects.get(id).visible=false;hidden=next;
   renderer.render(world,camera);
