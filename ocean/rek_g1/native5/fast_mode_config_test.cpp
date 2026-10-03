@@ -72,5 +72,17 @@ int main(){
         assert(std::strcmp(std::getenv("REK_FAST_CONTACT_SUBSTEPS"),"16")==0);
     }
     assert(rejected==14);
-    std::puts("PASS explicit mode configuration, geometry defaults and boundaries, ambient override isolation, complete JSON identity, 14 invalid-mode/count rejections");
+    // Lite falls: explicit model path sets the runtime switch; omission clears ambient state.
+    setenv("REK_LITE_FALLS","/ambient/model.json",1);
+    rek5_modes::configure(nullptr);assert(!std::getenv("REK_LITE_FALLS"));
+    {   Json lite(cJSON_Parse("{\"lite_falls_model\":\"/models/lite.json\"}"),cJSON_Delete);
+        auto identity=rek5_modes::configure(lite.get());
+        assert(identity.lite_falls=="/models/lite.json"&&std::strcmp(std::getenv("REK_LITE_FALLS"),"/models/lite.json")==0);
+        Json parsed(cJSON_Parse(("{\"t\":1"+rek5_modes::json_fields(identity,"recovered_hit_rules_v2")+"}").c_str()),cJSON_Delete);
+        assert(parsed&&cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(parsed.get(),"lite_falls")));}
+    for(const char* bad:{"{\"lite_falls_model\":\"\"}","{\"lite_falls_model\":3}"}){
+        Json config(cJSON_Parse(bad),cJSON_Delete);bool threw=false;
+        try{rek5_modes::configure(config.get());}catch(const std::runtime_error&){threw=true;}
+        assert(threw);}
+    std::puts("PASS explicit mode configuration, geometry defaults and boundaries, ambient override isolation, complete JSON identity, 14 invalid-mode/count rejections, lite falls model path and 2 rejections");
 }

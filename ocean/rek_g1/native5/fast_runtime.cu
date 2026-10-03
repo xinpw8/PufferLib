@@ -24,6 +24,8 @@
 #include "contact_entry.h"
 #include "fast_observable_balance.h"
 #include "observable_prev_action.h"
+#include "lite_falls.h"
+#include "lite_falls_loader.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -61,6 +63,9 @@ struct Arena {
     RekG1HitDetectorState recovered_hits;
     rek5_bot1::State bot[2];
     int contact_pairs_initialized;
+    // Lite falls and move-start reward. Unused (and zero) when disabled.
+    rek_lite_falls::ArenaState lite;
+    int both_upright,started_move[2];
 };
 struct Parameters {
     FastRoute routes[24];
@@ -91,6 +96,9 @@ struct Parameters {
     rek_contact_entry::Mode contact_entry=rek_contact_entry::Mode::LegacyLimbUnion;
     rek_contact_velocity::Mode contact_velocity=rek_contact_velocity::Mode::LegacySphereProxy;
     int primitive_contacts,contact_substeps,strike_limb[12];
+    rek_lite_falls::Model lite;          // enabled=0 keeps the points-only model
+    int move_reward,reward_move;         // move_start_v1: reward one native move
+    float reward_move_value;
 };
 struct View {
     int arenas;
@@ -174,10 +182,42 @@ __device__ uint32_t reset_hash(uint32_t value){
 __device__ float reset_uniform(uint32_t key,uint32_t field){
     return float(reset_hash(key^field)>>8)*(1.f/16777216.f);
 }
+__device__ bool lite_upright(const Parameters& p,const Arena& a,int side){
+    return !p.lite.enabled||rek_lite_falls::upright(a.lite.fighter[side]);
+}
+// Counter-based draws keep graph replays deterministic and arenas independent.
+__device__ float lite_uniform(const Parameters& p,int index,int side,uint32_t round,int tick,uint32_t stream){
+    const uint32_t key=reset_hash(p.seed^0x5bd1e995u)^reset_hash(uint32_t(index)*2u+uint32_t(side)+0x68e31da4u)
+        ^reset_hash(round*0x9e3779b9u+stream)^reset_hash(uint32_t(tick)+0xb5297a4du);
+    return reset_uniform(key,stream);
+}
+// A falling or downed fighter keeps its pose and cannot move or strike. Its
+// move and held command are dropped here, from the tick after onset, so the
+// onset tick exports exactly the state the hazard was evaluated on.
+__device__ void hold_fighter(Fighter& f){
+    f.old_x=f.x;f.old_y=f.y;f.old_yaw=f.yaw;f.old_phase=f.phase;f.old_route=f.route;
+    f.attack_duration=0;f.held=1;f.strike_active=0;f.vx=f.vy=f.omega=0;
+    if(f.last_hit_valid)f.last_hit_age=fminf(120.f,f.last_hit_age+DT);
+    for(int k=0;k<6;k++)f.cooldown[k]=max(0,f.cooldown[k]-1);
+}
+// Presentation/observation proxy for a fall: pitch the clip pose about the
+// body's lateral axis and lower the root. Joints keep the clip pose.
+__device__ void lite_root(const Parameters& p,const Arena& a,int side,const Fighter& f,const FastFrame& frame,float* q,float& z){
+    root_quaternion(f,frame,q);z=frame.root_z;
+    if(!p.lite.enabled)return;
+    const auto& s=a.lite.fighter[side];if(s.phase==rek_lite_falls::Upright)return;
+    const bool fallen=s.phase==rek_lite_falls::Fallen;
+    const float pitch=(fallen?p.lite.fallen_tilt_degrees:p.lite.falling_tilt_degrees)*(PI/180.f);
+    float sn,cs;sincosf(.5f*pitch,&sn,&cs);
+    const float r[4]={q[0]*cs-q[2]*sn,q[1]*cs-q[3]*sn,q[2]*cs+q[0]*sn,q[3]*cs+q[1]*sn};
+    for(int k=0;k<4;k++)q[k]=r[k];
+    z=frame.root_z*(fallen?p.lite.fallen_height_ratio:p.lite.falling_height_ratio);
+}
 __device__ void round_reset(const Parameters& p,Arena& a,RekNative5RoundResult& result,bool full,int index){
     if(full){result={};result.round_number=1;}
     else result.round_number++;
     a={};pose_reset(p,a);
+    if(p.lite.enabled)rek_lite_falls::reset_to_spawn(a.lite);
     if(p.recovered_bot)for(int side=0;side<2;side++)rek5_bot1::activate(a.bot[side],
         reset_hash(p.seed^reset_hash(uint32_t(index)*2+side+0x7216b539u)^reset_hash(result.round_number)));
     a.opponent_mode=p.opponent_mode;
@@ -278,7 +318,7 @@ template<bool Bot=false> __device__ void advance_fighter(const Parameters& p,Fig
     }else if(action>=16){
         if(settled(p,f)){
             f.route=p.action_to_route[action];f.phase=0;f.move_tick=0;
-            f.move_instance++;
+            f.move_instance++;a.started_move[&f==&a.fighter[1]]=p.routes[f.route].move;
             f.attack_duration=int(p.durations[p.routes[f.route].move]);
             if(f.held!=6&&f.held!=7)f.held=1;
             f.vx=f.vy=f.omega=0;f.contact_latched=0;
@@ -345,6 +385,12 @@ __device__ void confine(const Parameters& p,Fighter& f){
     float x=clampf(f.x,-p.half_extent[0]+p.body_radius,p.half_extent[0]-p.body_radius);
     float y=clampf(f.y,-p.half_extent[1]+p.body_radius,p.half_extent[1]-p.body_radius);
     if(x!=f.x)f.vx=0;if(y!=f.y)f.vy=0;f.x=x;f.y=y;
+}
+// HitDetector requireBothUpright rejects before any cooldown or dedup update.
+__device__ rek5_recovered::Result gated_score(Arena& a,const Parameters& p,const RekG1StrikeIntent& intent,
+        int side,int limb,float speed){
+    if(!a.both_upright)return {0,0,-1};
+    return rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
 }
 __device__ bool limb_enabled(int route,int limb){
     if(route==7||route==8)return limb==0;
@@ -440,7 +486,7 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
                     const float speed=rek_contact_velocity::relative_speed(
                         body_linear_velocity(v,f,side,rek_contact_velocity::limb_slot(limb)),
                         body_linear_velocity(v,enemy,side^1,rek_contact_velocity::target_slot(zone)));
-                    const auto score=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
+                    const auto score=gated_score(a,p,intent,side,limb,speed);
                     if(score.points){hits[side]++;points[side]+=score.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=speed;}
                 }
                 entered=entered||result.entered;intersects=intersects||result.overlap_after_start;
@@ -452,7 +498,7 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
         // History above advances even without intent and never resets at move
         // start. Native apex, body cooldown and invocation dedup stay unchanged.
         if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel||!can_score||!entered)continue;
-        const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
+        const auto result=gated_score(a,p,intent,side,limb,max_relative_speed);
         if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
     }
 }
@@ -546,12 +592,12 @@ __device__ void geom_pair_contacts_warp(const View& v,Arena& a,int side,int* hit
                         const int pair=i*rek_contact_entry::Targets+zone;
                         if(!scratch.pair_entered[pair])continue;
                         const float speed=scratch.pair_speed[pair];
-                        const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
+                        const auto result=gated_score(a,p,intent,side,limb,speed);
                         if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=speed;}
                     }
             }else{
             const float max_relative_speed=scratch.speed[limb];
-            const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
+            const auto result=gated_score(a,p,intent,side,limb,max_relative_speed);
             if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
             }
         }
@@ -590,7 +636,7 @@ __device__ void strike_contacts(const View& v,Arena& a,int side,int* hits,int* p
             if(p.recovered_scoring&&intersects){float d2=0;for(int k=0;k<3;k++){float d=to[k]-from[k];d2+=d*d;}max_relative_speed=fmaxf(max_relative_speed,sqrtf(d2)/DT);}
         }
         unsigned bit=1u<<limb;
-        if(!p.recovered_scoring&&touch&&!(f.contact_latched&bit)&&f.cooldown[limb]==0&&speed>=p.hit_speed){
+        if(!p.recovered_scoring&&a.both_upright&&touch&&!(f.contact_latched&bit)&&f.cooldown[limb]==0&&speed>=p.hit_speed){
             hits[side]++;
             points[side]++;
             enemy.last_hit_valid=1;enemy.last_hit_age=0;enemy.last_hit_speed=speed;f.cooldown[limb]=10;
@@ -599,10 +645,50 @@ __device__ void strike_contacts(const View& v,Arena& a,int side,int* hits,int* p
             intent.impact_events=p.impact_events+p.impact_offsets[f.route];intent.impact_event_count=p.impact_counts[f.route];
             intent.clip_cursor_frames=clampf(route.start_frame+f.phase*route.playback_speed,float(route.start_frame),float(route.end_frame));
             intent.clip_fps=50;intent.move_id=f.move_instance;intent.action_playing=intent.layer_active=1;
-            auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
+            auto result=gated_score(a,p,intent,side,limb,max_relative_speed);
             if(result.points){hits[side]++;points[side]+=result.points;enemy.last_hit_valid=1;enemy.last_hit_age=0;enemy.last_hit_speed=max_relative_speed;}
         }
         if(touch)f.contact_latched|=bit;else f.contact_latched&=~bit;
+    }
+}
+// Fall onsets from the fitted model, then the recovered referee. Runs after
+// this tick's motion and contacts, so hits already required both upright.
+__device__ void lite_falls_step(const View& v,int index,Arena& a,const RekNative5RoundResult& r){
+    using namespace rek_lite_falls;const Parameters& p=*v.p;
+    if(!p.lite.enabled)return;
+    const float distance=hypotf(a.fighter[1].x-a.fighter[0].x,a.fighter[1].y-a.fighter[0].y);
+    const float closing=a.lite.has_previous_distance?(a.lite.previous_distance-distance)/DT:0.f;
+    a.lite.previous_distance=distance;a.lite.has_previous_distance=1;
+    for(int s=0;s<2;s++)if(advance_fall(a.lite.fighter[s])){a.fighter[s].falls++;on_fallen(a.lite,s);}
+    // Features are defined from exported raw quantities (route 179, attack 182,
+    // commands 176..178) so lite_fall_dataset.cu bins physical data identically.
+    int move[2];float progress[2];bool moving[2],turning[2];
+    for(int s=0;s<2;s++){
+        const Fighter& f=a.fighter[s];move[s]=attacking(f)?p.routes[f.route].move:-1;
+        progress[s]=move[s]>=0?float(f.move_tick)/float(max(1,int(p.durations[move[s]]))):0.f;
+        float forward,strafe,yaw;held_command(f.held,forward,strafe,yaw);
+        if(f.bot_controlled){forward=f.bot_command.forward;strafe=f.bot_command.strafe;yaw=f.bot_command.yaw;}
+        moving[s]=!attacking(f)&&(forward!=0||strafe!=0);turning[s]=!attacking(f)&&yaw!=0;
+    }
+    for(int s=0;s<2;s++){
+        auto& state=a.lite.fighter[s];const Fighter& f=a.fighter[s];
+        if(!upright(state))continue;
+        // The opponent's scorer sets last_hit_age to zero on this tick's hit.
+        const bool struck=f.last_hit_valid&&f.last_hit_age==0.f;
+        const auto x=features(p.lite,move[s],progress[s],moving[s],turning[s],
+            move[s^1],progress[s^1],moving[s^1],turning[s^1],distance,closing,struck);
+        try_onset(p.lite,state,x,move[s],f.last_hit_valid,f.last_hit_age,f.last_hit_speed,
+            lite_uniform(p,index,s,r.round_number,a.tick,1),lite_uniform(p,index,s,r.round_number,a.tick,2),
+            lite_uniform(p,index,s,r.round_number,a.tick,3));
+    }
+    int award[2];
+    if(advance_referee(a.lite,award)){
+        for(int s=0;s<2;s++){a.delta[s]+=award[s];a.fighter[s].points+=award[s];}
+        if(p.round_seconds-a.elapsed>0){
+            // ResetBothToSpawn clears every fall, including an uncounted down.
+            pose_reset(p,a);reset_to_spawn(a.lite);
+            if(p.rendered_observation)capture_observed_pose(p,a);
+        }
     }
 }
 __device__ void finish_round(const View& v,int index,Arena& a,RekNative5RoundResult& r){
@@ -624,6 +710,9 @@ __device__ void advance_arena(const View& v,int index){
     if(p.rendered_observation)capture_observed_pose(p,a);
     a.delta[0]=a.delta[1]=a.hit_count=a.down_event[0]=a.down_event[1]=0;
     a.reward[0]=a.reward[1]=0;
+    a.started_move[0]=a.started_move[1]=-1;
+    if(p.lite.enabled)rek_lite_falls::begin_tick(a.lite);
+    a.both_upright=lite_upright(p,a,0)&&lite_upright(p,a,1);
     float previous_potential[2]={};
     if(p.shaping_weight>0)for(int side=0;side<2;side++)previous_potential[side]=shaping_potential(v,a,side);
     int actions[2];bool bot_rows[2]={};
@@ -649,12 +738,14 @@ __device__ void advance_arena(const View& v,int index){
         // Native signed angle is positive-right. Native command yaw/strafe
         // are positive-left already, matching the compact command convention.
         bot_inputs[side]={hypotf(dx,dy),-angle(atan2f(dy,dx)-heading)*(180.f/PI),DT,a.elapsed,a.elapsed,
-            attacking(f),bool(other.down),bool(f.down),true};
+            attacking(f),p.lite.enabled?a.lite.fighter[side^1].phase==rek_lite_falls::Fallen:bool(other.down),
+            p.lite.enabled?false:bool(f.down),true};
     }
     if(a.reset_wait){
         if(--a.reset_wait==0){pose_reset(p,a);if(p.rendered_observation)capture_observed_pose(p,a);}
     }else{
         for(int s=0;s<2;s++){
+            if(!lite_upright(p,a,s)){hold_fighter(a.fighter[s]);if(bot_rows[s])v.actions[index*2+s]=0.f;continue;}
             if(bot_rows[s]){
                 const unsigned accepted=a.bot[s].accepted;advance_bot(p,a,s,bot_inputs[s]);
                 v.actions[index*2+s]=a.bot[s].accepted!=accepted?float(p.move_to_action[p.routes[a.fighter[s].route].move]):0.f;
@@ -677,6 +768,7 @@ __device__ void advance_arena(const View& v,int index){
         // A future knockdown model needs an explicit state/geometry contract.
         for(int s=0;s<2;s++)a.hit_count+=hits[s];
         for(int s=0;s<2;s++)a.fighter[s].points+=a.delta[s];
+        lite_falls_step(v,index,a,r);
     }
     if(p.rendered_observation)update_observed_pose(v,a);
     for(int s=0;s<2;s++){
@@ -685,13 +777,18 @@ __device__ void advance_arena(const View& v,int index){
         r.points[s]=f.points;r.falls[s]=f.falls;
     }
     r.time_remaining_seconds=fmaxf(0,p.round_seconds-a.elapsed);r.failure_bits=a.failures;
-    bool terminal=a.elapsed>=p.round_seconds;
+    bool terminal=a.elapsed>=p.round_seconds&&!(p.lite.enabled&&rek_lite_falls::counting(a.lite.referee));
     const int winner=a.fighter[0].points==a.fighter[1].points?-1:
         (a.fighter[0].points>a.fighter[1].points?0:1);
     for(int side=0;side<2;side++){
+        if(p.move_reward){
+            // move_start_v1: the configured native move's accepted start only.
+            a.reward[side]=a.started_move[side]==p.reward_move?p.reward_move_value:0.f;continue;
+        }
         if(p.normalized_rewards){
             // Compact contacts still do not produce a physical fall event.
-            const auto reward=rek5_normalized_reward::value(a.delta[side],a.delta[side^1],0);
+            const auto reward=rek5_normalized_reward::value(a.delta[side],a.delta[side^1],
+                p.lite.enabled?a.lite.fighter[side].events:0u);
             a.reward[side]=reward.reward;
             if(reward.saturated)++v.reward_saturations[index];
         }else a.reward[side]=rek5_round_reward::value(p.reward_mode,p.reward_gamma,
@@ -714,6 +811,9 @@ __device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactS
     if(p.rendered_observation)capture_observed_pose(p,a);
     a.delta[0]=a.delta[1]=a.hit_count=a.down_event[0]=a.down_event[1]=0;
     a.reward[0]=a.reward[1]=0;
+    a.started_move[0]=a.started_move[1]=-1;
+    if(p.lite.enabled)rek_lite_falls::begin_tick(a.lite);
+    a.both_upright=lite_upright(p,a,0)&&lite_upright(p,a,1);
     if(p.shaping_weight>0)for(int side=0;side<2;side++)previous_potential[side]=shaping_potential(v,a,side);
     int actions[2];bool bot_rows[2]={};
     for(int side=0;side<2;side++){
@@ -738,12 +838,14 @@ __device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactS
         // Native signed angle is positive-right. Native command yaw/strafe
         // are positive-left already, matching the compact command convention.
         bot_inputs[side]={hypotf(dx,dy),-angle(atan2f(dy,dx)-heading)*(180.f/PI),DT,a.elapsed,a.elapsed,
-            attacking(f),bool(other.down),bool(f.down),true};
+            attacking(f),p.lite.enabled?a.lite.fighter[side^1].phase==rek_lite_falls::Fallen:bool(other.down),
+            p.lite.enabled?false:bool(f.down),true};
     }
     if(a.reset_wait){
         if(--a.reset_wait==0){pose_reset(p,a);if(p.rendered_observation)capture_observed_pose(p,a);}
     }else{
         for(int s=0;s<2;s++){
+            if(!lite_upright(p,a,s)){hold_fighter(a.fighter[s]);if(bot_rows[s])v.actions[index*2+s]=0.f;continue;}
             if(bot_rows[s]){
                 const unsigned accepted=a.bot[s].accepted;advance_bot(p,a,s,bot_inputs[s]);
                 v.actions[index*2+s]=a.bot[s].accepted!=accepted?float(p.move_to_action[p.routes[a.fighter[s].route].move]):0.f;
@@ -780,6 +882,7 @@ __device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactS
     }
     __syncwarp();
     if(lane==0){
+    if(run_contacts)lite_falls_step(v,index,a,r);
     if(p.rendered_observation)update_observed_pose(v,a);
     for(int s=0;s<2;s++){
         const Fighter& f=a.fighter[s];
@@ -787,12 +890,17 @@ __device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactS
         r.points[s]=f.points;r.falls[s]=f.falls;
     }
     r.time_remaining_seconds=fmaxf(0,p.round_seconds-a.elapsed);r.failure_bits=a.failures;
-    bool terminal=a.elapsed>=p.round_seconds;
+    bool terminal=a.elapsed>=p.round_seconds&&!(p.lite.enabled&&rek_lite_falls::counting(a.lite.referee));
     const int winner=a.fighter[0].points==a.fighter[1].points?-1:
         (a.fighter[0].points>a.fighter[1].points?0:1);
     for(int side=0;side<2;side++){
+        if(p.move_reward){
+            // move_start_v1: the configured native move's accepted start only.
+            a.reward[side]=a.started_move[side]==p.reward_move?p.reward_move_value:0.f;continue;
+        }
         if(p.normalized_rewards){
-            const auto reward=rek5_normalized_reward::value(a.delta[side],a.delta[side^1],0);
+            const auto reward=rek5_normalized_reward::value(a.delta[side],a.delta[side^1],
+                p.lite.enabled?a.lite.fighter[side].events:0u);
             a.reward[side]=reward.reward;
             if(reward.saturated)++v.reward_saturations[index];
         }else a.reward[side]=rek5_round_reward::value(p.reward_mode,p.reward_gamma,
@@ -807,9 +915,34 @@ __device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactS
     if(terminal&&!a.failures)finish_round(v,index,a,r);
     }
 }
+// Lite falls publish the physical runtime's fall block (fields 71..85):
+// tracking, tilt, height ratio, both feet off, left/right foot, non-foot
+// contacts, reserved, phase, hold, fallen elapsed, fallen timer, grace,
+// recovery armed, tick events. Contact counts are proxies of the phase.
+__device__ float lite_fall_field(const Parameters& p,const Arena& a,int side,const Fighter& f,const FastFrame& frame,int field){
+    using namespace rek_lite_falls;const auto& s=a.lite.fighter[side];const bool fallen=s.phase==Fallen;
+    switch(field){
+        case 71:return 1;
+        case 72:{float q[4];root_quaternion(f,frame,q);
+            const float up=fminf(1.f,fmaxf(-1.f,1.f-2.f*(q[1]*q[1]+q[2]*q[2])));
+            return tilt_degrees(p.lite,s,acosf(up)*(180.f/PI));}
+        case 73:return height_ratio(p.lite,s,p.initial_qpos[2]>.0001f?frame.root_z/p.initial_qpos[2]:1.f);
+        case 74:return fallen;case 75:case 76:return fallen?0.f:1.f;case 77:return fallen?3.f:0.f;
+        case 79:return float(s.phase);
+        case 81:return fallen?float(s.ticks)*DT:0.f;
+        case 82:return fallen?fmodf(float(s.ticks)*DT,3.f):0.f;
+        case 83:return float(s.grace_ticks)*DT;
+        case 85:return float(s.events);
+    }
+    return 0;
+}
 __device__ float entity_value(const View& v,const Arena& a,int side,int field){
     const Fighter& f=a.fighter[side];const Parameters& p=*v.p;
     const FastFrame& frame=v.frames[frame_index(p,f,false)];
+    if(p.lite.enabled){
+        if(field>=2&&field<7){float q[4],z;lite_root(p,a,side,f,frame,q,z);return field==2?z:q[field-3];}
+        if(field>=71&&field<86)return lite_fall_field(p,a,side,f,frame,field);
+    }
     if(field==0)return f.x;if(field==1)return f.y;if(field==2)return frame.root_z;
     if(field>=3&&field<7){float q[4];root_quaternion(f,frame,q);return q[field-3];}
     if(field==7)return p.rendered_observation?f.observed_local[0]:cosf(f.yaw)*f.vx+sinf(f.yaw)*f.vy;
@@ -841,6 +974,17 @@ __device__ float raw_value(const View& v,int index,int side,int field){
         return 0;
     }
     int k=field-184,opponent=side^1;
+    if(v.p->lite.enabled){
+        using namespace rek_lite_falls;const auto& lite=a.lite;const bool active=counting(lite.referee);
+        switch(k){
+            case 18:return float(lite.fighter[side].classification);case 19:return float(lite.fighter[opponent].classification);
+            case 20:return float(lite.referee.count_active[side]);case 21:return float(lite.referee.count_active[opponent]);
+            case 22:return float(lite.referee.count_is_slip[side]);case 23:return float(lite.referee.count_is_slip[opponent]);
+            case 24:return active?float(lite.referee.count_ticks)*DT:0.f;case 25:return active?float(kCountTicks)*DT:0.f;
+            case 32:return float(lite.referee.calls);
+            case 35:return float(lite.fighter[side].events);case 36:return float(lite.fighter[opponent].events);
+        }
+    }
     switch(k){
         case 3:return !r.terminal&&!f.bot_controlled?rek_owned_yaw::pending_value(v.p->owned_yaw_observation,attacking(f),f.held):0.f;
         case 0:return side;case 1:return r.phase;
@@ -906,6 +1050,7 @@ __device__ void export_arena(const View& v,int index,int lane){
         for(int k=lane;k<33;k+=32){
             bool yaw_update=k==1||k==6||k==7;
             bool allowed=k==0||(!a.reset_wait&&(yaw_update||(!attacking(f)&&(k<16||settled(p,f)))));
+            if(!lite_upright(p,a,side))allowed=k==0;
             // The recovered Bot1 controller is never cadence-limited, including
             // its diagnostic side-0 override. Episode reset exports tick zero.
             int override_value=v.override_rows?v.override_rows[row]:0;
@@ -921,7 +1066,7 @@ __device__ void export_arena(const View& v,int index,int lane){
         }
         if(lane==0){
             float* q=v.qpos+index*72+side*36;float* dq=v.qvel+index*70+side*35;
-            q[0]=f.x;q[1]=f.y;q[2]=frame.root_z;root_quaternion(f,frame,q+3);
+            q[0]=f.x;q[1]=f.y;lite_root(p,a,side,f,frame,q+3,q[2]);
             dq[0]=f.vx;dq[1]=f.vy;dq[2]=dq[3]=dq[4]=0;dq[5]=f.omega;
             v.rewards[row]=a.reward[side];v.terminals[row]=r.terminal?1.f:0.f;
         }
@@ -1077,8 +1222,25 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
             throw std::runtime_error("Random reset gaps must be nonoverlapping and fit every sampled axis inside the arena");
         p.shaping_weight=environment_float("REK_FAST_SHAPING_WEIGHT",0,0,100.f);
         const char* reward=getenv("REK_FAST_REWARD");
-        if(reward&&strcmp(reward,"point_difference_v1")&&strcmp(reward,"round_outcome_v1")&&strcmp(reward,rek5_normalized_reward::kMode))
+        if(reward&&strcmp(reward,"point_difference_v1")&&strcmp(reward,"round_outcome_v1")&&strcmp(reward,rek5_normalized_reward::kMode)
+            &&strcmp(reward,"move_start_v1"))
             throw std::runtime_error("Invalid REK_FAST_REWARD");
+        p.move_reward=reward&&!strcmp(reward,"move_start_v1");
+        if(p.move_reward){
+            // Diagnostic objective: a fixed reward on each accepted start of
+            // one native move, and nothing else (no points, falls or shaping).
+            if(p.shaping_weight>0)throw std::runtime_error("move_start_v1 disables spatial shaping");
+            if(!getenv("REK_FAST_REWARD_MOVE"))throw std::runtime_error("move_start_v1 requires REK_FAST_REWARD_MOVE, a native move index 0..16");
+            const float move=environment_float("REK_FAST_REWARD_MOVE",0,0,16);
+            if(move!=floorf(move))throw std::runtime_error("REK_FAST_REWARD_MOVE must be an integer");
+            p.reward_move=int(move);p.reward_move_value=environment_float("REK_FAST_REWARD_MOVE_VALUE",.01f,-100.f,100.f);
+        }
+        const char* lite_path=getenv("REK_LITE_FALLS");
+        if(lite_path&&*lite_path){
+            const auto loaded=rek_lite_falls::load(lite_path);p.lite=loaded.model;
+            fprintf(stderr,"lite_falls={\"schema\":\"%s\",\"model_id\":\"%s\",\"file_sha256\":\"%s\",\"onset\":\"logistic_hazard_per_tick\",\"outcomes\":[\"recover\",\"fallen_quick\",\"stuck_uncounted\"],\"can_get_up\":false,\"count_seconds\":3,\"knockout_points\":5,\"double_count_restart\":true,\"reset_both_to_spawn\":true,\"spawn_grace_seconds\":2,\"hits_require_both_upright\":true,\"round_end_waits_for_count\":true,\"provenance\":%s}\n",
+                rek_lite_falls::kSchema,loaded.model_id.c_str(),loaded.file_sha256.c_str(),loaded.provenance.c_str());
+        }
         p.normalized_rewards=reward&&!strcmp(reward,rek5_normalized_reward::kMode);
         if(p.normalized_rewards&&p.shaping_weight>0)
             throw std::runtime_error("Normalized point/fall reward disables additional spatial shaping");
@@ -1124,7 +1286,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         v.actions=result->storage.alloc<float>(size_t(a)*2);v.rewards=result->storage.alloc<float>(size_t(a)*2);v.terminals=result->storage.alloc<float>(size_t(a)*2);
         fast_reset<<<(a+WARPS_PER_BLOCK-1)/WARPS_PER_BLOCK,THREADS,0,stream>>>(v);
         rek5::cuda_check(cudaGetLastError());rek5::cuda_check(cudaStreamSynchronize(stream));
-        fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
+        fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider dynamics; %s; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed,p.lite.enabled?"lite-falls fitted fall model and recovered referee":"knockdowns unmodeled");
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
         if(observable_balance)fprintf(stderr,"observable_balance={\"schema\":\"rek.native5.observable_balance.v1\",\"features\":223,\"root\":\"candidate_slider_origin_composed_clip_wxyz\",\"history\":\"preceding_50Hz_observation\",\"history_reset\":\"explicit_reset_or_episode_boundary_only\",\"joint_pose_available\":false,\"referee_available\":false,\"fall_event_source\":\"unavailable_in_compact\",\"raw_inspection_unchanged\":true,\"old_weights_compatible\":false,\"authentic_parity\":false}\n");
         if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel){
@@ -1133,20 +1295,22 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         }
         if(feature_mask.enabled)fprintf(stderr,"semantic_cuda_policy_feature_mask={\"enabled\":true,\"bytes\":223,\"sha256\":\"%s\",\"kept_features\":%d,\"raw_diagnostics_changed\":false}\n",
             feature_mask.sha256.c_str(),int(std::count(feature_mask.values.begin(),feature_mask.values.end(),uint8_t(1))));
+        if(p.move_reward)fprintf(stderr,"move_start_reward={\"mode\":\"move_start_v1\",\"native_move\":%d,\"action_category\":%d,\"value\":%.9g,\"event\":\"accepted_move_start\",\"points_reward\":false,\"fall_reward\":false,\"terminal_reward\":false}\n",
+            p.reward_move,p.move_to_action[p.reward_move],p.reward_move_value);
         fprintf(stderr,"semantic_cuda_reward={\"mode\":\"%s\",\"gamma\":%.9g,\"point_input\":\"awarded_scoreboard_points\",\"terminal_signal\":\"completed_round_only\",\"countout_is_terminal\":false,\"terminal_win\":%d,\"terminal_loss\":%d,\"terminal_draw\":0,\"potential_scale_points\":5,\"terminal_potential\":0,\"adds_balance_dynamics\":false}\n",
             p.normalized_rewards?rek5_normalized_reward::kMode:p.reward_mode==rek5_round_reward::RoundOutcome?"round_outcome_v1":"point_difference_v1",
             p.reward_gamma,p.reward_mode==rek5_round_reward::RoundOutcome?1:0,p.reward_mode==rek5_round_reward::RoundOutcome?-1:0);
         if(p.normalized_rewards)fprintf(stderr,"normalized_reward={\"scale\":0.01,\"bounds\":[-1,1],\"own_confirmed_fall\":-0.01,\"fall_event_source\":\"unavailable_in_compact\",\"terminal_bonus\":0,\"normalization\":\"fixed_scale\"}\n");
-        fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"%s\",\"contact_substeps\":%d,\"continuous_collision_detection\":false,\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"%s\",\"authentic_parity\":false}\n",
-            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.contact_velocity==rek_contact_velocity::Mode::BodyCvel?"entered_pair_kinematic_body_cvel":p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1,p.contact_entry==rek_contact_entry::Mode::GeomPair?"geom_pair_v1":"compact_per_limb_union_latch_reset_at_move_start");
+        fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"%s\",\"contact_substeps\":%d,\"continuous_collision_detection\":false,\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"%s\",\"contact_enter_model\":\"%s\",\"authentic_parity\":false}\n",
+            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.contact_velocity==rek_contact_velocity::Mode::BodyCvel?"entered_pair_kinematic_body_cvel":p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1,p.lite.enabled?"lite_falls_both_upright_gate":"constant_upright_no_balance_dynamics",p.contact_entry==rek_contact_entry::Mode::GeomPair?"geom_pair_v1":"compact_per_limb_union_latch_reset_at_move_start");
         const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};
         fprintf(stderr,"semantic_cuda_opponent={\"implementation\":\"%s\",\"replaces\":\"scripted_rows_only\",\"difficulty\":0,\"decision_hz\":50,\"native_update_fixedupdate_equivalence\":false,\"rng\":\"%s\",\"continuous_commands\":%s,\"pose_route\":\"dominant_translation_canned_proxy\",\"actuator_model\":\"compact_slider\",\"own_recovery\":\"unsupported_fail_closed\",\"server_parity\":false}\n",
             p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.recovered_bot?"candidate_private_xorshift32":"legacy_stateless_reset_hash",p.recovered_bot?"true":"false");
-        fprintf(stderr,"semantic_cuda_parameters={\"version\":4,\"scoring_mode\":\"%s\",\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":false,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":%d,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false,"
+        fprintf(stderr,"semantic_cuda_parameters={\"version\":4,\"scoring_mode\":\"%s\",\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":%s,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":%d,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false,"
             "\"target_contract\":\"%s\",\"target_count\":%d,\"legacy_target_count\":3,"
             "\"seed\":%u,\"opponent_mode\":\"%s\",\"opponent_controller\":\"%s\",\"observation_mode\":\"%s\",\"mixed_weights\":[0.25,0.25,0.25,0.25],\"random_resets\":%s,\"reset_gap_min_m\":%.9g,\"reset_gap_max_m\":%.9g,\"reset_heading_spread_rad\":%.9g,"
             "\"shaping_weight\":%.9g,\"shaping_gamma\":%.9g,\"shaping_target_m\":%.9g,\"shaping_bearing_weight\":%.9g,\"shaping_terminal_potential\":0,\"shaping_changes_points\":false}\n",
-            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?15:10,p.floor,p.half_extent[0],p.half_extent[1],
+            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.lite.enabled?"true":"false",p.recovered_scoring?15:10,p.floor,p.half_extent[0],p.half_extent[1],
             p.primitive_contacts?rek5_native_contact::TargetContract:"legacy_three_target_spheres_v1",p.primitive_contacts?rek5_native_contact::TargetCount:3,
             p.seed,modes[p.opponent_mode],p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.rendered_observation?"rendered_pose_v1":"v4_logical",p.random_resets?"true":"false",p.reset_gap_min,p.reset_gap_max,p.reset_heading_spread,
             p.shaping_weight,p.shaping_gamma,p.shaping_target,p.shaping_bearing_weight);

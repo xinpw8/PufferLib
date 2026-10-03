@@ -16,6 +16,11 @@ the experiment uses `recovered_hit_rules_v2`, `recovered_bot1_v1` and
 are in [the experiment report](validation/human-contact-20260917/RESULTS.md).
 The historical version-specific results below do not describe that new mode.
 
+Opt-in lite falls (`REK_LITE_FALLS`) add a fitted fall model and the recovered
+referee to this runtime, and `REK_FAST_REWARD=move_start_v1` adds a diagnostic
+single-move reward. See [LITE_TRAINING.md](LITE_TRAINING.md). Both are off by
+default and leave the behavior below unchanged.
+
 ## What runs
 
 Each step advances 0.02 simulated seconds. One CUDA warp owns an arena with

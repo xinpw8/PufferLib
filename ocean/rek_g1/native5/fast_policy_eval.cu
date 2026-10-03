@@ -29,6 +29,17 @@ struct Record {
     int arena,episode,policy_side,tick,duration_ticks;
     int points[2],falls[2],winner,round_result;
 };
+// Learner move starts: rising edge of the exported attack flag (raw 182) or a
+// change of attacking route (raw 179). Category = route + 9 for routes 7..23.
+__global__ void count_moves(const float* raw,const uint8_t* masks,int* previous,unsigned long long* starts,
+    unsigned long long* opportunities,int arenas,int side,int watched){
+    int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=arenas)return;
+    const size_t row=size_t(a)*2+side;const float* o=raw+row*223;
+    const int route=o[182]!=0?int(o[179]):-1;
+    if(route>=7&&route<24&&route!=previous[a])atomicAdd(starts+route+9,1ull);
+    previous[a]=route;
+    if(masks[row*33+watched])atomicAdd(opportunities,1ull);
+}
 __global__ void set_overrides(uint8_t* values,int arenas,int side){int row=blockIdx.x*blockDim.x+threadIdx.x;if(row<arenas*2)values[row]=(row%2)==side?1:2;}
 __global__ void override_round_feature(float* observations,int rows,float value){int row=blockIdx.x*blockDim.x+threadIdx.x;if(row<rows)observations[row*223+186]=value;}
 // Captured tick counter keeps timestamps correct across repeated graph launches.
@@ -90,6 +101,9 @@ int main(int argc,char** argv){
         RekNative5Buffers buffers{};buffers.observations=allocate<float>(owned,size_t(arenas)*223);buffers.actions=allocate<float>(owned,arenas);buffers.rewards=allocate<float>(owned,arenas);buffers.terminals=allocate<float>(owned,arenas);buffers.logs=allocate<RekNative5Log>(owned,arenas);buffers.log_stride_bytes=sizeof(RekNative5Log);
         RekNative5Runtime* runtime=rek_native5_create(&cfg,&buffers,stream);require(runtime,rek_native5_error());RekNative5DeviceView view{};runtime_ok(rek_native5_get_device_view(runtime,&view));
         float* encoded=allocate<float>(owned,size_t(arenas)*446);float* actions=allocate<float>(owned,size_t(arenas)*2);auto* overrides=allocate<uint8_t>(owned,size_t(arenas)*2);
+        auto* move_starts=allocate<unsigned long long>(owned,33);auto* opportunities=allocate<unsigned long long>(owned,1);auto* previous_route=allocate<int>(owned,arenas);
+        const char* watched_env=std::getenv("REK_EVAL_WATCH_ACTION");const int watched=watched_env?number_arg(watched_env,32):17;
+        require(watched>=16&&watched<=32,"REK_EVAL_WATCH_ACTION must be a move category 16..32");
         auto* records=allocate<Record>(owned,size_t(arenas)*rounds);auto* counts=allocate<int>(owned,arenas);auto* seen=allocate<unsigned long long>(owned,arenas);auto* starts=allocate<int>(owned,arenas);auto* failures=allocate<int>(owned,1);auto* device_tick=allocate<int>(owned,1);
         runtime_ok(rek_native5_bind_external_actions(runtime,actions,overrides,stream));
         RekNativePolicyConfig pc{};pc.abi_version=REK_NATIVE_POLICY_ABI;pc.checkpoint_path=argv[2];pc.expected_sha256=argv[3];pc.hidden_size=hidden;pc.num_layers=layers;pc.batch=arenas;pc.precision=precision=="bf16"?REK_NATIVE_POLICY_BF16:REK_NATIVE_POLICY_FP32;pc.seed=seed;
@@ -99,12 +113,14 @@ int main(int argc,char** argv){
         for(int side=0;side<2;side++){
             runtime_ok(rek_native5_reset(runtime,stream));policy_ok(rek_native_policy_reset(policy.get(),stream));
             cuda_ok(cudaMemsetAsync(counts,0,arenas*sizeof(int),stream));cuda_ok(cudaMemsetAsync(seen,0,arenas*sizeof(unsigned long long),stream));cuda_ok(cudaMemsetAsync(starts,0,arenas*sizeof(int),stream));cuda_ok(cudaMemsetAsync(device_tick,0,sizeof(int),stream));cuda_ok(cudaMemsetAsync(failures,0,sizeof(int),stream));
+            cuda_ok(cudaMemsetAsync(move_starts,0,33*sizeof(unsigned long long),stream));cuda_ok(cudaMemsetAsync(opportunities,0,sizeof(unsigned long long),stream));cuda_ok(cudaMemsetAsync(previous_route,0xff,arenas*sizeof(int),stream));
             set_overrides<<<(arenas*2+127)/128,128,0,stream>>>(overrides,arenas,side);cuda_ok(cudaStreamSynchronize(stream));
             constexpr int chunk=64;
-            auto step=[&](){runtime_ok(rek_native5_encode_fighter_observations(runtime,encoded,stream));if(diagnostic)override_round_feature<<<(arenas*2+127)/128,128,0,stream>>>(encoded,arenas*2,diagnostic_round);policy_ok(rek_native_policy_step_rows(policy.get(),encoded,view.action_masks,view.terminals,actions,side,2,selection=="greedy",stream));runtime_ok(rek_native5_step(runtime,stream));increment_tick<<<1,1,0,stream>>>(device_tick);collect_captured<<<(arenas+127)/128,128,0,stream>>>(view.rounds,records,counts,seen,starts,failures,arenas,rounds,side,device_tick);};
+            auto step=[&](){runtime_ok(rek_native5_encode_fighter_observations(runtime,encoded,stream));if(diagnostic)override_round_feature<<<(arenas*2+127)/128,128,0,stream>>>(encoded,arenas*2,diagnostic_round);policy_ok(rek_native_policy_step_rows(policy.get(),encoded,view.action_masks,view.terminals,actions,side,2,selection=="greedy",stream));runtime_ok(rek_native5_step(runtime,stream));count_moves<<<(arenas+127)/128,128,0,stream>>>(view.raw_observations,view.action_masks,previous_route,move_starts,opportunities,arenas,side,watched);increment_tick<<<1,1,0,stream>>>(device_tick);collect_captured<<<(arenas+127)/128,128,0,stream>>>(view.rounds,records,counts,seen,starts,failures,arenas,rounds,side,device_tick);};
             cuda_ok(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));for(int t=0;t<chunk;t++)step();cudaGraph_t graph;cuda_ok(cudaStreamEndCapture(stream,&graph));cudaGraphExec_t executable;cuda_ok(cudaGraphInstantiate(&executable,graph,0));
             auto start=std::chrono::steady_clock::now();int ticks=0;std::vector<int> host_counts(arenas);
-            const int max_ticks=int(std::ceil(cfg.round_seconds*50))*rounds+rounds+chunk;
+            // A referee count may extend a round by up to its 3 s (150 ticks).
+            const int max_ticks=(int(std::ceil(cfg.round_seconds*50))+150)*rounds+rounds+chunk;
             do {
                 cuda_ok(cudaGraphLaunch(executable,stream));ticks+=chunk;
                 cuda_ok(cudaMemcpyAsync(host_counts.data(),counts,arenas*sizeof(int),cudaMemcpyDeviceToHost,stream));cuda_ok(cudaStreamSynchronize(stream));
@@ -120,7 +136,10 @@ int main(int argc,char** argv){
                 std::fprintf(output.get(),"{\"backend\":\"semantic_cuda\",\"policy_sha256\":\"%s\",\"selection\":\"%s\",\"seed\":%d,\"arena\":%d,\"episode\":%d,\"policy_side\":%d,\"score\":[%d,%d],\"falls\":[%d,%d],\"winner\":%d,\"round_result\":%d,\"duration_ticks\":%d,\"duration_seconds\":%.9g,\"diagnostic\":%s,\"round_feature_override\":%s%s}\n",digest.c_str(),selection.c_str(),seed,r.arena,r.episode,side,r.points[0],r.points[1],r.falls[0],r.falls[1],r.winner,r.round_result,r.duration_ticks,r.duration_ticks*.02,diagnostic?"true":"false",diagnostic_json.c_str(),identity_fields.c_str());
             }
             require(std::fflush(output.get())==0,"Could not flush match records");total_wins+=wins;total_losses+=losses;total_ties+=ties;
-            std::printf("{\"event\":\"side_result\",\"policy_side\":%d,\"arenas\":%d,\"rounds_per_arena\":%d,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"points\":%lld,\"opponent_points\":%lld,\"falls\":%lld,\"opponent_falls\":%lld,\"evaluated_ticks\":%d,\"execution_wall_seconds\":%.9g}\n",side,arenas,rounds,wins,losses,ties,points,opponent_points,falls,opponent_falls,ticks,wall);std::fflush(stdout);
+            unsigned long long starts[33]{},watched_opportunities=0,all_starts=0;
+            cuda_ok(cudaMemcpy(starts,move_starts,sizeof(starts),cudaMemcpyDeviceToHost));cuda_ok(cudaMemcpy(&watched_opportunities,opportunities,sizeof(watched_opportunities),cudaMemcpyDeviceToHost));
+            std::string start_json="[";for(int k=0;k<33;k++){all_starts+=starts[k];start_json+=(k?",":"")+std::to_string(starts[k]);}start_json+="]";
+            std::printf("{\"event\":\"side_result\",\"policy_side\":%d,\"arenas\":%d,\"rounds_per_arena\":%d,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"points\":%lld,\"opponent_points\":%lld,\"falls\":%lld,\"opponent_falls\":%lld,\"evaluated_ticks\":%d,\"execution_wall_seconds\":%.9g,\"learner_move_starts_by_category\":%s,\"watched_category\":%d,\"watched_starts\":%llu,\"watched_share_of_starts\":%.9g,\"watched_opportunity_ticks\":%llu,\"watched_opportunity_use\":%.9g}\n",side,arenas,rounds,wins,losses,ties,points,opponent_points,falls,opponent_falls,ticks,wall,start_json.c_str(),watched,starts[watched],all_starts?double(starts[watched])/double(all_starts):0.0,watched_opportunities,watched_opportunities?double(starts[watched])/double(watched_opportunities):0.0);std::fflush(stdout);
             cuda_ok(cudaGraphExecDestroy(executable));cuda_ok(cudaGraphDestroy(graph));
         }
         std::printf("{\"event\":\"frozen_policy_evaluation\",\"backend\":\"semantic_cuda\",\"checkpoint_sha256\":\"%s\",\"precision\":\"%s\",\"observation_encoding\":\"scaled_polar_xy\",\"selection\":\"%s\",\"policy_rng_seed\":%d,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"win_rate\":%.9g,\"execution_wall_seconds\":%.9g,\"environment_randomizes_seed\":false,\"greedy_repeats_duplicate_fixed_fixtures\":%s,\"opponent\":\"same_runtime_GPU_scripted\",\"both_sides\":true,\"terminal_recurrent_reset\":true,\"failure_bits\":0,\"python_runtime\":false,\"cpu_physics\":false,\"training_sps\":null,\"diagnostic\":%s,\"round_feature_override\":%s%s}\n",digest.c_str(),precision.c_str(),selection.c_str(),seed,total_wins,total_losses,total_ties,double(total_wins)/double(total_wins+total_losses+total_ties),total_wall,selection=="greedy"&&mode_identity.opponent=="v4_scripted"?"true":"false",diagnostic?"true":"false",diagnostic_json.c_str(),identity_fields.c_str());

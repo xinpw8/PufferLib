@@ -7,7 +7,7 @@
 #include <string>
 
 namespace rek5_modes {
-struct Identity { std::string opponent,observation,geometry; int contact_substeps; };
+struct Identity { std::string opponent,observation,geometry; int contact_substeps; std::string lite_falls; };
 inline std::string select(const cJSON* fast,const char* field,const char* fallback,const char* alternative){
     const cJSON* value=fast?cJSON_GetObjectItemCaseSensitive(fast,field):nullptr;
     if(!value)return fallback;
@@ -28,13 +28,19 @@ inline Identity configure(const cJSON* fast){
             throw std::runtime_error("contact_substeps must be an integer in [1,16]");
         out.contact_substeps=int(samples->valuedouble);
     }
+    const cJSON* lite=fast?cJSON_GetObjectItemCaseSensitive(fast,"lite_falls_model"):nullptr;
+    if(lite){
+        if(!cJSON_IsString(lite)||!lite->valuestring||!*lite->valuestring)throw std::runtime_error("lite_falls_model must be a nonempty path");
+        out.lite_falls=lite->valuestring;
+    }
     // Explicit config, including omitted legacy fields, overrides ambient flags.
+    if(out.lite_falls.empty())unsetenv("REK_LITE_FALLS");else setenv("REK_LITE_FALLS",out.lite_falls.c_str(),1);
     setenv("REK_FAST_OPPONENT",out.opponent.c_str(),1);
     setenv("REK_FAST_OBSERVATION",out.observation.c_str(),1);
     setenv("REK_FAST_GEOMETRY",out.geometry.c_str(),1);
     setenv("REK_FAST_CONTACT_SUBSTEPS",std::to_string(out.contact_substeps).c_str(),1);
     if(out.geometry=="bounding_spheres")out.contact_substeps=0;
-    std::printf("{\"event\":\"compact_mode_identity\",\"opponent_controller\":\"%s\",\"observation_mode\":\"%s\",\"geometry_mode\":\"%s\",\"contact_substeps\":%d,\"source\":\"runtime_config\"}\n",out.opponent.c_str(),out.observation.c_str(),out.geometry.c_str(),out.contact_substeps);
+    std::printf("{\"event\":\"compact_mode_identity\",\"opponent_controller\":\"%s\",\"observation_mode\":\"%s\",\"geometry_mode\":\"%s\",\"contact_substeps\":%d,\"lite_falls\":%s,\"source\":\"runtime_config\"}\n",out.opponent.c_str(),out.observation.c_str(),out.geometry.c_str(),out.contact_substeps,out.lite_falls.empty()?"false":"true");
     return out;
 }
 inline std::string json_fields(const Identity& identity,const std::string& scoring){
@@ -42,6 +48,7 @@ inline std::string json_fields(const Identity& identity,const std::string& scori
     // validated the fixed-enumeration mode names and substep count.
     return ",\"opponent_controller\":\""+identity.opponent+"\",\"observation_mode\":\""+
         identity.observation+"\",\"scoring_mode\":\""+scoring+"\",\"geometry_mode\":\""+
-        identity.geometry+"\",\"contact_substeps\":"+std::to_string(identity.contact_substeps);
+        identity.geometry+"\",\"contact_substeps\":"+std::to_string(identity.contact_substeps)+
+        ",\"lite_falls\":"+(identity.lite_falls.empty()?"false":"true");
 }
 }
