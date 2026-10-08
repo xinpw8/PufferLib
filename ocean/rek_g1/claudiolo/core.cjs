@@ -15,6 +15,7 @@ const {MOVES, byName, heldCategory} = require('./moves.cjs');
 const DEFAULTS = Object.freeze({
   // Perception
   stillSpeed: 0.09, stillYawRate: 0.4, limbActive: 1.2, legActive: 1.2, limbQuiet: 0.8,
+  limbRel: 3.0, legRel: 2.2, baselineSeconds: 2.0, strikeStillSpeed: 0.2, lungeRange: 1.0, lungeSpeed: 99, // lunge detection off until measured in the clone
   // Geometry
   strikeMin: 0.44, strikeMax: 0.66, aimTol: 0.22, faceTol: 0.09, faceRelease: 0.035,
   tooClose: 0.42, holdDist: 0.80, standMin: 0.60, standMax: 0.76,
@@ -32,6 +33,9 @@ const DEFAULTS = Object.freeze({
   minChangeSeconds: 0.06, maxChangesPerSecond: 12, reactionDelay: 0,
 });
 
+const capped = d => Math.min(d, bot1.C.maxPunch);
+const KICK_DURATIONS = Object.freeze(MOVES.filter(m => m.kick).map(m => capped(m.duration)).sort((a, b) => a - b));
+const HAND_DURATIONS = Object.freeze(MOVES.filter(m => !m.kick).map(m => capped(m.duration)).sort((a, b) => a - b));
 const translating = held => (held >= 2 && held <= 5) || held >= 8;
 const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a <= -Math.PI) a += 2 * Math.PI; return a; };
 const DEG = 180 / Math.PI;
@@ -56,24 +60,41 @@ function perceive(f) {
 class OpponentTracker {
   constructor(p) { this.p = p; this.reset(); }
   reset() {
-    this.still = false; this.stillSince = null; this.strikeSince = null; this.strikeKick = false;
+    this.limbBase = null; this.legBase = null;
+    this.still = false; this.stillSince = null; this.strikeSince = null; this.strikeKick = false; this.strikeLunge = false;
     this.lastActive = null; this.quietSince = null; this.lastApproachT = null; this.phase = 'unknown';
   }
   update(f, P) {
     const p = this.p, t = f.t;
     const limb = f.opp.limbSpeed ?? 0, leg = f.opp.legSpeed ?? 0;
-    const active = limb > p.limbActive || leg > p.legActive;
+    // Self-calibrating thresholds: limb-speed units differ between the clone
+    // (joint-velocity proxy) and rek.exe (bone motion), and walking moves the
+    // legs. A strike must stand out from the opponent's own recent baseline.
+    const limbThreshold = Math.max(p.limbActive, p.limbRel * (this.limbBase ?? 0));
+    const legThreshold = Math.max(p.legActive, p.legRel * (this.legBase ?? 0));
+    // Canned moves run with zero locomotion, so a walking robot's swinging
+    // legs (or arms) are not a strike; this keeps walk onsets from reading as kicks.
+    const rooted = P.oppSpeed < p.strikeStillSpeed;
+    // Run-and-punch is the one canned move that drives the root: an arm swing
+    // while closing fast inside striking distance is a lunge, not a walk.
+    const lunge = P.d < p.lungeRange && P.oppApproach > p.lungeSpeed && limb > limbThreshold;
+    const limbOn = (rooted || lunge) && limb > limbThreshold, legOn = rooted && leg > legThreshold, active = limbOn || legOn;
+    if (!active && this.strikeSince === null) {
+      const k = Math.min(1, (f.dt ?? 0.02) / p.baselineSeconds);
+      this.limbBase = this.limbBase === null ? limb : this.limbBase + k * (limb - this.limbBase);
+      this.legBase = this.legBase === null ? leg : this.legBase + k * (leg - this.legBase);
+    }
     const still = P.oppSpeed < p.stillSpeed && P.oppYawRate < p.stillYawRate;
     if (still && !this.still) this.stillSince = t;
     if (!still) this.stillSince = null;
     this.still = still;
     if (P.oppApproach > 0.05) this.lastApproachT = t;
     if (active) {
-      if (this.strikeSince === null) { this.strikeSince = t; this.strikeKick = leg > p.legActive && leg >= limb; }
+      if (this.strikeSince === null) { this.strikeSince = t; this.strikeKick = legOn && (!limbOn || leg / legThreshold >= limb / limbThreshold); this.strikeLunge = lunge && !rooted; }
       this.lastActive = t; this.quietSince = null;
     } else if (this.strikeSince !== null) {
       if (this.quietSince === null) this.quietSince = t;
-      if (t - this.quietSince > 0.35 && (limb < p.limbQuiet && leg < p.limbQuiet)) { this.strikeSince = null; this.strikeKick = false; }
+      if (t - this.quietSince > 0.35 && limb < Math.max(p.limbQuiet, 0.7 * limbThreshold) && leg < Math.max(p.limbQuiet, 0.7 * legThreshold)) { this.strikeSince = null; this.strikeKick = false; }
     }
     const inCone = Math.abs(P.botAngle) < bot1.C.facing, near = P.d <= bot1.C.stop + 0.3 + 0.04;
     if (this.strikeSince !== null) this.phase = 'striking';
@@ -95,12 +116,14 @@ class OpponentTracker {
     if (this.strikeKick) return age < this.p.kickDanger;
     return age < this.p.handDanger || (this.lastActive !== null && t - this.lastActive < 0.12);
   }
-  // Rough lower bound on how long the opponent stays committed to its strike.
+  // Conservative remaining commitment: the shortest move in the matching pool
+  // (kicks or hand moves, 50 Hz table, attack phase capped at 3 s) that is
+  // still consistent with how long the strike has already lasted.
   committedFor(t) {
     if (this.strikeSince === null) return 0;
-    const age = t - this.strikeSince;
-    const minTotal = this.strikeKick ? 2.7 : 0.5; // shortest kick 2.78 s, shortest hand move 0.54 s
-    return Math.max(0, minTotal - age) + this.p.oppRecovery;
+    const age = t - this.strikeSince, pool = this.strikeKick ? KICK_DURATIONS : HAND_DURATIONS;
+    const left = pool.filter(d => d > age).reduce((m, d) => Math.min(m, d - age), Infinity);
+    return (Number.isFinite(left) ? left : 0.1) + this.p.oppRecovery;
   }
 }
 
@@ -207,6 +230,7 @@ class Claudiolo {
     const key = `${frame.round.number}`;
     if (key !== this.roundKey) { this.roundKey = key; this.resetRound(); }
     const f = this.delayed(frame), p = this.p, t = frame.t;
+    f.dt = this.lastT === undefined ? 0.02 : Math.min(0.2, Math.max(0.001, t - this.lastT)); this.lastT = t;
     if (!f.round.active || f.me.down || f.opp.down) {
       this.tracker.reset(); this.note('inactive');
       return this.gov.emit(t, {translate: null, yaw: 0}, frame.mask);
@@ -251,6 +275,8 @@ class Claudiolo {
     // While its strike is still live and could reach us, get out first.
     if (committed > 0) {
       const live = T.dangerNow(t), reach = T.strikeKick ? p.oppKickReach + p.kickMargin : p.oppHandReach;
+      // A lunge (run-and-punch) out-runs a backpedal: step off its line instead.
+      if (live && T.strikeLunge && P.d < reach + 0.3) return go('D', 'sidestep_lunge');
       if (live && P.d < reach && cone < bot1.C.facing + 15) return go('S', T.strikeKick ? 'evade_kick' : 'evade_hands');
       if (inRange && aimed) return strike(committed >= p.longMoveMinRemaining && p.punishLongMove ? p.long : p.primary, 'punish');
       if (aimed && P.d > p.strikeMax && committed > p.stepInTime && !live) return go('W', 'step_in');
