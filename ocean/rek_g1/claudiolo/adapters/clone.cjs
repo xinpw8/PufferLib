@@ -96,9 +96,11 @@ async function play({bin, config, env, args = null, rounds = 10, out, params = {
   const w = new Worker(bin, config, env, args);
   const ready = await w.readyPromise; log('ready', ready);
   if (policy) {
-    const r = await w.request({op: 'policy', side: 1 - humanSide, checkpoint: policy.path, sha256: policy.sha256,
-      deterministic: !policy.sampled, hiddenSize: 256, layers: 2, precision: policy.precision || 'bf16'});
-    log('policy_loaded', {sha256: r.sha256});
+    // Either a full native policy command (league registry fields) or a bare checkpoint.
+    const command = policy.command ? {...policy.command, side: 1 - humanSide} : {side: 1 - humanSide, checkpoint: policy.path,
+      sha256: policy.sha256, deterministic: !policy.sampled, hiddenSize: 256, layers: 2, precision: policy.precision || 'bf16'};
+    const r = await w.request({op: 'policy', ...command});
+    log('policy_loaded', {sha256: r.sha256, side: command.side});
   }
   let reply = await w.request({op: 'reset'});
   let state = reply.state, prev = null, held = 1, ctl = controller(params), done = 0, ticks = 0;
@@ -133,7 +135,7 @@ async function play({bin, config, env, args = null, rounds = 10, out, params = {
     losses: results.filter(r => r.outcome === 'loss').length, draws: results.filter(r => r.outcome === 'draw').length,
     pointsFor: results.reduce((a, r) => a + r.points[0], 0), pointsAgainst: results.reduce((a, r) => a + r.points[1], 0),
     fallsOwn: results.reduce((a, r) => a + r.falls[0], 0), fallsOpp: results.reduce((a, r) => a + r.falls[1], 0),
-    humanSide, policy: policy ? {sha256: policy.sha256, sampled: !!policy.sampled} : null, params};
+    humanSide, policy: policy ? {sha256: policy.sha256 || policy.command?.sha256, sampled: policy.command ? policy.command.deterministic === false : !!policy.sampled} : null, params};
   fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(summary, null, 2) + '\n');
   return summary;
 }
