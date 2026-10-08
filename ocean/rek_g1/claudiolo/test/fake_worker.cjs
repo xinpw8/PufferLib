@@ -30,16 +30,22 @@ function state() {
     winner: round.points[0] > round.points[1] ? 0 : round.points[1] > round.points[0] ? 1 : -1,
     roundResult: round.points[0] === round.points[1] ? 3 : 1, failure: null};
 }
-function step(command, humanSide) {
-  if (humanSide !== 0) throw new Error('fake worker supports humanSide 0');
-  const held = heldCategory(command.forward, command.strafe, command.yaw);
-  round.applyCategory(0, held);
-  feedback = [{}, {}];
+function apply(side, command) {
+  round.applyCategory(side, heldCategory(command.forward, command.strafe, command.yaw));
   if (command.moveIndex >= 0) {
-    const r = round.applyCategory(0, MOVE_TO_CATEGORY[command.moveIndex]);
-    feedback[0] = {attempted: 1, accepted: r.applied ? 1 : 0, rejected: r.applied ? 0 : 1};
+    const r = round.applyCategory(side, MOVE_TO_CATEGORY[command.moveIndex]);
+    feedback[side] = {attempted: 1, accepted: r.applied ? 1 : 0, rejected: r.applied ? 0 : 1};
   }
-  round.stepBot();
+}
+function step(command, humanSide, pair) {
+  if (humanSide !== 0) throw new Error('fake worker supports humanSide 0');
+  feedback = [{}, {}];
+  if (pair) { round.opponent = 'humans'; apply(0, pair[0]); apply(1, pair[1]); }
+  else {
+    apply(0, command);
+    const before = round.bot.accepted; round.stepBot();
+    if (round.bot.accepted > before) feedback[1] = {attempted: 1, accepted: 1};
+  }
   for (let i = 0; i < 2; i++) round.integrate(i, round.command(i));
   round.collide(); round.strikes_(); round.resolveCount();
   round.t += round.phys.dt; tick++;
@@ -54,7 +60,8 @@ readline.createInterface({input: process.stdin}).on('line', line => {
     else if (c.op === 'step') {
       const rounds = [];
       for (let k = 0; k < (c.steps || 1); k++) {
-        step(k ? {...c.command, moveIndex: -1} : c.command, c.humanSide || 0);
+        const strip = x => ({...x, moveIndex: -1});
+        step(c.command && (k ? strip(c.command) : c.command), c.humanSide || 0, c.commands && (k ? c.commands.map(strip) : c.commands));
         if (round.over) { const s = state(); completed++; s.completedRounds = completed; rounds.push(s); fresh(); break; }
       }
       reply.rounds = rounds;
