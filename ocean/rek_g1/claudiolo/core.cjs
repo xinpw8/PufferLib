@@ -26,7 +26,7 @@ const DEFAULTS = Object.freeze({
   // Tactics
   preempt: true, evade: true, punishLongMove: true, longMoveMinRemaining: 1.2,
   kiteLead: 6, kiteTime: 25, kiteDist: 1.15,
-  idleApproachAfter: 2.0,
+  idleApproachAfter: 2.0, learn: true, learnMinHits: 6, kickDanger: 1.45, handDanger: 0.45, kickMargin: 0.06,
   primary: 'double_uppercut', fast: 'left_jab', long: 'six_punch',
   // Governor (human-legal input)
   minChangeSeconds: 0.06, maxChangesPerSecond: 12, reactionDelay: 0,
@@ -88,12 +88,46 @@ class OpponentTracker {
     if (this.phase !== 'settling' || this.stillSince === null) return Infinity;
     return Math.max(0, this.stillSince + this.p.settleTime - t);
   }
+  // Is the opponent's strike still in its hitting phase?
+  dangerNow(t) {
+    if (this.strikeSince === null) return false;
+    const age = t - this.strikeSince;
+    if (this.strikeKick) return age < this.p.kickDanger;
+    return age < this.p.handDanger || (this.lastActive !== null && t - this.lastActive < 0.12);
+  }
   // Rough lower bound on how long the opponent stays committed to its strike.
   committedFor(t) {
     if (this.strikeSince === null) return 0;
     const age = t - this.strikeSince;
     const minTotal = this.strikeKick ? 2.7 : 0.5; // shortest kick 2.78 s, shortest hand move 0.54 s
     return Math.max(0, minTotal - age) + this.p.oppRecovery;
+  }
+}
+
+// Online spacing: both robots are the same G1 with the same moves, so every
+// scored strike (ours or theirs) is evidence of the real reach. Claudiolo
+// starts from its priors and shifts its ranges toward what actually scores.
+class SpacingLearner {
+  constructor(p) { this.p = p; this.hits = []; this.attempts = []; this.history = []; this.last = null; }
+  observe(f, P, pendingMove) {
+    const t = f.t;
+    this.history.push({t, d: P.d}); while (this.history.length && this.history[0].t < t - 1.5) this.history.shift();
+    if (this.last && f.points) {
+      const dMe = f.points[0] - this.last[0], dOpp = f.points[1] - this.last[1];
+      const closest = (w) => this.history.filter(h => h.t >= t - w).reduce((m, h) => Math.min(m, h.d), Infinity);
+      if (dOpp > 0 && dOpp % 5 !== 0) this.hits.push({who: 'opp', d: closest(0.3), t, kick: dOpp % 2 === 0});
+      if (dMe > 0 && dMe % 5 !== 0) {
+        this.hits.push({who: 'me', d: closest(0.3), t});
+        if (pendingMove) pendingMove.scored = true;
+      }
+    }
+    this.last = f.points ? [...f.points] : null;
+  }
+  reach(kick = false) {
+    const hs = this.hits.filter(h => kick ? h.kick : !h.kick);
+    if (hs.length < (kick ? 2 : this.p.learnMinHits)) return null;
+    const ds = hs.map(h => h.d).filter(Number.isFinite).sort((a, b) => a - b);
+    return ds[Math.min(ds.length - 1, Math.floor(0.9 * ds.length))];
   }
 }
 
@@ -143,6 +177,7 @@ class Governor {
 class Claudiolo {
   constructor(params = {}) {
     this.p = {...DEFAULTS, ...params};
+    this.base = {...this.p}; this.learner = new SpacingLearner(this.p);
     this.tracker = new OpponentTracker(this.p); this.gov = new Governor(this.p);
     this.frames = []; this.lockUntil = -Infinity; this.lastMove = null; this.lastMoveT = -Infinity;
     this.roundKey = null; this.turning = 0; this.stats = {decisions: 0, strikes: {}, reasons: {}};
@@ -177,6 +212,8 @@ class Claudiolo {
       return this.gov.emit(t, {translate: null, yaw: 0}, frame.mask);
     }
     const P = perceive(f), T = this.tracker.update(f, P);
+    this.learner.observe(f, P, t < this.lockUntil ? this.pending : null);
+    if (p.learn) this.adapt();
     const yaw = this.faceYaw(P);
     const lead = f.points[0] - f.points[1];
 
@@ -211,9 +248,12 @@ class Claudiolo {
     const go = (translate, why) => { this.note(why); return this.gov.emit(t, {translate, yaw}, frame.mask); };
 
     // 3. Punish: the opponent is locked in a canned move and cannot step or turn.
+    // While its strike is still live and could reach us, get out first.
     if (committed > 0) {
+      const live = T.dangerNow(t), reach = T.strikeKick ? p.oppKickReach + p.kickMargin : p.oppHandReach;
+      if (live && P.d < reach && cone < bot1.C.facing + 15) return go('S', T.strikeKick ? 'evade_kick' : 'evade_hands');
       if (inRange && aimed) return strike(committed >= p.longMoveMinRemaining && p.punishLongMove ? p.long : p.primary, 'punish');
-      if (aimed && P.d > p.strikeMax && committed > p.stepInTime && !theyReachHands) return go('W', 'step_in');
+      if (aimed && P.d > p.strikeMax && committed > p.stepInTime && !live) return go('W', 'step_in');
       if (P.d < p.strikeMin) return go('S', 'make_room');
       return go(null, 'watch_commit');
     }
@@ -252,10 +292,23 @@ class Claudiolo {
 
   translatingHeld() { return translating(this.gov.held); }
 
+  adapt() {
+    const q = this.learner.reach(); if (q === null) return;
+    const b = this.base, p = this.p, clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+    // Shrink toward the prior: evidence weight n/(n+8) over the prior reach.
+    const n = this.learner.hits.filter(h => !h.kick).length, w = n / (n + 8), prior = b.strikeMax + 0.01;
+    const r = prior + w * (q - prior);
+    p.strikeMax = clamp(r - 0.01, b.strikeMax - 0.08, b.strikeMax + 0.10);
+    p.oppHandReach = clamp(r + 0.03, b.oppHandReach - 0.08, b.oppHandReach + 0.12);
+    p.standMin = clamp(p.strikeMax - 0.06, b.standMin - 0.08, b.standMin + 0.10);
+    p.standMax = clamp(r + 0.08, b.standMax - 0.06, b.standMax + 0.12);
+    const k = this.learner.reach(true); if (k !== null) p.oppKickReach = clamp(k + 0.02, b.oppKickReach - 0.06, b.oppKickReach + 0.12);
+  }
+
   onSent(move, t) {
     const m = byName(move);
     this.lockUntil = t + m.duration + this.p.ownRecovery + this.p.latency;
-    this.lastMove = move; this.lastMoveT = t;
+    this.lastMove = move; this.lastMoveT = t; this.pending = {move, t, scored: false};
     this.stats.strikes[move] = (this.stats.strikes[move] || 0) + 1;
   }
 
@@ -273,4 +326,4 @@ function controller(params) {
   return fn;
 }
 
-module.exports = {DEFAULTS, translating, Claudiolo, OpponentTracker, Governor, perceive, controller, wrap};
+module.exports = {DEFAULTS, translating, SpacingLearner, Claudiolo, OpponentTracker, Governor, perceive, controller, wrap};
