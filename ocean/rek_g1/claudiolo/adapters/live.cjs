@@ -68,8 +68,13 @@ class LiveFramer {
         leg = Math.max(rel(L.leftFoot ?? -1), rel(L.rightFoot ?? -1));
       }
       const v = this.vel[k];
-      const down = !!(f.falling || f.fallen || f.resetting || f.motor_shutdown) || (Number.isFinite(f.tilt_angle) && f.tilt_angle > 50);
-      return {x, y, yaw, vx: v.vx, vy: v.vy, wz: v.wz, down, limbSpeed: limb, legSpeed: leg};
+      // Visual-only clients left fallen flags false in the 2026-09-24 runs:
+      // also use the replicated pose (body tilt) and the received referee count.
+      const q = f.root_rotation_xyzw, upY = 1 - 2 * (q[0] * q[0] + q[2] * q[2]);
+      const tilt = Math.acos(Math.max(-1, Math.min(1, upY)));
+      const ref = src.referee, countActive = !!(ref && ref.available === true && ref[`slot${slot}_count_active`] === true);
+      const down = !!(f.falling || f.fallen || f.resetting || f.motor_shutdown) || tilt > 0.9 || countActive;
+      return {x, y, yaw, vx: v.vx, vy: v.vy, wz: v.wz, down, tilt, limbSpeed: limb, legSpeed: leg};
     };
     const r = src.round || {};
     const out = {

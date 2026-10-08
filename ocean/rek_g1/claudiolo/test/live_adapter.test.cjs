@@ -49,3 +49,13 @@ test('limb speed from bone motion relative to the root', () => {
   assert.ok(Math.abs(f.me.limbSpeed - 3) < 1e-6, `limb ${f.me.limbSpeed}`);
   assert.strictEqual(f.opp.limbSpeed, 0);
 });
+
+test('falls come from tilt or the referee count when flags stay false', () => {
+  const fr = new LiveFramer();
+  const tipped = fighter([0.6, 0.3, 0], [0.7071, 0, 0, 0.7071]); // 90 deg about x
+  let f = fr.frame(source(10, fighter([0, 0.8, 0], [0, 0, 0, 1]), tipped));
+  assert.strictEqual(f.opp.down, true); assert.strictEqual(f.me.down, false);
+  f = fr.frame(source(10.02, fighter([0, 0.8, 0], [0, 0, 0, 1]), fighter([0.6, 0.8, 0], [0, 1, 0, 0]),
+    {referee: {available: true, slot0_count_active: true, slot1_count_active: false}}));
+  assert.strictEqual(f.me.down, true); assert.strictEqual(f.opp.down, false);
+});

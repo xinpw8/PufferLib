@@ -12,5 +12,6 @@ const WORLDS = Object.freeze({
   stingy: {handAccept: 0.30, kickAccept: 0.18},
   slippery: {pushSelf: 3.5, pushOther: 0.6, kickSelfFall: 0.3},
   sticky: {pushSelf: 0.9, pushOther: 0.15, kickSelfFall: 0.1},
+  telemetry25: {controlEvery: 2, obsDelay: 0.06, actDelay: 0.06},
 });
 module.exports = {WORLDS};

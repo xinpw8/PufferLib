@@ -37,6 +37,7 @@ const DEFAULT_PHYS = Object.freeze({
   runPunchSpeed: 0.45,                             // root drive during run_and_punch, m/s
   countSeconds: 3.0, graceSeconds: 2.0,
   obsDelay: 0.04, actDelay: 0.04,                  // one-way delays, s
+  controlEvery: 1,                                 // controller sees every k-th tick (2 = 25 Hz telemetry)
   spawnHalf: 0.9,
 });
 
@@ -255,7 +256,7 @@ class Round {
     for (let n = 0; n < steps && !this.over; n++) {
       this.obsQueue.push(this.observe(0));
       const obs = this.obsQueue.length > obsLag ? this.obsQueue.shift() : null;
-      if (obs) this.actQueue.push(controller(obs));
+      if (obs) this.actQueue.push(n % p.controlEvery === 0 ? controller(obs) : 0);
       if (this.actQueue.length > actLag) {
         const category = this.actQueue.shift();
         const result = this.applyCategory(0, category);

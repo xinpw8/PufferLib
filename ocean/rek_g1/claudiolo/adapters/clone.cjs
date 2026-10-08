@@ -130,7 +130,7 @@ async function play({bin, config, env, args = null, rounds = 10, out, params = {
     }
     if (state.failure) throw new Error(`worker failure: ${state.failure}`);
   }
-  w.close(); roundsFile.end();
+  w.close(); await new Promise(resolve => roundsFile.end(resolve));
   const summary = {rounds: results.length, wins: results.filter(r => r.outcome === 'win').length,
     losses: results.filter(r => r.outcome === 'loss').length, draws: results.filter(r => r.outcome === 'draw').length,
     pointsFor: results.reduce((a, r) => a + r.points[0], 0), pointsAgainst: results.reduce((a, r) => a + r.points[1], 0),
