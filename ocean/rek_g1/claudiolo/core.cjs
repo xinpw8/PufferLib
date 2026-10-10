@@ -19,7 +19,7 @@ const DEFAULTS = Object.freeze({
   // Geometry
   strikeMin: 0.44, strikeMax: 0.66, aimTol: 0.22, faceTol: 0.09, faceRelease: 0.035,
   tooClose: 0.42, holdDist: 0.80, standMin: 0.60, standMax: 0.76,
-  oppHandReach: 0.70, oppKickReach: 0.80, evadeLead: 0.22, stepInTime: 0.7, strikeOnApproach: true,
+  oppHandReach: 0.70, oppKickReach: 0.80, evadeLead: 0.22, evadeDepth: 0, stepInTime: 0.7, strikeOnApproach: true,
   sideTargetDeg: 9, sideTolDeg: 5, sideEnable: true, sideMaxDist: 0.95,
   // Timing (seconds)
   latency: 0.06, settleTime: bot1.C.settleTime, preemptMargin: 0.04, minOppImpact: 0.15,
@@ -293,7 +293,7 @@ class Claudiolo {
         if (!theyReachHands || first + p.preemptMargin < theirImpact) return strike(p.primary, 'preempt');
         if (fast + p.preemptMargin < theirImpact) return strike(p.fast, 'preempt');
       }
-      if (p.evade && theyReachHands && swingIn < p.evadeLead) return go('S', 'evade');
+      if (p.evade && theyReachHands && P.d < p.oppHandReach - p.evadeDepth && swingIn < p.evadeLead) return go('S', 'evade');
       return go(null, 'watch_settle');
     }
 

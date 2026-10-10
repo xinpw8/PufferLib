@@ -6,9 +6,11 @@
 // browser keyboard sends. The other side is the worker's internal opponent
 // (recovered Bot 1 when configured) or a GPT checkpoint loaded with op:"policy".
 //
-//   node adapters/clone.cjs --worker BIN --config WORKER.json --rounds 20 --out DIR
+//   node adapters/clone.cjs --worker BIN --config WORKER.json --env ENV.json --rounds 20 --out DIR
 //        [--policy CKPT --sha256 HEX [--sampled]] [--params P.json] [--human-side 0]
 //        [--max-ticks N]
+// WORKER.json / ENV.json: the native clone's tools/worker-template.json and tools/env.json
+// (REK_PHYSICAL_OPPONENT=recovered_bot1_g1_v1, 120 s rounds, match mode).
 //
 // Writes DIR/rounds.jsonl (one line per completed round) and DIR/summary.json.
 
@@ -150,7 +152,9 @@ if (require.main === module) {
   const a = parseArgs(process.argv.slice(2));
   if (!a.worker || !a.config || !a.out) { console.error('usage: clone.cjs --worker BIN --config JSON --out DIR [--rounds N] [--policy CKPT --sha256 HEX] [--params JSON]'); process.exit(2); }
   const params = a.params ? JSON.parse(fs.readFileSync(a.params, 'utf8')) : {};
-  play({bin: a.worker, config: a.config, out: a.out, rounds: +(a.rounds || 10), params, humanSide: +(a['human-side'] || 0),
+  // --env takes the clone's tools/env.json (physics backend, recovered Bot 1 opponent, match mode).
+  const env = a.env ? JSON.parse(fs.readFileSync(a.env, 'utf8')) : {};
+  play({bin: a.worker, config: a.config, env, out: a.out, rounds: +(a.rounds || 10), params, humanSide: +(a['human-side'] || 0),
     policy: a.policy ? {path: a.policy, sha256: a.sha256, sampled: !!a.sampled} : null, maxTicks: +(a['max-ticks'] || 2e6),
     log: (e, d) => console.log(JSON.stringify({event: e, ...d}))})
     .then(s => console.log(JSON.stringify({event: 'summary', ...s})))
